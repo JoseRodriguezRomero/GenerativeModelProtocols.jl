@@ -1,0 +1,28 @@
+name = "GenerativeModelProtocols"
+uuid = "a0057f27-f638-4fe0-93cd-51391adb8eb4"
+authors = ["Jose Romero <jrodriguesro@umass.edu>"]
+version = "0.1.0"
+
+[deps]
+DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
+Flux = "587475ba-b771-5e3f-ad9e-33799f191a9c"
+Functors = "d9f16b24-f501-4c13-a1f2-28368ffc5196"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
+Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[weakdeps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+cuDNN = "02a925ec-e4fe-4b08-9a7e-0d78e3d38ccd"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
+HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+
+[extensions]
+GenerativeModelProtocol_FileIO = "FileIO"
+GenerativeModelProtocol_CSV = ["FileIO", "CSV"]
+GenerativeModelProtocol_HDF5 = ["FileIO", "HDF5"]
+
