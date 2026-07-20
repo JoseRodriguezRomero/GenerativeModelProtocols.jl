@@ -1,9 +1,42 @@
 # GenerativeModelProtocols.jl
 
-A Julia library featuring commonly used generative models designed for ease of 
-use and maintainability. The framework encapsulates various 
-architectures as `AbstractGenerativeModel` objects under a unified protocol. 
-Built on [`Flux.jl`](https://github.com/FluxML/Flux.jl), the library ensures a 
-user-friendly experience, high maintainability, and robust GPU acceleration.
+A unified Julia framework for building, training, and deploying generative 
+models. 
 
+This library wraps diverse architectures into a consistent 
+`AbstractGenerativeModel` interface. Built on top of 
+[`Flux.jl`](https://github.com), it delivers a developer-friendly experience 
+with native GPU acceleration and maintainable code.
+
+## Key Features
+
+* **Unified Interface**: Standardized protocol for all generative architectures.
+* **Flux Ecosystem**: Seamless integration with modern Flux.jl neural networks.
+* **Hardware Accelerated**: Out-of-the-box support for execution on GPUs.
+* **Model Persistence**: Built-in serialization mechanisms to save and 
+resume workflows.
+
+## Storage & Serialization
+
+The package supports saving and loading trained model states for sharing and 
+reuse. 
+
+To keep the core package lightweight, serialization is handled via package 
+extensions. Loading [`FileIO.jl`](https://github.com) and 
+[`HDF5.jl`](https://github.com) in your environment automatically enables the 
+[HDF5](https://hdfgroup.org) storage backend.
+
+## Supported Architectures
+
+While the library includes built-in implementations of popular generative 
+models, it is built for extensibility. You can easily integrate custom 
+architectures by subtyping the `AbstractGenerativeModel` interface and 
+implementing the required protocol methods.
+
+The currently built-in generative model architectures are:
+
+* (Hierarchical) [Variational Autoencoders](https://arxiv.org/abs/1312.6114)
+* [Diffusion Models](https://arxiv.org/abs/1503.03585)
+* [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)
+* [Normalizing Flows](https://arxiv.org/abs/1505.05770)
 
