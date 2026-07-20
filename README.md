@@ -22,9 +22,9 @@ The package supports saving and loading trained model states for sharing and
 reuse. 
 
 To keep the core package lightweight, serialization is handled via package 
-extensions. Loading [`FileIO.jl`](https://github.com) and 
-[`HDF5.jl`](https://github.com) in your environment automatically enables the 
-[HDF5](https://hdfgroup.org) storage backend.
+extensions. Loading [`FileIO.jl`](https://github.com/juliaio/fileio.jl) and 
+[`HDF5.jl`](https://github.com/JuliaIO/HDF5.jl) in your environment 
+automatically enables the [HDF5](https://hdfgroup.org) storage backend.
 
 ## Supported Architectures
 
@@ -39,4 +39,3 @@ The currently built-in generative model architectures are:
 * [Diffusion Models](https://arxiv.org/abs/1503.03585)
 * [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)
 * [Normalizing Flows](https://arxiv.org/abs/1505.05770)
-
