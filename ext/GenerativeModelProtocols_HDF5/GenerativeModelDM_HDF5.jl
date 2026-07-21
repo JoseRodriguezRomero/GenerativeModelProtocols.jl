@@ -7,8 +7,8 @@ function GenerativeModelProtocols.load_diffusion_model_parameters(file::FileIO.F
         denoiser_group = diffusion_model_parameters_group["denoiser"]
 
         denoiser = GenerativeModelProtocols.ChainParameters(read_group_layer_parameters(denoiser_group))
-        β = diffusion_model_parameters_group["beta"]
-        T = diffusion_model_parameters_group["T"]
+        β = HDF5.attrs(diffusion_model_parameters_group)["beta"]
+        T = HDF5.attrs(diffusion_model_parameters_group)["T"]
 
         return GenerativeModelProtocols.DiffusionModelParameters(T, β, denoiser)
     end

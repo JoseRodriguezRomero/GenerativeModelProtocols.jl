@@ -65,10 +65,10 @@ end
 function DiffusionModel(saved_model::Any)
     diffusion_model_parameters = load_diffusion_model_parameters(saved_model)
 
-    return VariationalAutoencoder(
+    return DiffusionModel(
         diffusion_model_parameters.T,
         diffusion_model_parameters.β,
-        layer_parameters(diffusion_model_parameters.denoiser_model)
+        Chain([layer_parameters(layer) for layer in diffusion_model_parameters.denoiser_model.layers]...)
     )
 end
 
@@ -116,7 +116,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
 
             loss, grads = Flux.withgradient(model_train_device) do m
                 ϵ_pred = m.denoiser_model(xₜ)
-                Flux.Losses.mse(ϵ_pred, ϵ_true) / (loader_length_device * size(x₀,2))
+                Flux.Losses.mse(ϵ_pred, ϵ_true) / loader_length_device
             end
 
             raw_gradient_arrays = Optimisers.trainables(grads[1])
@@ -143,8 +143,9 @@ end
 
 function _eval(protocol::GenerativeModelProtocol, model::DiffusionModel, n_samples::Int)
     x = randn(Float64,n_samples,size(protocol.training_data,1))
+    x = collect(transpose(x))
 
-    for t in protocol.T:-1:1
+    for t in model.T:-1:1
         ϵ_pred = model.denoiser_model(x)
         βₜ = model.β[t]
         αₜ = model.α[t]
@@ -162,7 +163,7 @@ function _eval(protocol::GenerativeModelProtocol, model::DiffusionModel, n_sampl
         end
     end
 
-    return x
+    return collect(transpose(x))
 end
 
 struct DiffusionModelParameters
