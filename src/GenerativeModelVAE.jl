@@ -20,7 +20,7 @@ function default_encoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 3
     ) |> f64
 end
 
-function default_encoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)
+function default_encoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)::Tuple{Vararg{Chain}}
     encoders = Vector{Chain}(undef, latent_layers)
     encoders[1] = default_encoder_final_network(num_inputs, latent_dim, hidden_layer_size)
 
@@ -53,7 +53,7 @@ function default_decoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 3
     ) |> f64
 end
 
-function default_decoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)
+function default_decoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)::Tuple{Vararg{Chain}}
     decoders = Vector{Chain}(undef, latent_layers)
     decoders[1] = default_decoder_final_network(num_inputs, latent_dim, hidden_layer_size)
 
@@ -164,7 +164,9 @@ function VariationalAutoencoder(saved_model::Any; β::Union{Float64,Vector{Float
         decoders[i] = Chain([layer_parameters(layer) for layer in autoencoder_parameters.decoders[i].layers]...)
     end
 
-    return VariationalAutoencoder(; 
+    return VariationalAutoencoder(;
+        latent_dim = size(decoders[1][1].weight)[2], 
+        latent_layers = length(decoders),
         encoders = Tuple(encoders), 
         decoders = Tuple(decoders),
         β = β
@@ -333,7 +335,7 @@ function decode(model::VariationalAutoencoder, z)
         z = sample_latent(dec_out[1:model.latent_dim], exp.(dec_out[(model.latent_dim+1):end] .* 0.5f0))
     end
 
-    return protocol.decoders[1](z) |> protocol.device
+    return model.decoders[1](z)
 end
 
 function encode(model::VariationalAutoencoder, x)
@@ -355,7 +357,7 @@ function _eval(protocol::GenerativeModelProtocol, model::VariationalAutoencoder,
     sim_log = zeros(Float64,n_samples,window_size)
 
     for i in 1:n_samples
-        z = rand(Normal(0.0,1.0),model.latent_dim)
+        z = randn(model.latent_dim)
         sim_log[i,:] = decode(model,z)
     end
 
