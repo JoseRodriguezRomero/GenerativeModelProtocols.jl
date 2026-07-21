@@ -1,4 +1,4 @@
-module GenerativeModelProtocol_HDF5
+module GenerativeModelProtocols_HDF5
 
 import GenerativeModelProtocols
 import FileIO, HDF5

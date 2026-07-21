@@ -1,4 +1,4 @@
-module GenerativeModelProtocol_FileIO
+module GenerativeModelProtocols_FileIO
 
 import GenerativeModelProtocols
 import FileIO
@@ -24,6 +24,20 @@ function GenerativeModelProtocols._save(file_name::String, model::GenerativeMode
     GenerativeModelProtocols._save(FileIO.query(file_name), model; main_group_name = main_group_name, generative_model_group_name = generative_model_group_name)
 end
 
+"""
+    FileIO.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol; main_group_name::String, metadata_group_name::String, generative_model_group_name::String, metadata::Union{Dict{String,Any}, NamedTuple, Nothing})
+    
+Convenience function for saving already trained generative models. End users can
+use this convenience function the exact same way regardless of the generative 
+model architecture.
+
+# Arguments
+* `main_group_name::String`:
+* `metadata_group_name::String`:
+* `generative_model_group_name::String`:
+* `metadata::Union{Dict{String,Any}, NamedTuple, Nothing}`:
+
+"""
 function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol; 
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
