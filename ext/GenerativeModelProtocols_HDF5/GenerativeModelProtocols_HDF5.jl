@@ -74,8 +74,8 @@ function read_group_layer_parameters(chain_group)
     return layers
 end
 
-include("GenerativeModelVAE_HDF5.jl")
-include("GenerativeModelDM_HDF5.jl")
+include("diffusion_model_HDF5.jl")
+include("variational_autoencoder_HDF5.jl")
 
 end
 

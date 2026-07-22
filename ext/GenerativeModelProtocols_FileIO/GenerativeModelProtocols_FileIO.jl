@@ -48,8 +48,8 @@ function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.Gener
     GenerativeModelProtocols._save_metadata(file_name, protocol; main_group_name = main_group_name, metadata_group_name = metadata_group_name, metadata = metadata)
 end
 
-include("GenerativeModelVAE_FileIO.jl")
-include("GenerativeModelDM_FileIO.jl")
+include("diffusion_model_FileIO.jl")
+include("variational_autoencoder_FileIO.jl")
 
 end
 

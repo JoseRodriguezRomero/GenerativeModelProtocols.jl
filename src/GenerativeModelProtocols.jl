@@ -251,8 +251,8 @@ function _save(file::Any, model::AbstractGenerativeModel;
     throw(ArgumentError("Types $(typeof(file)) and $(typeof(model)) do not implement the required `_save` interface."))
 end
 
-include("GenerativeModelVAE.jl")
-include("GenerativeModelDM.jl")
+include("diffusion_model.jl")
+include("variational_autoencoder.jl")
 
 end
 
