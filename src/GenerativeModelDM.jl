@@ -1,10 +1,10 @@
 function default_denoiser_network(num_inputs::Int, hidden_layer_size::Int = 32)
     return Chain(
-        Dense(num_inputs, hidden_layer_size, swish), 
-        Dense(hidden_layer_size, hidden_layer_size, swish),
-        Dense(hidden_layer_size, hidden_layer_size, swish),
-        Dense(hidden_layer_size, hidden_layer_size, swish),
-        Dense(hidden_layer_size, hidden_layer_size, swish),
+        Dense(num_inputs => hidden_layer_size, relu), 
+        Dense(hidden_layer_size => hidden_layer_size, relu),
+        Dense(hidden_layer_size => hidden_layer_size, relu),
+        Dense(hidden_layer_size => hidden_layer_size, relu),
+        Dense(hidden_layer_size => hidden_layer_size, relu),
         Dense(hidden_layer_size => num_inputs)
     ) |> f64
 end
