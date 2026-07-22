@@ -21,6 +21,14 @@ makedocs(;
     pages = [
         "Home" => "index.md",
         "API" => "api.md",
+        "Generative Models" => [
+            "Variational Autoencoders" => "generative_models/variational_autoencoders.md",
+            "Diffusion Models" => "generative_models/diffusion_models.md"
+        ],
+        "Examples" => [
+            "Variational Autoencoders" => "examples/variational_autoencoders.md",
+            "Diffusion Models" => "examples/diffusion_models.md"
+        ]
     ],
 )
 
