@@ -145,6 +145,34 @@ function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_laye
     )
 end
 
+function Base.display(model::VariationalAutoencoder)
+    print_padding = "   "
+    println("GenerativeModelProtocols.VariationalAutoencoder:")
+    println("β             = $(model.β)")
+    println("latent_dim    = $(model.latent_dim)")
+    println("latent_layers = $(model.latent_layers)")
+    println("")
+
+    function print_chains(chains)
+        for i in eachindex(chains)
+            println(print_padding * "Chain(")
+            for layer in chains[i]
+                print(print_padding * print_padding)
+                println(layer)
+            end
+            println(print_padding * ")")
+        end
+    end
+
+    println("encoders: ")
+    print_chains(model.encoders)
+    println("")
+
+    println("decoders: ")
+    print_chains(model.decoders)
+
+end
+
 function load_variational_autoencoder_parameters(saved_model::Any;
     main_group_name::String = @default_main_group_name,
     generative_model_group_name::String = @default_generative_model_group_name)

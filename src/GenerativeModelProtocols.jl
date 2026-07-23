@@ -105,6 +105,7 @@ end
     diffusion_model                 = 1
     generative_adversarial_network  = 2
     normalizing_flow                = 3
+    gaussian_mixture_model          = 4
 end
 
 function _generative_model(model::AbstractGenerativeModel)::GenerativeModel
@@ -249,6 +250,25 @@ function _save(file::Any, model::AbstractGenerativeModel;
     main_group_name::String = @default_main_group_name,
     generative_model_group_name::String = @default_generative_model_group_name)
     throw(ArgumentError("Types $(typeof(file)) and $(typeof(model)) do not implement the required `_save` interface."))
+end
+
+function Base.display(protocol::GenerativeModelProtocol)
+    device_flag_map = Dict(
+        variational_autoencoder         => "VariationalAutoencoder",
+        diffusion_model                 => "DiffusionModel",
+        generative_adversarial_network  => "GenerativeAdversationNetwork",
+        normalizing_flow                => "NormalizingFlow",
+        gaussian_mixture_model          => "GaussianMixtureModel"
+    )
+
+    println("GenerativeModelProtocol:")
+    println("training_data = $(size(protocol.training_data,1))×$(size(protocol.training_data,2)) Matrix{Float64}")
+    println("epochs        = $(protocol.epochs)")
+    println("batchsize     = $(protocol.batchsize)")
+    println("shuffle       = $(protocol.shuffle)")
+    println("optimiser     = $(protocol.optimiser)")
+    println("device        = $(nameof(protocol.device))")
+    println("model         = $(device_flag_map[_generative_model(protocol.model)])")
 end
 
 include("diffusion_model.jl")
