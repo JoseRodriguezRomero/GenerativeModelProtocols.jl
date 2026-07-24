@@ -36,6 +36,7 @@ implementing the required protocol methods.
 The currently built-in generative model architectures are:
 
 * (Hierarchical) [Variational Autoencoders](https://arxiv.org/abs/1312.6114)
+* [Gaussian Mixture Models](https://link.springer.com/rwe/10.1007/978-0-387-73003-5_196)
 * [Diffusion Models](https://arxiv.org/abs/1503.03585)
 * [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)
 * [Normalizing Flows](https://arxiv.org/abs/1505.05770)

@@ -1,5 +1,6 @@
 using GenerativeModelProtocols
 using Documenter
+using DocumenterCitations
 
 DocMeta.setdocmeta!(
     GenerativeModelProtocols, 
@@ -8,7 +9,13 @@ DocMeta.setdocmeta!(
     recursive = true
 )
 
+bib = CitationBibliography(
+    joinpath(@__DIR__, "src", "refs.bib"); 
+    style=:numeric # Options: :numeric, :authoryear, or :alphabetic
+)
+
 makedocs(;
+    plugins=[bib],
     modules = [GenerativeModelProtocols],
     authors = "José Romero <jrodriguesro@umass.edu>",
     repo = "https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/blob/{commit}{path}#{line}",
@@ -17,6 +24,7 @@ makedocs(;
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://JoseRodriguezRomero.github.io/GenerativeModelProtocols.jl",
         edit_link = "main",
+        assets=String["assets/citations.css"], 
     ),
     pages = [
         "Home" => "index.md",
@@ -26,8 +34,7 @@ makedocs(;
             "Diffusion Models" => "generative_models/diffusion_models.md"
         ],
         "Examples" => [
-            "Variational Autoencoders" => "examples/variational_autoencoders.md",
-            "Diffusion Models" => "examples/diffusion_models.md"
+            "Getting Started" => "examples/getting_started.md"
         ]
     ],
 )
