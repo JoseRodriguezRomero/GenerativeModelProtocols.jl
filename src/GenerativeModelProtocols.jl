@@ -47,6 +47,12 @@ $TYPEDFIELDS
     _log::TrainingLog = TrainingLog()
 end
 
+"""
+    GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwargs...) where {M<:AbstractGenerativeModel}
+
+Convenience constructor to create a `GenerativeModelProtocol` with default 
+training parameters, optimiser and compute device.
+"""
 function GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwargs...) where {M<:AbstractGenerativeModel}
     return GenerativeModelProtocol{M}(;
         training_data = training_data,
@@ -69,6 +75,12 @@ function clean_logged_data!(log::TrainingLog, epochs::Int)
     clean_logged_data!(log.loss_grad_norm, epochs)
 end
 
+"""
+    train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
+
+Method to train the model inside `protocol` with its `training_data`. This 
+method can be called again after it finishes to resume training.
+"""
 function train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
     clean_logged_data!(protocol._log, protocol.epochs)
     _train!(protocol, protocol.model; print_log = print_log)

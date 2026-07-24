@@ -100,6 +100,8 @@ function compatible_vae_model(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Va
     return true
 end
 
+public VariationalAutoencoder
+
 """
 $TYPEDEF
 
@@ -122,6 +124,16 @@ $TYPEDFIELDS
     β::Union{Float64,Vector{Float64}} = 1.0
 end
 
+"""
+    VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}}; β::Union{Float64,Vector{Float64}} = 1.0)
+
+Convenience constructor to create a `VariationalAutoencoder`.
+
+Builds the VAE using user-defined encoder and decoder architectures. Validates 
+structural compatibility between the two networks and raises a `MethodError` if 
+they cannot be linked. The user is responsible for ensuring the architectures 
+align structurally.
+"""
 function VariationalAutoencoder(
     encoders::Tuple{Vararg{Chain}},
     decoders::Tuple{Vararg{Chain}};
@@ -141,6 +153,11 @@ function VariationalAutoencoder(
     )
 end
 
+"""
+    VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1; β::Union{Float64,Vector{Float64}} = 1.0)
+
+Convenience constructor that generates a `VariationalAutoencoder` using default encoder and decoder network architectures.
+"""
 function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1; β::Union{Float64,Vector{Float64}} = 1.0)
     return VariationalAutoencoder(
         default_encoder_network(input_dim, latent_dim, latent_layers),
@@ -359,6 +376,13 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     return _train!(protocol, model, model.β; print_log = print_log)
 end
 
+public decode
+
+"""
+    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z)
+
+Decodes the latent space representations `z` back into the data space.
+"""
 function decode(model::VariationalAutoencoder, z)
     num_latent_layers = length(model.decoders)
 
@@ -370,6 +394,13 @@ function decode(model::VariationalAutoencoder, z)
     return model.decoders[1](z)
 end
 
+public encode
+
+"""
+    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x)
+
+Encodes the data space variable `x` into a latent space variable.
+"""
 function encode(model::VariationalAutoencoder, x)
     num_latent_layers = length(model.encoders)
 

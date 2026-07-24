@@ -9,6 +9,8 @@ function default_denoiser_network(num_inputs::Int, hidden_layer_size::Int = 32)
     ) |> f64
 end
 
+public DiffusionModel
+
 """
 $TYPEDEF
 

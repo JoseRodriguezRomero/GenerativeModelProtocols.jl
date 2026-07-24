@@ -1,3 +1,4 @@
+using Flux
 using GenerativeModelProtocols
 using Documenter
 using DocumenterCitations
@@ -34,8 +35,11 @@ makedocs(;
             "Diffusion Models" => "generative_models/diffusion_models.md"
         ],
         "Examples" => [
-            "Getting Started" => "examples/getting_started.md"
-        ]
+            "Getting Started" => [
+                "Variational Autoencoder" => "examples/getting_started/vae/getting_started.md"
+            ],
+            "Saving and Loading Models" => "examples/save_load/save_load.md"
+        ],
     ],
 )
 
