@@ -32,6 +32,7 @@ makedocs(;
         "API" => "api.md",
         "Generative Models" => [
             "Variational Autoencoders" => "generative_models/variational_autoencoders.md",
+            "Gaussian Mixture Models" => "generative_models/gaussian_mixture_models.md",
             "Diffusion Models" => "generative_models/diffusion_models.md"
         ],
         "Examples" => [

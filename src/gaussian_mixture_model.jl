@@ -52,7 +52,7 @@ end
 function Base.display(model::GaussianMixtureModel)
     print_padding = @_default_print_padding
     println("GenerativeModelProtocols.GaussianMixtureModel:")
-    println("k      = $(model.β)")
+    println("k      = $(model.k)")
     println("μ      = $(size(model.μ,1))×$(size(model.μ,2)) Matrix{Float64}")
     println("log_σ² = $(size(model.log_σ²,1))×$(size(model.log_σ²,2)) Matrix{Float64}")
     println("")
@@ -80,5 +80,151 @@ end
 
 function _generative_model(::GaussianMixtureModel)::GenerativeModel
     return gaussian_mixture_model
+end
+
+function log_gaussian_pdf_matrix(X::AbstractMatrix{Float64}, μ::AbstractMatrix{Float64}, log_σ²::AbstractMatrix{Float64})
+    D = size(X, 1)
+    K = size(μ, 1)
+    
+    X_3d = reshape(X, D, 1, :)
+    μ_3d = reshape(transpose(μ), D, K, 1)
+    inv_σ²_3d = reshape(transpose(exp.(-log_σ²)), D, K, 1)
+    log_det_3d = reshape(sum(log_σ², dims=2), 1, K, 1) 
+    
+    diff = X_3d .- μ_3d                                
+    mahalanobis = sum((diff .^ 2) .* inv_σ²_3d, dims=1) 
+    
+    log_P = dropdims(-0.5 .* (D * log(2π) .+ log_det_3d .+ mahalanobis), dims=1)
+    
+    return log_P
+end
+
+function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel; print_log::Bool = true)
+    model_train_device = model |> protocol.device
+    opt_state = Flux.setup(protocol.optimiser, model_train_device.predictor_network)
+    batchsize_device = protocol.batchsize |> protocol.device
+    training_data_device = Float64.(protocol.training_data) |> protocol.device
+    
+    K = model_train_device.k
+
+    local loader
+
+    if print_log; println("Training GMM via Global EM...") end
+    for epoch in 1:protocol.epochs
+        epoch_loss = 0f0
+        total_grad_norm = 0f0
+
+        π_network_all = softmax(model_train_device.predictor_network(training_data_device), dims=1) 
+        log_P_all = log_gaussian_pdf_matrix(training_data_device, model_train_device.μ, model_train_device.log_σ²) 
+        
+        log_joint_all = log.(π_network_all .+ 1e-12) .+ log_P_all 
+        
+        max_log = maximum(log_joint_all, dims=1)          
+        sum_exp = sum(exp.(log_joint_all .- max_log), dims=1) 
+        log_total = max_log .+ log.(sum_exp)          
+        
+        γ_all = exp.(log_joint_all .- log_total)
+        epoch_loss = -sum(log_total)
+
+        N_k = sum(γ_all, dims=2) 
+        N_k_stable = N_k .+ 1e-12 
+        
+        model_train_device.μ .= (γ_all * transpose(training_data_device)) ./ N_k_stable
+        
+        X_3d = reshape(training_data_device, size(training_data_device, 1), 1, :)
+        μ_3d = reshape(transpose(model_train_device.μ), size(training_data_device, 1), K, 1)
+        γ_3d = reshape(γ_all, 1, K, :)
+        
+        diff_sq = (X_3d .- μ_3d) .^ 2 
+        variance_matrix = dropdims(sum(γ_3d .* diff_sq, dims=3), dims=3) ./ transpose(N_k_stable)
+        
+        variance_matrix .= max.(variance_matrix, 0.0025)
+        model_train_device.log_σ² .= transpose(log.(variance_matrix))
+
+        if epoch == 1 || (epoch % 100 == 0 && protocol.shuffle)
+            loader_data = protocol.shuffle ? shuffleobs((training_data_device, γ_all)) : (training_data_device, γ_all)
+            
+            loader = Flux.DataLoader(
+                loader_data, 
+                batchsize = batchsize_device, 
+                shuffle = false,
+                parallel = true
+            )
+        end
+
+        for (x_batch, γ_batch) in loader
+            _, grads = Flux.withgradient(model_train_device.predictor_network) do net
+                pred = net(x_batch)
+                Flux.Losses.logitcrossentropy(pred, γ_batch)
+            end
+
+            raw_gradient_arrays = Optimisers.trainables(grads)
+            batch_grad_norm = sqrt(sum(sum(abs2, g) for g in raw_gradient_arrays if g isa AbstractArray))
+
+            Flux.update!(opt_state, model_train_device.predictor_network, grads[1])
+            total_grad_norm += batch_grad_norm
+        end
+
+        protocol._log.loss[epoch] = epoch_loss
+        protocol._log.loss_grad_norm[epoch] = total_grad_norm / length(loader)
+
+        if epoch % 5 == 0 || epoch == 1
+            average_loss = protocol._log.loss[epoch]
+            average_grad_norm = protocol._log.loss_grad_norm[epoch]
+            if print_log
+                @printf("Epoch %8d | Negative Log-Likelihood: %16.8e | Grad Norm: %16.8e \n", epoch, average_loss, average_grad_norm)
+            end
+        end
+    end
+    if print_log; println("Training complete!") end
+
+    Flux.loadmodel!(model.μ, model_train_device.μ)
+    Flux.loadmodel!(model.log_σ², model_train_device.log_σ²)
+    Flux.loadmodel!(model.predictor_network, model_train_device.predictor_network)
+
+    return protocol._log
+end
+
+function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n_samples::Int)
+    device = protocol.device
+    K = model.k
+    
+    D = size(model.μ, 2)
+    
+    X_query = (4.0 .* rand(Float64, D, n_samples)) .- 2.0
+    X_dev = device(X_query)
+    
+    π_network = cpu_device()(softmax(model.predictor_network(X_dev), dims=1))
+    
+    sampled_clusters = zeros(Int, n_samples)
+    r_vals = rand(Float64, n_samples)
+    
+    for i in 1:n_samples
+        cum_p = cumsum(π_network[:, i])
+        cum_p ./= cum_p[end]
+        sampled_clusters[i] = searchsortedfirst(cum_p, r_vals[i])
+    end
+    
+    μ_cpu = cpu_device()(model.μ)
+    log_σ²_cpu = cpu_device()(model.log_σ²)
+    σ_cpu = exp.(0.5 .* log_σ²_cpu)
+    
+    synthetic_X = zeros(Float64, D, n_samples)
+    
+    for k in 1:K
+        idx = findall(x -> x == k, sampled_clusters)
+        n_k = length(idx)
+        
+        if n_k > 0
+            noise = randn(Float64, D, n_k)
+            
+            μ_k = reshape(μ_cpu[k, :], D, 1)
+            σ_k = reshape(σ_cpu[k, :], D, 1)
+            
+            synthetic_X[:, idx] .= μ_k .+ (σ_k .* noise)
+        end
+    end
+    
+    return collect(transpose(synthetic_X))
 end
 
