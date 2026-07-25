@@ -2,7 +2,7 @@ macro _vae_default_activation_function()
     return relu
 end
 
-function default_encoder_final_network(num_inputs::Int, latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+function _vae_default_encoder_final_network(num_inputs::Int, latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
     return Chain(
         Dense(num_inputs => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -13,7 +13,7 @@ function default_encoder_final_network(num_inputs::Int, latent_dim::Int, hidden_
     ) |> f64
 end
 
-function default_encoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+function _vae_default_encoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
     return Chain(
         Dense(latent_dim => hidden_layer_size, activation_function), 
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -24,18 +24,18 @@ function default_encoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 3
     ) |> f64
 end
 
-function default_encoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)::Tuple{Vararg{Chain}}
+function _vae_default_encoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)::Tuple{Vararg{Chain}}
     encoders = Vector{Chain}(undef, latent_layers)
-    encoders[1] = default_encoder_final_network(num_inputs, latent_dim, hidden_layer_size)
+    encoders[1] = _vae_default_encoder_final_network(num_inputs, latent_dim, hidden_layer_size)
 
     if latent_layers > 1
-        encoders[2:end] = [default_encoder_mid_network(latent_dim, hidden_layer_size) for _ in 1:(latent_layers-1)]
+        encoders[2:end] = [_vae_default_encoder_mid_network(latent_dim, hidden_layer_size) for _ in 1:(latent_layers-1)]
     end
 
     return Tuple(encoders)
 end
 
-function default_decoder_final_network(num_inputs::Int, latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+function _vae_default_decoder_final_network(num_inputs::Int, latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
     return Chain(
         Dense(latent_dim => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -46,7 +46,7 @@ function default_decoder_final_network(num_inputs::Int, latent_dim::Int, hidden_
     ) |> f64
 end
 
-function default_decoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+function _vae_default_decoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
     return Chain(
         Dense(latent_dim => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -57,12 +57,12 @@ function default_decoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 3
     ) |> f64
 end
 
-function default_decoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)::Tuple{Vararg{Chain}}
+function _vae_default_decoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, hidden_layer_size::Int = 32)::Tuple{Vararg{Chain}}
     decoders = Vector{Chain}(undef, latent_layers)
-    decoders[1] = default_decoder_final_network(num_inputs, latent_dim, hidden_layer_size)
+    decoders[1] = _vae_default_decoder_final_network(num_inputs, latent_dim, hidden_layer_size)
 
     if latent_layers > 1
-        decoders[2:end] = [default_decoder_mid_network(latent_dim, hidden_layer_size) for _ in 1:(latent_layers-1)]
+        decoders[2:end] = [_vae_default_decoder_mid_network(latent_dim, hidden_layer_size) for _ in 1:(latent_layers-1)]
     end
 
     return Tuple(decoders)
@@ -125,9 +125,10 @@ $TYPEDFIELDS
 end
 
 """
-    VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}}; β::Union{Float64,Vector{Float64}} = 1.0)
+    GenerativeModelProtocols.VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}}; β::Union{Float64,Vector{Float64}} = 1.0)
 
-Convenience constructor to create a `VariationalAutoencoder`.
+Convenience constructor to create a 
+`GenerativeModelProtocols.VariationalAutoencoder`.
 
 Builds the VAE using user-defined encoder and decoder architectures. Validates 
 structural compatibility between the two networks and raises a `MethodError` if 
@@ -154,44 +155,34 @@ function VariationalAutoencoder(
 end
 
 """
-    VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1; β::Union{Float64,Vector{Float64}} = 1.0)
+    GenerativeModelProtocols.VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1; β::Union{Float64,Vector{Float64}} = 1.0)
 
-Convenience constructor that generates a `VariationalAutoencoder` using default encoder and decoder network architectures.
+Convenience constructor that generates a 
+`GenerativeModelProtocols.VariationalAutoencoder` using default encoder and 
+decoder network architectures.
 """
 function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1; β::Union{Float64,Vector{Float64}} = 1.0)
     return VariationalAutoencoder(
-        default_encoder_network(input_dim, latent_dim, latent_layers),
-        default_decoder_network(input_dim, latent_dim, latent_layers);
+        _vae_default_encoder_network(input_dim, latent_dim, latent_layers),
+        _vae_default_decoder_network(input_dim, latent_dim, latent_layers);
         β = β
     )
 end
 
 function Base.display(model::VariationalAutoencoder)
-    print_padding = "   "
+    print_padding = @_default_print_padding
     println("GenerativeModelProtocols.VariationalAutoencoder:")
     println("β             = $(model.β)")
     println("latent_dim    = $(model.latent_dim)")
     println("latent_layers = $(model.latent_layers)")
     println("")
 
-    function print_chains(chains)
-        for i in eachindex(chains)
-            println(print_padding * "Chain(")
-            for layer in chains[i]
-                print(print_padding * print_padding)
-                println(layer)
-            end
-            println(print_padding * ")")
-        end
-    end
-
     println("encoders: ")
-    print_chains(model.encoders)
+    _print_chains(model.encoders, print_padding)
     println("")
 
     println("decoders: ")
-    print_chains(model.decoders)
-
+    _print_chains(model.decoders, print_padding)
 end
 
 function load_variational_autoencoder_parameters(saved_model::Any;
@@ -221,8 +212,6 @@ function VariationalAutoencoder(saved_model::Any; β::Union{Float64,Vector{Float
         β = β
     )
 end
-
-Functors.@functor VariationalAutoencoder (encoders, decoders)
 
 function _generative_model(::VariationalAutoencoder)::GenerativeModel
     return variational_autoencoder

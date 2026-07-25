@@ -208,6 +208,15 @@ spearman_corr = corspearman(z_test_data[1,:],z_test_data[2,:])
 the resulting correlations, visible in the illustration above, are close enough 
 to zero to confirm that the latent variables are effectively independent.
 
+## Source code
+
+The scripts used to create and train the VAE, and to produce all the plots shown 
+in this page are included in the `examples` folder of this module.
+```bash
+cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/vae_example
+julia intro_example.jl
+```
+
 ## References
 ```@bibliography
 Pages = [@__FILE__]

@@ -4,7 +4,6 @@ using Flux
 using Printf
 using Zygote
 using MLUtils
-using Functors
 using StatsBase
 using LinearAlgebra
 using DocStringExtensions
@@ -264,6 +263,29 @@ function _save(file::Any, model::AbstractGenerativeModel;
     throw(ArgumentError("Types $(typeof(file)) and $(typeof(model)) do not implement the required `_save` interface."))
 end
 
+macro _default_print_padding()
+    return "   "
+end
+
+function _print_chains(chains::Tuple{Chain}, print_padding = @_default_print_padding)
+    for i in eachindex(chains)
+        println(print_padding * "Chain(")
+        for layer in chains[i]
+            print(print_padding * print_padding)
+            println(layer)
+        end
+        println(print_padding * ")")
+    end
+end
+
+function _print_chains(chains::Vector{Chain}, print_padding = @_default_print_padding)
+    _print_chains(Tuple(chains), print_padding)
+end
+
+function _print_chains(chain::Chain, print_padding)
+    _print_chains((chain,), print_padding)
+end
+
 function Base.display(protocol::GenerativeModelProtocol)
     device_flag_map = Dict(
         variational_autoencoder         => "VariationalAutoencoder",
@@ -284,6 +306,7 @@ function Base.display(protocol::GenerativeModelProtocol)
 end
 
 include("diffusion_model.jl")
+include("gaussian_mixture_model.jl")
 include("variational_autoencoder.jl")
 
 end

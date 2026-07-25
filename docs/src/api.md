@@ -16,6 +16,7 @@ Pages = ["api.md"]
 GenerativeModelProtocol
 GenerativeModelProtocols.VariationalAutoencoder
 GenerativeModelProtocols.DiffusionModel
+GenerativeModelProtocols.GaussianMixtureModel
 ```
 
 # Methods
@@ -30,4 +31,5 @@ GenerativeModelProtocols.decode(::GenerativeModelProtocols.VariationalAutoencode
 GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{Float64})
 GenerativeModelProtocols.VariationalAutoencoder(::Int, ::Int, ::Int)
 GenerativeModelProtocols.VariationalAutoencoder(::Tuple{Vararg{Chain}}, ::Tuple{Vararg{Chain}})
+GenerativeModelProtocols.GaussianMixtureModel(::Int, ::Int)
 ```

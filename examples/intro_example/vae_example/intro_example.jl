@@ -33,7 +33,7 @@ p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
 p2 = scatter(synthetic_data[:,1], synthetic_data[:,2], title="Synthetic data", label=false,frame=:box)
 
 p = plot(p1,p2; layout=(2,1))
-savefig(p, "examples/intro_example/intro_example.svg")
+savefig(p, "intro_example.svg")
 
 ## Test reconstruction
 x_test, y_test = make_data(800)
@@ -43,7 +43,7 @@ recon_test_data = GenerativeModelProtocols.decode(model,z_test_data)
 
 p = scatter(x_test, y_test, label="input",frame=:box)
 scatter!(recon_test_data[1,:], recon_test_data[2,:], label="reconstruction", frame=:box, legend = :top)
-savefig(p, "examples/intro_example/intro_example_recon.svg")
+savefig(p, "intro_example_recon.svg")
 
 ## Test latent space
 x_test, y_test = make_data(10000)
@@ -68,7 +68,7 @@ plot!(xlabel="Latent variable")
 plot_reference_gaussian!()
 
 p = plot(p1,p2, layout=(2,1))
-savefig(p, "examples/intro_example/intro_example_latents.svg")
+savefig(p, "intro_example_latents.svg")
 
 ## Test latent space independence
 using StatsBase, Plots.PlotMeasures
@@ -80,4 +80,4 @@ p = scatter(z_test_data[1,:],z_test_data[2,:], label = false, frame=:box)
 plot!(xlabel="z₁", ylabel="z₂")
 plot!(title="pearson_corr = $(round(pearson_corr,digits=4))\nspearman_corr = $(round(spearman_corr,digits=4))")
 plot!(top_margin = 5mm)
-savefig(p, "examples/intro_example/intro_example_latents_corr.svg")
+savefig(p, "intro_example_latents_corr.svg")
