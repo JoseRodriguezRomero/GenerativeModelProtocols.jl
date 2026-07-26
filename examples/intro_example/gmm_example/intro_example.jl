@@ -14,7 +14,7 @@ function make_data(num_samples)
     return x, y
 end
 
-num_samples = 2000
+num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 
@@ -23,8 +23,8 @@ models = [GenerativeModelProtocols.GaussianMixtureModel(2, ki) for ki in k]
 protocols = [
     GenerativeModelProtocol(model, train_data;
         batchsize = 256,
-        epochs = 2500,
-        optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
+        epochs = 4500,
+        optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
         device = cpu_device()
     )
     for model in models
@@ -44,10 +44,9 @@ p2 = scatter(synthetic_data_1[:,1], synthetic_data_1[:,2], title="Synthetic data
 p3 = scatter(synthetic_data_2[:,1], synthetic_data_2[:,2], title="Synthetic data (k = $(k[2]))", label=false,frame=:box)
 p4 = scatter(synthetic_data_3[:,1], synthetic_data_3[:,2], title="Synthetic data (k = $(k[3]))", label=false,frame=:box)
 p = plot(p1,p2,p3,p4; layout=(2,2), size=(900, 600))
-
+savefig(p, "intro_example.svg")
 
 ## Compare Distributions
-
 function plot_model_density(protocol)
     data = protocol(100000)
     
@@ -55,8 +54,6 @@ function plot_model_density(protocol)
         bins=(200,200),
         show_empty_bins=true,
         title="GMM PDF (k = $(protocol.model.k))\n2D Histogram",
-        xlabel="X",
-        ylabel="Y",
         xlims=(-1.1,1.1),
         ylims=(-1.1,1.1),
         fillcolor=:viridis,
@@ -74,9 +71,7 @@ function plot_real_density()
     fig = histogram2d(x_test, y_test,
         bins=(200,200),
         show_empty_bins=true,
-        title="Validation Data PDF\n2D Histogram",
-        xlabel="X",
-        ylabel="Y",
+        title="Exact Data PDF\n2D Histogram",
         xlims=(-1.1,1.1),
         ylims=(-1.1,1.1),
         fillcolor=:viridis,
@@ -92,5 +87,6 @@ p1 = plot_real_density()
 p2 = plot_model_density(protocols[1])
 p3 = plot_model_density(protocols[2])
 p4 = plot_model_density(protocols[3])
-p = plot(p1, p2, p3, p4; layout = (2,2), size = (700, 600))
+p = plot(p1, p2, p3, p4; layout = (2,2), size = (900, 800))
+savefig(p, "intro_example_density_comp.svg")
 

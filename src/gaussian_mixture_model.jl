@@ -117,7 +117,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         π_network_all = softmax(model_train_device.predictor_network(training_data_device), dims=1) 
         log_P_all = log_gaussian_pdf_matrix(training_data_device, model_train_device.μ, model_train_device.log_σ²) 
         
-        log_joint_all = log.(π_network_all .+ 1e-12) .+ log_P_all 
+        log_joint_all = log.(π_network_all .+ 1.0E-8) .+ log_P_all 
         
         max_log = maximum(log_joint_all, dims=1)          
         sum_exp = sum(exp.(log_joint_all .- max_log), dims=1) 
@@ -127,7 +127,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         epoch_loss = -sum(log_total)
 
         N_k = sum(γ_all, dims=2) 
-        N_k_stable = N_k .+ 1e-12 
+        N_k_stable = N_k .+ 1.0E-8
         
         model_train_device.μ .= (γ_all * transpose(training_data_device)) ./ N_k_stable
         

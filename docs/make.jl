@@ -38,6 +38,7 @@ makedocs(;
         "Examples" => [
             "Getting Started" => [
                 "Variational Autoencoder" => "examples/getting_started/vae/getting_started.md"
+                "Gaussian Mixture Model" => "examples/getting_started/gmm/getting_started.md"
             ],
             "Saving and Loading Models" => "examples/save_load/save_load.md"
         ],

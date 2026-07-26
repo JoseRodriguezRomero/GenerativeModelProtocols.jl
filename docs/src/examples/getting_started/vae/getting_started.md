@@ -26,7 +26,7 @@ function make_data(num_samples)
     return x, y
 end
 
-num_samples = 2000
+num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 ```
@@ -38,8 +38,8 @@ model = GenerativeModelProtocols.VariationalAutoencoder(2, 2; β = 0.05)
 thus, our trainable generative model protocol is defined, and trained, as
 ```julia
 protocol = GenerativeModelProtocol(model, train_data;
-    batchsize   = 128,
-    epochs      = 500,
+    batchsize   = 256,
+    epochs      = 4500,
     optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
     device      = cpu_device()
 )
