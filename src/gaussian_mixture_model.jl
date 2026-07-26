@@ -16,9 +16,8 @@ end
 """
 $TYPEDEF
 
-A structure containing the general parameters needed to evaluate and train 
-a Gaussian Mixture Model (GMM). Once trained, it can be used a generative 
-model.
+A structure containing the general parameters needed to evaluate and train a 
+Gaussian Mixture Model (GMM). Once trained, it can be used a generative model.
 
 $TYPEDFIELDS
 """
@@ -49,6 +48,24 @@ function GaussianMixtureModel(input_size::Int, k::Int)
     )
 end
 
+function load_gaussian_mixture_parameters(saved_model::Any;
+    main_group_name::String = @default_main_group_name,
+    generative_model_group_name::String = @default_generative_model_group_name)
+    throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_gaussian_mixture_parameters` interface."))
+end
+
+function GaussianMixtureModel(saved_model::Any)
+    gaussian_mixture_parameters = load_gaussian_mixture_parameters(saved_model)
+    predictor_network = Chain([layer_parameters(layer) for layer in gaussian_mixture_parameters.predictor_network.layers])
+
+    return GaussianMixtureModel(;
+        k                   = gaussian_mixture_parameters.k,
+        log_σ²              = gaussian_mixture_parameters.log_σ²,
+        μ                   = gaussian_mixture_parameters.μ,
+        predictor_network   = predictor_network
+    )
+end
+
 function Base.display(model::GaussianMixtureModel)
     print_padding = @_default_print_padding
     println("GenerativeModelProtocols.GaussianMixtureModel:")
@@ -70,12 +87,6 @@ function Base.display(model::GaussianMixtureModel)
 
     println("predictor_network: ")
     _print_chains(model.predictor_network, print_padding)
-end
-
-function load_gaussian_mixture_parameters(saved_model::Any;
-    main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
-    throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_gaussian_mixture_parameters` interface."))
 end
 
 function _generative_model(::GaussianMixtureModel)::GenerativeModel
