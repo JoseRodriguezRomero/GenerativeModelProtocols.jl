@@ -81,7 +81,7 @@ structures that users can need. We can easily read the configuration of
 julia> protocols[1]
 GenerativeModelProtocol:
 training_data = 2×2000 Matrix{Float64}
-epochs        = 2500
+epochs        = 500
 batchsize     = 256
 shuffle       = true
 optimiser     = Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8)
@@ -96,6 +96,7 @@ GenerativeModelProtocols.GaussianMixtureModel:
 k      = 15
 μ      = 15×2 Matrix{Float64}
 log_σ² = 15×2 Matrix{Float64}
+p      = 15-element Vector{Float64}
 
 predictor_network: 
    Chain(

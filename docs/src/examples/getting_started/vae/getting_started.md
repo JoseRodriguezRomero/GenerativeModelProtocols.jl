@@ -39,7 +39,7 @@ thus, our trainable generative model protocol is defined, and trained, as
 ```julia
 protocol = GenerativeModelProtocol(model, train_data;
     batchsize   = 256,
-    epochs      = 4500,
+    epochs      = 500,
     optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
     device      = cpu_device()
 )

@@ -49,6 +49,7 @@ function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.Gener
 end
 
 include("diffusion_model_FileIO.jl")
+include("gaussian_mixture_model_FileIO.jl")
 include("variational_autoencoder_FileIO.jl")
 
 end

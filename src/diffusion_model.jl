@@ -64,8 +64,14 @@ function load_diffusion_model_parameters(saved_model::Any;
     throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_diffusion_model_parameters` interface."))
 end
 
-function DiffusionModel(saved_model::Any)
-    diffusion_model_parameters = load_diffusion_model_parameters(saved_model)
+function DiffusionModel(saved_model::Any; 
+    main_group_name::String = @default_main_group_name,
+    generative_model_group_name::String = @default_generative_model_group_name)
+
+    diffusion_model_parameters = load_diffusion_model_parameters(saved_model;
+        main_group_name = main_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
 
     return DiffusionModel(
         diffusion_model_parameters.T,

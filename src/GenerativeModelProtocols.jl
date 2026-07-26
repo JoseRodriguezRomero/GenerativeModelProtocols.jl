@@ -8,9 +8,10 @@ using StatsBase
 using LinearAlgebra
 using DocStringExtensions
 
-export GenerativeModelProtocol, train!
+export GenerativeModelProtocol, train!, categorize
 
 abstract type AbstractGenerativeModel end
+abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 
 @kwdef struct TrainingLog
     loss::Vector{Float64} = Float64[]
@@ -89,8 +90,49 @@ function _eval(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Int)
     throw(ArgumentError("Type $(typeof(model)) does not implement the required `_eval` interface."))
 end
 
+function _categorical_eval(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Int, ::Int)
+    throw(ArgumentError("Categorical evaluation is unsupported for type $(typeof(model))."))
+end
+
+function _categorize(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Vector{Float64})
+    throw(ArgumentError("Categorization is unsupported for type $(typeof(model))."))
+end
+
+function _categorize(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Matrix{Float64})
+    throw(ArgumentError("Categorization is unsupported for type $(typeof(model))."))
+end
+
 function (protocol::GenerativeModelProtocol)(n_samples::Int)
     return _eval(protocol, protocol.model, n_samples)
+end
+
+function (protocol::GenerativeModelProtocol)(category_index::Int, n_samples::Int)
+    return _categorical_eval(protocol, protocol.model, category_index, n_samples)
+end
+
+"""
+    categorize(protocol::GenerativeModelProtocol, x::Vector{Float64}) -> Vector{Float64}
+
+Compute the posterior probability distribution over the mixture components for a 
+given input vector `x`. Returns a vector where the k-th element represents the 
+conditional probability that the input stems from the k-th categorical cluster 
+of the model.
+"""
+function categorize(protocol::GenerativeModelProtocol, x::Vector{Float64})::Vector{Float64}
+    return _categorize(protocol, protocol.model, x)
+end
+
+"""
+    categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64}) -> Matrix{Float64}
+
+Batch compute the posterior probability distributions over the mixture 
+components for multiple input vectors. Each sample in the input matrix `x` is 
+mapped to a normalized categorical probability vector where the k-th element 
+represents the conditional probability that the sample stems from the k-th 
+cluster.
+"""
+function categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64})::Vector{Float64}
+    return _categorize(protocol, protocol.model, x)
 end
 
 function load_data(training_data::Matrix, batch_size::Int, shuffle::Bool = false, parallel::Bool = true)

@@ -75,6 +75,7 @@ function read_group_layer_parameters(chain_group)
 end
 
 include("diffusion_model_HDF5.jl")
+include("gaussian_mixture_model_HDF5.jl")
 include("variational_autoencoder_HDF5.jl")
 
 end

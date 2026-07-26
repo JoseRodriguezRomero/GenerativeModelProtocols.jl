@@ -21,7 +21,7 @@ Gaussian Mixture Model (GMM). Once trained, it can be used a generative model.
 
 $TYPEDFIELDS
 """
-@kwdef struct GaussianMixtureModel <: AbstractGenerativeModel
+@kwdef struct GaussianMixtureModel <: AbstractCategoricalGenerativeModel
     """Number Gaussian clusters in the mixture model."""
     k::Int
     """Logarithm of the square of the variance of the Gaussian clusters of the model."""
@@ -30,6 +30,8 @@ $TYPEDFIELDS
     μ::Matrix{Float64}
     """Neural network parametrizing the likelihood of some input stemming from a given cluster."""
     predictor_network::Chain
+    """Vector containing the categorical probabilities of each cluster."""
+    p::Vector{Float64}
 end
 
 """
@@ -44,7 +46,8 @@ function GaussianMixtureModel(input_size::Int, k::Int)
         k                   = k,
         log_σ²              = zeros(Float64,k,input_size),
         μ                   = zeros(Float64,k,input_size),
-        predictor_network   = _gmm_default_default_predictor_network(input_size,k)
+        predictor_network   = _gmm_default_default_predictor_network(input_size,k),
+        p                   = ones(Float64,k) ./ Float64(k)
     )
 end
 
@@ -62,7 +65,8 @@ function GaussianMixtureModel(saved_model::Any)
         k                   = gaussian_mixture_parameters.k,
         log_σ²              = gaussian_mixture_parameters.log_σ²,
         μ                   = gaussian_mixture_parameters.μ,
-        predictor_network   = predictor_network
+        predictor_network   = predictor_network,
+        p                   = gaussian_mixture_parameters.p
     )
 end
 
@@ -72,6 +76,7 @@ function Base.display(model::GaussianMixtureModel)
     println("k      = $(model.k)")
     println("μ      = $(size(model.μ,1))×$(size(model.μ,2)) Matrix{Float64}")
     println("log_σ² = $(size(model.log_σ²,1))×$(size(model.log_σ²,2)) Matrix{Float64}")
+    println("p      = $(length(model.p))-element Vector{Float64}")
     println("")
 
     function print_chains(chains)
@@ -193,49 +198,49 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     Flux.loadmodel!(model.log_σ², model_train_device.log_σ²)
     Flux.loadmodel!(model.predictor_network, model_train_device.predictor_network)
 
+    p = model.predictor_network(protocol.training_data)
+    p = mean(softmax(transpose(p)),dims=1)
+    model.p[:] = p[:]
+
     return protocol._log
 end
 
-function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n_samples::Int)
-    device = protocol.device
-    K = model.k
-    
+function _categorical_eval(_::GenerativeModelProtocol, model::GaussianMixtureModel, category::Int, n_samples::Int)
     D = size(model.μ, 2)
-    
-    X_query = (4.0 .* rand(Float64, D, n_samples)) .- 2.0
-    X_dev = device(X_query)
-    
-    π_network = cpu_device()(softmax(model.predictor_network(X_dev), dims=1))
-    
-    sampled_clusters = zeros(Int, n_samples)
-    r_vals = rand(Float64, n_samples)
+    synthetic_X = randn(Float64, D, n_samples)
+    σ = exp.(0.5 .* model.log_σ²)
     
     for i in 1:n_samples
-        cum_p = cumsum(π_network[:, i])
-        cum_p ./= cum_p[end]
-        sampled_clusters[i] = searchsortedfirst(cum_p, r_vals[i])
-    end
-    
-    μ_cpu = cpu_device()(model.μ)
-    log_σ²_cpu = cpu_device()(model.log_σ²)
-    σ_cpu = exp.(0.5 .* log_σ²_cpu)
-    
-    synthetic_X = zeros(Float64, D, n_samples)
-    
-    for k in 1:K
-        idx = findall(x -> x == k, sampled_clusters)
-        n_k = length(idx)
-        
-        if n_k > 0
-            noise = randn(Float64, D, n_k)
-            
-            μ_k = reshape(μ_cpu[k, :], D, 1)
-            σ_k = reshape(σ_cpu[k, :], D, 1)
-            
-            synthetic_X[:, idx] .= μ_k .+ (σ_k .* noise)
+        for d in 1:D
+            synthetic_X[d, i] = model.μ[category, d] + σ[category, d] * synthetic_X[d, i]
         end
     end
     
     return collect(transpose(synthetic_X))
+end
+
+function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n_samples::Int)
+    D = size(model.μ, 2)
+    
+    cum_p = cumsum(model.p)
+    cum_p ./= cum_p[end]
+    sampled_clusters = [searchsortedfirst(cum_p, rand()) for _ in 1:n_samples]
+    
+    counts = zeros(Int, model.k)
+    for k in sampled_clusters
+        counts[k] += 1
+    end
+    
+    ends = cumsum(counts)
+    starts = [1; ends[1:end-1] .+ 1]
+    final_X = Matrix{Float64}(undef, n_samples, D)
+    
+    for k in 1:model.k
+        counts[k] == 0 && continue
+        
+        final_X[starts[k]:ends[k], :] .= _categorical_eval(protocol, model, k, counts[k])
+    end
+    
+    return final_X
 end
 

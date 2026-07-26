@@ -191,8 +191,15 @@ function load_variational_autoencoder_parameters(saved_model::Any;
     throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_variational_autoencoder_parameters` interface."))
 end
 
-function VariationalAutoencoder(saved_model::Any; β::Union{Float64,Vector{Float64}} = 1.0)
-    autoencoder_parameters = load_variational_autoencoder_parameters(saved_model)
+function VariationalAutoencoder(saved_model::Any; 
+    β::Union{Float64,Vector{Float64}} = 1.0,
+    main_group_name::String = @default_main_group_name,
+    generative_model_group_name::String = @default_generative_model_group_name)
+
+    autoencoder_parameters = load_variational_autoencoder_parameters(saved_model;
+        main_group_name = main_group_name, 
+        generative_model_group_name = generative_model_group_name
+    )
     encoders = Vector{Chain}(undef, length(autoencoder_parameters.encoders))
     decoders = Vector{Chain}(undef, length(autoencoder_parameters.decoders))
 

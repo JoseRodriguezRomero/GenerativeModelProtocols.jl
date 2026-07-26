@@ -21,7 +21,9 @@ GenerativeModelProtocols.GaussianMixtureModel
 
 # Methods
 ```@docs
-GenerativeModelProtocols.train!(::GenerativeModelProtocol)
+train!(::GenerativeModelProtocol)
+categorize(::GenerativeModelProtocol, ::Vector{Float64})
+categorize(::GenerativeModelProtocol, ::Matrix{Float64})
 GenerativeModelProtocols.encode(::GenerativeModelProtocols.VariationalAutoencoder, ::Any)
 GenerativeModelProtocols.decode(::GenerativeModelProtocols.VariationalAutoencoder, ::Any)
 ```
