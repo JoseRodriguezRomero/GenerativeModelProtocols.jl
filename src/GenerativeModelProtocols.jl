@@ -8,6 +8,8 @@ using StatsBase
 using LinearAlgebra
 using DocStringExtensions
 
+using Compat: @compat
+
 export GenerativeModelProtocol, train!, categorize, encode, decode
 
 abstract type AbstractGenerativeModel end

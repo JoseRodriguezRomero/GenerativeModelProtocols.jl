@@ -13,6 +13,8 @@ function _gmm_default_default_predictor_network(input_size::Int, k::Int, hidden_
     ) |> f64
 end
 
+@compat public GaussianMixtureModel
+
 """
 $TYPEDEF
 

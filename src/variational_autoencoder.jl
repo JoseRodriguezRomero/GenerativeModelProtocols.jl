@@ -100,7 +100,7 @@ function compatible_vae_model(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Va
     return true
 end
 
-public VariationalAutoencoder
+@compat public VariationalAutoencoder
 
 """
 $TYPEDEF
