@@ -8,7 +8,7 @@ using StatsBase
 using LinearAlgebra
 using DocStringExtensions
 
-export GenerativeModelProtocol, train!, categorize
+export GenerativeModelProtocol, train!, categorize, encode, decode
 
 abstract type AbstractGenerativeModel end
 abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
@@ -30,7 +30,7 @@ $TYPEDFIELDS
 """
 @kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
     """Vector containing all the data that is to be used for training."""
-    training_data::Matrix{Float64}
+    training_data::Union{Matrix{Float64}, Nothing}
     """Number of training epochs for the generative model."""
     epochs::Int = 100
     """Batch size for training the generative model."""
@@ -48,12 +48,12 @@ $TYPEDFIELDS
 end
 
 """
-    GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwargs...) where {M<:AbstractGenerativeModel}
+    GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64}, Nothing}; kwargs...) where {M<:AbstractGenerativeModel}
 
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwargs...) where {M<:AbstractGenerativeModel}
+function GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64}, Nothing} = nothing; kwargs...) where {M<:AbstractGenerativeModel}
     return GenerativeModelProtocol{M}(;
         training_data = training_data,
         model = model,
@@ -83,6 +83,11 @@ method can be called again after it finishes to resume training.
 """
 function train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
     clean_logged_data!(protocol._log, protocol.epochs)
+
+    if isnothing(protocol.training_data)
+        throw(ArgumentError("No training data was loaded!"))
+    end
+
     _train!(protocol, protocol.model; print_log = print_log)
 end
 

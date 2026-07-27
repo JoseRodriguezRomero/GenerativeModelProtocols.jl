@@ -372,8 +372,6 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     return _train!(protocol, model, model.β; print_log = print_log)
 end
 
-public decode
-
 """
     decode(model::GenerativeModelProtocols.VariationalAutoencoder, z)
 
@@ -384,13 +382,14 @@ function decode(model::VariationalAutoencoder, z)
 
     for i in 1:(num_latent_layers-1)
         dec_out = model.decoders[num_latent_layers-i+1](z)
-        z = sample_latent(dec_out[1:model.latent_dim], exp.(dec_out[(model.latent_dim+1):end] .* 0.5f0))
+        z = sample_latent(
+            dec_out[1:model.latent_dim, :], 
+            exp.(dec_out[(model.latent_dim+1):end, :] .* 0.5f0)
+        )
     end
 
     return model.decoders[1](z)
 end
-
-public encode
 
 """
     encode(model::GenerativeModelProtocols.VariationalAutoencoder, x)
@@ -411,8 +410,8 @@ function encode(model::VariationalAutoencoder, x)
     return z
 end
 
-function _eval(protocol::GenerativeModelProtocol, model::VariationalAutoencoder, n_samples::Int)
-    window_size = size(protocol.training_data,1)
+function _eval(_::GenerativeModelProtocol, model::VariationalAutoencoder, n_samples::Int)
+    window_size = size(model.encoders[1][1].weight,2)
     sim_log = zeros(Float64,n_samples,window_size)
 
     for i in 1:n_samples

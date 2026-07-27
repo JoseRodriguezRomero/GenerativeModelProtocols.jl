@@ -1,3 +1,6 @@
+[![CI](https://github.com/JoseRodriguezRomero/SurrogateModels.jl/actions/workflows/ci.yml/badge.svg)](https://github.comJoseRodriguezRomero/SurrogateModels.jl/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl/graph/badge.svg?token=3I64XP0CQ2)](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl)
+
 # GenerativeModelProtocols.jl
 
 A unified Julia framework for building, training, and deploying generative 
