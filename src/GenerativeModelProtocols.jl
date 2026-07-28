@@ -216,10 +216,6 @@ function compatible_neural_networks(networks::Tuple{Vararg{Chain}})
     return true
 end
 
-function compatible_neural_networks(networks::Vector{Chain})
-    return compatible_neural_networks(Tuple(networks))
-end
-
 function compatible_neural_network(network::Chain)
     for layer in network
         if layer.σ ∉ keys(activation_function_map())
@@ -255,19 +251,10 @@ end
 
 function layer_parameters(layer::Dense)::LayerParameters
     foo_map = activation_function_map()
-
-    if hasproperty(layer,:σ)
-        return LayerParameters(
-            layer.bias,
-            layer.weight,
-            foo_map[layer.σ]
-        )
-    end
-
     return LayerParameters(
         layer.bias,
         layer.weight,
-        foo_map[identity]
+        foo_map[layer.σ]
     )
 end
 

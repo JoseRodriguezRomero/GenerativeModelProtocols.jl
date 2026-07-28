@@ -5,10 +5,10 @@ end
 
 @testset "VariationalAutoencoder Tests" begin
     @testset "Constructors Tests" begin
-        input_dim = 3
+        input_size = 3
         latent_dim = 3
 
-        model_1 = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim; β = 0.1)
+        model_1 = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim; β = 0.1)
         randomize_chains!(model_1.encoders)
         randomize_chains!(model_1.decoders)
 
@@ -33,11 +33,11 @@ end
     @testset "Train Test" begin
         train_data = make_test_train_data(500)
 
-        input_dim = size(train_data,1)
+        input_size = size(train_data,1)
         latent_dim = 2
         latent_layers = 2
 
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim, latent_layers; β = [0.1, 0.2])
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers; β = [0.1, 0.2])
         test_train_model(model, train_data)
         test_train_model_no_data(model)
     end
@@ -160,17 +160,17 @@ end
     end
 
     @testset "Make Synthetic Data Test" begin
-        input_dim = 3
+        input_size = 3
         latent_dim = 3
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim)
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
         test_model_make_synthetic_data(model)
     end
 
     @testset "Encode/Decode Test" begin
-        input_dim = 3
+        input_size = 3
         latent_dim = 2
         latent_layers = 2
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim, latent_layers)
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
         protocol = GenerativeModelProtocol(model)
 
         # Vector single call
@@ -198,18 +198,19 @@ end
     end
 
     @testset "Display Test" begin
-        input_dim = 3
+        input_size = 3
         latent_dim = 2
         
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim)
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
         test_model_display(model)
+        test_model_display(model, input_size)
     end
 
     @testset "Save and Load Test" begin
-        input_dim = 3
+        input_size = 3
         latent_dim = 2
         latent_layers = 2
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim, latent_layers)
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
 
         randomize_chains!(model.encoders)
         randomize_chains!(model.decoders)

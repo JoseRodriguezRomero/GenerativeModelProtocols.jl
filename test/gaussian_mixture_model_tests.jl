@@ -62,6 +62,7 @@ end
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
         test_model_display(model)
+        test_model_display(model, input_size)
     end
 
     @testset "Save and Load Test" begin

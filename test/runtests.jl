@@ -148,6 +148,14 @@ function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeMo
     @test isa(capture_display(model), String)
 end
 
+function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
+    protocol = GenerativeModelProtocol(model, rand(Float64, input_size, 100)) 
+
+    @test isa(capture_display(protocol), String)
+    @test isa(capture_display(model), String)
+end
+
+
 function test_model_save(save_path::String, model::GenerativeModelProtocols.AbstractGenerativeModel)
     metadata = Dict(
         "A" => "a",
