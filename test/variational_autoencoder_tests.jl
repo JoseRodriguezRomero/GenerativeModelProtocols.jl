@@ -35,8 +35,9 @@ end
 
         input_dim = size(train_data,1)
         latent_dim = 2
+        latent_layers = 2
 
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim; β = [0.1, 0.2])
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim, latent_layers; β = [0.1, 0.2])
         test_train_model(model, train_data)
         test_train_model_no_data(model)
     end
