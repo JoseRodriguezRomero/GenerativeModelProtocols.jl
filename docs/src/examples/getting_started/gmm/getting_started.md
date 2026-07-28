@@ -113,9 +113,9 @@ predictor_network:
 
 Across all three trained architectures, the generated synthetic data generally 
 preserves the geometric structure of the reference training set. However, 
-artifacts such as fine, artificial lines emerge, particularly in the GMM 
-with 15 Gaussian components which yields the most significant distributional 
-divergence.
+artifacts such as incorrect distribution shape, or scattered out of trend 
+datapoints, particularly in the GMM with 15 Gaussian components which yields the 
+most significant distributional divergence.
 
 To overcome these visual anomalies, evaluating the 2D probability density 
 function (PDF) via a 2D histogram or kernel density estimate offers a more 

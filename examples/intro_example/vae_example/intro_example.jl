@@ -30,7 +30,7 @@ train!(protocol)
 synthetic_data = protocol(num_samples)
 
 p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
-p2 = scatter(synthetic_data[:,1], synthetic_data[:,2], title="Synthetic data", label=false,frame=:box)
+p2 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false,frame=:box)
 
 p = plot(p1,p2; layout=(2,1))
 savefig(p, "intro_example.svg")

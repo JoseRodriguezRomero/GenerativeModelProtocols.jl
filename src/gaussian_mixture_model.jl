@@ -218,7 +218,7 @@ function _categorical_eval(_::GenerativeModelProtocol, model::GaussianMixtureMod
         end
     end
     
-    return collect(transpose(synthetic_X))
+    return synthetic_X
 end
 
 function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n_samples::Int)
@@ -235,15 +235,23 @@ function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n
     
     ends = cumsum(counts)
     starts = [1; ends[1:end-1] .+ 1]
-    final_X = Matrix{Float64}(undef, n_samples, D)
+    final_X = Matrix{Float64}(undef, D, n_samples)
     
     for k in 1:model.k
         counts[k] == 0 && continue
         
-        final_X[starts[k]:ends[k], :] .= _categorical_eval(protocol, model, k, counts[k])
+        final_X[:, starts[k]:ends[k]] .= _categorical_eval(protocol, model, k, counts[k])
     end
     
     return final_X
+end
+
+function _categorize(_::GenerativeModelProtocol, model::GaussianMixtureModel, x::Matrix{Float64})
+    return model.predictor_network(x)
+end
+
+function _categorize(_::GenerativeModelProtocol, model::GaussianMixtureModel, x::Vector{Float64})
+    return model.predictor_network(x)
 end
 
 struct GaussianMixtureModelParameters

@@ -40,9 +40,9 @@ synthetic_data_2 = protocols[2](num_samples)
 synthetic_data_3 = protocols[3](num_samples)
 
 p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
-p2 = scatter(synthetic_data_1[:,1], synthetic_data_1[:,2], title="Synthetic data (k = $(k[1]))", label=false,frame=:box)
-p3 = scatter(synthetic_data_2[:,1], synthetic_data_2[:,2], title="Synthetic data (k = $(k[2]))", label=false,frame=:box)
-p4 = scatter(synthetic_data_3[:,1], synthetic_data_3[:,2], title="Synthetic data (k = $(k[3]))", label=false,frame=:box)
+p2 = scatter(synthetic_data_1[1,:], synthetic_data_1[2,:], title="Synthetic data (k = $(k[1]))", label=false,frame=:box)
+p3 = scatter(synthetic_data_2[1,:], synthetic_data_2[2,:], title="Synthetic data (k = $(k[2]))", label=false,frame=:box)
+p4 = scatter(synthetic_data_3[1,:], synthetic_data_3[2,:], title="Synthetic data (k = $(k[3]))", label=false,frame=:box)
 p = plot(p1,p2,p3,p4; layout=(2,2), size=(900, 600))
 savefig(p, "intro_example.svg")
 
@@ -50,7 +50,7 @@ savefig(p, "intro_example.svg")
 function plot_model_density(protocol)
     data = protocol(100000)
     
-    fig = histogram2d(data[:,1], data[:,2],
+    fig = histogram2d(data[1,:], data[2,:],
         bins=(200,200),
         show_empty_bins=true,
         title="GMM PDF (k = $(protocol.model.k))\n2D Histogram",

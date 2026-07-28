@@ -92,6 +92,32 @@ function test_model_make_synthetic_data(model::GenerativeModelProtocols.Abstract
     @test isa(x_synthetic, Matrix)
 end
 
+function test_model_make_categorical_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel)
+    protocol = GenerativeModelProtocol(model)
+
+    for i in 1:5
+        if i > model.k
+            break
+        end
+
+        x_synthetic = protocol(i, 100)
+        @test isa(x_synthetic, Matrix)
+    end
+end
+
+function test_model_categorize(model::GenerativeModelProtocols.AbstractGenerativeModel)
+    protocol = GenerativeModelProtocol(model)
+
+    for i in 1:5
+        if i > model.k
+            break
+        end
+
+        p_samples = categorize(protocol, protocol(i, 100))
+        @test isa(p_samples, Matrix)
+    end
+end
+
 function capture_display(obj::Any)
     pipe = Pipe()
 

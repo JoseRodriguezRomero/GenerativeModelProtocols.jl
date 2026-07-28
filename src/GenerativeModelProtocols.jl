@@ -138,7 +138,7 @@ mapped to a normalized categorical probability vector where the k-th element
 represents the conditional probability that the sample stems from the k-th 
 cluster.
 """
-function categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64})::Vector{Float64}
+function categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64})::Matrix{Float64}
     return _categorize(protocol, protocol.model, x)
 end
 

@@ -43,11 +43,16 @@ end
         input_size = 3
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
-        test_model_display(model)
+        test_model_make_synthetic_data(model)
+        test_model_make_categorical_synthetic_data(model)
     end
 
     @testset "Categorize Test" begin
-        
+        k = 15
+        input_size = 3
+
+        model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
+        test_model_categorize(model)
     end
 
     @testset "Display Test" begin

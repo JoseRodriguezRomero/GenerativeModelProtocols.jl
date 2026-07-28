@@ -411,15 +411,8 @@ function encode(model::VariationalAutoencoder, x)
 end
 
 function _eval(_::GenerativeModelProtocol, model::VariationalAutoencoder, n_samples::Int)
-    window_size = size(model.encoders[1][1].weight,2)
-    sim_log = zeros(Float64,n_samples,window_size)
-
-    for i in 1:n_samples
-        z = randn(model.latent_dim)
-        sim_log[i,:] = decode(model,z)
-    end
-
-    return sim_log
+    z = randn(Float64,model.latent_dim,n_samples)
+    return decode(model,z)
 end
 
 struct VariationalAutoencoderParameters
