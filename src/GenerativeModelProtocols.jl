@@ -340,10 +340,6 @@ function _print_chains(chains::Tuple{Chain}, print_padding = @_default_print_pad
     end
 end
 
-function _print_chains(chains::Vector{Chain}, print_padding = @_default_print_padding)
-    _print_chains(Tuple(chains), print_padding)
-end
-
 function _print_chains(chain::Chain, print_padding)
     _print_chains((chain,), print_padding)
 end

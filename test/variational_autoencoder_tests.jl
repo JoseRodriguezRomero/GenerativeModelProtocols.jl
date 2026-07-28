@@ -36,8 +36,93 @@ end
         input_dim = size(train_data,1)
         latent_dim = 2
 
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim)
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim; β = [0.1, 0.2])
         test_train_model(model, train_data)
+    end
+
+    @testset "Incompatible Encoder/Decoder Architecture Test" begin
+        hidden_layer_size = 32
+        activation_function = relu
+
+        function test_encoder_decoder(encoders, decoders)
+            try
+                GenerativeModelProtocols.VariationalAutoencoder(encoders, decoders)
+                return false
+            catch
+                return true
+            end
+        end
+
+        # Test incompatible input dimensions
+        num_inputs_enc = 2
+        num_inputs_dec = 3
+        latent_dim = 1 
+
+        encoder = Chain(
+            Dense(num_inputs_enc => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => 2*latent_dim)
+        ) |> f64
+        decoder = Chain(
+            Dense(latent_dim => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => num_inputs_dec)
+        ) |> f64
+
+        @test test_encoder_decoder((encoder,), (decoder,))
+
+        # Test incompatible latent dimensions
+        num_inputs = 2
+        latent_dim_enc = 1
+        latent_dim_dec = 2
+
+        encoder = Chain(
+            Dense(num_inputs => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => 2*latent_dim_enc)
+        ) |> f64
+        decoder = Chain(
+            Dense(latent_dim_dec => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => num_inputs)
+        ) |> f64
+
+        @test test_encoder_decoder((encoder,), (decoder,))
+
+        # Test incompatible latent layers
+        num_inputs = 2
+        latent_dim = 1 
+
+        encoders = (
+            Chain(
+                Dense(num_inputs => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => 2*latent_dim)
+            ) |> f64,
+            Chain(
+                Dense(latent_dim => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => 2*latent_dim)
+            ),
+            Chain(
+                Dense(latent_dim => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => 2*latent_dim)
+            ),
+            Chain(
+                Dense(latent_dim => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => 2*latent_dim)
+            )
+        )
+        decoders = (
+            Chain(
+                Dense(latent_dim => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => num_inputs)
+            ) |> f64,
+            Chain(
+                Dense(latent_dim => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => 2*latent_dim)
+            ),
+            Chain(
+                Dense(latent_dim => hidden_layer_size, activation_function),
+                Dense(hidden_layer_size => 2*latent_dim)
+            )
+        )
+
+        @test test_encoder_decoder(encoders, decoders)
     end
 
     @testset "Make Synthetic Data Test" begin

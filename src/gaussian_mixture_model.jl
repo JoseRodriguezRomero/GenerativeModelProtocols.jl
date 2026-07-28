@@ -53,14 +53,21 @@ function GaussianMixtureModel(input_size::Int, k::Int)
     )
 end
 
-function load_gaussian_mixture_parameters(saved_model::Any;
-    main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
+function load_gaussian_mixture_parameters end
+
+macro load_gaussian_mixture_parameters(saved_model, main_group_name, generative_model_group_name)
+    return :(load_gaussian_mixture_parameters($(esc(saved_model));
+        $(main_group_name = esc(main_group_name)),
+        $(generative_model_group_name = esc(generative_model_group_name))
+    ))
     throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_gaussian_mixture_parameters` interface."))
 end
 
-function GaussianMixtureModel(saved_model::Any)
-    gaussian_mixture_parameters = load_gaussian_mixture_parameters(saved_model)
+function GaussianMixtureModel(saved_model::Any; 
+    main_group_name = @default_main_group_name,
+    generative_model_group_name = @default_generative_model_group_name)
+
+    gaussian_mixture_parameters = @load_gaussian_mixture_parameters(saved_model, main_group_name, generative_model_group_name)
     predictor_network = Chain([layer_parameters(layer) for layer in gaussian_mixture_parameters.predictor_network.layers])
 
     return GaussianMixtureModel(;

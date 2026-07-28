@@ -185,10 +185,13 @@ function Base.display(model::VariationalAutoencoder)
     _print_chains(model.decoders, print_padding)
 end
 
-function load_variational_autoencoder_parameters(saved_model::Any;
-    main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
-    throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_variational_autoencoder_parameters` interface."))
+function load_variational_autoencoder_parameters end
+
+macro load_variational_autoencoder_parameters(saved_model, main_group_name, generative_model_group_name)
+    return :(load_variational_autoencoder_parameters($(esc(saved_model)); 
+        $(main_group_name = esc(main_group_name)), 
+        $(generative_model_group_name = esc(generative_model_group_name))
+    ))
 end
 
 function VariationalAutoencoder(saved_model::Any; 
@@ -196,10 +199,7 @@ function VariationalAutoencoder(saved_model::Any;
     main_group_name::String = @default_main_group_name,
     generative_model_group_name::String = @default_generative_model_group_name)
 
-    autoencoder_parameters = load_variational_autoencoder_parameters(saved_model;
-        main_group_name = main_group_name, 
-        generative_model_group_name = generative_model_group_name
-    )
+    autoencoder_parameters = @load_variational_autoencoder_parameters(saved_model, main_group_name, generative_model_group_name)
     encoders = Vector{Chain}(undef, length(autoencoder_parameters.encoders))
     decoders = Vector{Chain}(undef, length(autoencoder_parameters.decoders))
 
