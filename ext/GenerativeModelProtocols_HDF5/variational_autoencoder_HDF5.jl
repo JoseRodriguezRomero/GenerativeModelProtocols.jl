@@ -23,7 +23,7 @@ function GenerativeModelProtocols.load_variational_autoencoder_parameters(file::
     end
 end
 
-function GenerativeModelProtocols._save(file::FileIO.File{FileIO.DataFormat{:HDF5},String}, 
+function GenerativeModelProtocols._save_model(file::FileIO.File{FileIO.DataFormat{:HDF5},String}, 
     model::GenerativeModelProtocols.VariationalAutoencoder;
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)

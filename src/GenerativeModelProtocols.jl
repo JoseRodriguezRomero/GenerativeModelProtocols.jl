@@ -63,8 +63,12 @@ function GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64},
     )
 end
 
-function _train!(::GenerativeModelProtocol, model::AbstractGenerativeModel; print_log::Bool = true)
-    throw(ArgumentError("Type $(typeof(model)) does not implement the required `_train!` interface."))
+macro _train!(protocol, model, print_log)
+    :(_train!($(esc(protocol)), $(esc(model)); $(print_log = esc(print_log))))
+end
+
+function _train!(protocol::GenerativeModelProtocol, model::AbstractGenerativeModel; print_log::Bool = true)
+    @_train!(protocol, model, print_log)
 end
 
 function clean_logged_data!(log::Vector{Float64}, epochs::Int)
@@ -93,28 +97,24 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
     _train!(protocol, protocol.model; print_log = print_log)
 end
 
-function _eval(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Int)
-    throw(ArgumentError("Type $(typeof(model)) does not implement the required `_eval` interface."))
+macro _eval(protocol, model, n_samples)
+    return :(_eval($(esc(protocol)), $(esc(model)), $(esc(n_samples))))
 end
 
-function _categorical_eval(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Int, ::Int)
-    throw(ArgumentError("Categorical evaluation is unsupported for type $(typeof(model))."))
+macro _categorical_eval(protocol, model, category_index, n_samples)
+    return :(_categorical_eval($(esc(protocol)), $(esc(model)), $(esc(category_index)), $(esc(n_samples))))
 end
 
-function _categorize(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Vector{Float64})
-    throw(ArgumentError("Categorization is unsupported for type $(typeof(model))."))
-end
-
-function _categorize(::GenerativeModelProtocol, model::AbstractGenerativeModel, ::Matrix{Float64})
-    throw(ArgumentError("Categorization is unsupported for type $(typeof(model))."))
+macro _categorize(protocol, model, x)
+    return :(_categorize($(esc(protocol)), $(esc(model)), $(esc(x))))
 end
 
 function (protocol::GenerativeModelProtocol)(n_samples::Int)
-    return _eval(protocol, protocol.model, n_samples)
+    return @_eval(protocol, protocol.model, n_samples)
 end
 
 function (protocol::GenerativeModelProtocol)(category_index::Int, n_samples::Int)
-    return _categorical_eval(protocol, protocol.model, category_index, n_samples)
+    return @_categorical_eval(protocol, protocol.model, category_index, n_samples)
 end
 
 """
@@ -126,7 +126,7 @@ conditional probability that the input stems from the k-th categorical cluster
 of the model.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Vector{Float64})::Vector{Float64}
-    return _categorize(protocol, protocol.model, x)
+    return @_categorize(protocol, protocol.model, x)
 end
 
 """
@@ -139,7 +139,7 @@ represents the conditional probability that the sample stems from the k-th
 cluster.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64})::Matrix{Float64}
-    return _categorize(protocol, protocol.model, x)
+    return @_categorize(protocol, protocol.model, x)
 end
 
 function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
@@ -172,12 +172,12 @@ end
     gaussian_mixture_model          = 4
 end
 
-function _generative_model(model::AbstractGenerativeModel)::GenerativeModel
-    throw(ArgumentError("Type $(typeof(model)) does not implement the required `_generative_model` interface."))
+macro _generative_model(model)
+    return :(_generative_model($(esc(model))))
 end
 
 function _generative_model(protocol::GenerativeModelProtocol)::GenerativeModel
-    return _generative_model(protocol.model)
+    return @_generative_model(protocol.model)
 end
 
 @enum ActivationFunction::UInt8 begin
@@ -297,23 +297,32 @@ macro default_generative_model_group_name()
     return "generative_model"
 end
 
-function _save_metadata(file::Any, ::GenerativeModelProtocol; 
+function _save_metadata end
+
+macro _save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
+    return :(_save_metadata($(esc(file)), $(esc(protocol)); 
+        $(main_group_name = esc(main_group_name)),
+        $(metadata_group_name = esc(metadata_group_name)),
+        $(metadata = esc(metadata)),
+    ))
+end
+
+function _save_model end
+
+macro _save_model(file, model, main_group_name, generative_model_group_name)
+    return :(_save_model($(esc(file)), $(esc(model)); 
+        $(main_group_name = esc(main_group_name)),
+        $(generative_model_group_name = esc(generative_model_group_name))
+    ))
+end
+
+function _save(file::String, protocol::GenerativeModelProtocol; 
     main_group_name::String = @default_main_group_name,
-    metadata_group_name::String = @default_metadata_group_name, 
+    metadata_group_name::String = @default_metadata_group_name,
+    generative_model_group_name::String = @default_generative_model_group_name,
     metadata::Union{Dict{String,Any}, NamedTuple, Nothing} = nothing)
-    throw(ArgumentError("Types $(typeof(file)) does not implement the required `_save_metadata` interface."))
-end
-
-function _save(file::Any, protocol::GenerativeModelProtocol; 
-    main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
-    _save(file, protocol.model; main_group_name = main_group_name, generative_model_group_name = generative_model_group_name)
-end
-
-function _save(file::Any, model::AbstractGenerativeModel;
-    main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
-    throw(ArgumentError("Types $(typeof(file)) and $(typeof(model)) do not implement the required `_save` interface."))
+    @_save_model(file, protocol.model, main_group_name, generative_model_group_name)
+    @_save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
 end
 
 macro _default_print_padding()
