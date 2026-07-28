@@ -50,7 +50,7 @@ through a multi-stage process.
 
 ### Amortized Allocation Step
 
-The training data X is passed through the predictor network. A softmax 
+The training data $X$ is passed through the predictor network. A softmax 
 activation maps the raw network outputs into a valid probability distribution of 
 mixing weights $\pi_k(x_n)$ such that $\sum_{k=1}^K \pi_{nk} = 1$:
 ```math

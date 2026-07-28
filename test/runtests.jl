@@ -25,6 +25,10 @@ function randomize_chains!(chains::Tuple{Vararg{Chain}})
     end
 end
 
+function randomize_chains!(chain::Chain)
+    randomize_chains!((chain,))
+end
+
 function check_file_size(file_path::String)
     return isfile(file_path) && filesize(file_path) > 0
 end

@@ -246,3 +246,21 @@ function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n
     return final_X
 end
 
+struct GaussianMixtureModelParameters
+    k::Int
+    log_σ²::Matrix{Float64}
+    μ::Matrix{Float64}
+    predictor_network::ChainParameters
+    p::Vector{Float64}
+end
+
+function gaussian_mixture_model_parameters(model::GaussianMixtureModel)::GaussianMixtureModelParameters
+    return GaussianMixtureModelParameters(
+        model.k,
+        model.log_σ²,
+        model.μ,
+        chain_parameters(model.predictor_network),
+        model.p
+    )
+end
+
