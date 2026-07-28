@@ -139,6 +139,17 @@ function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeMo
     @test isa(capture_display(model), String)
 end
 
+function test_model_save(save_path::String, model::GenerativeModelProtocols.AbstractGenerativeModel)
+    metadata = Dict(
+        "A" => "a",
+        "B" => 1.0,
+        "C" => [1.0, 2.0]
+    )
+    protocol = GenerativeModelProtocol(model)
+    save(save_path, protocol; metadata = metadata)
+    @test check_file_size(save_path)
+end
+
 include("gaussian_mixture_model_tests.jl")
 include("variational_autoencoder_tests.jl")
 

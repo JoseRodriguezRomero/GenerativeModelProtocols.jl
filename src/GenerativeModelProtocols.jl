@@ -142,21 +142,25 @@ function categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64})::Matr
     return _categorize(protocol, protocol.model, x)
 end
 
-function load_data(training_data::Matrix, batch_size::Int, shuffle::Bool = false, parallel::Bool = true)
-    if shuffle
-        return Flux.DataLoader(
-            shuffleobs(training_data), 
-            batchsize = batch_size, 
-            shuffle = shuffle,
-            parallel = parallel
-        )
-    end
+function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
+    data = shuffle ? shuffleobs(data) : data
 
     return Flux.DataLoader(
-        training_data, 
-        batchsize = batch_size, 
-        shuffle = shuffle,
-        parallel = parallel
+        data, 
+        batchsize = batchsize, 
+        shuffle = false,
+        parallel = true
+    )
+end
+
+function load_data(data::Tuple{Vararg{Matrix}}, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
+    data = shuffle ? shuffleobs(data) : data
+
+    return Flux.DataLoader(
+        data, 
+        batchsize = batchsize, 
+        shuffle = false,
+        parallel = true
     )
 end
 

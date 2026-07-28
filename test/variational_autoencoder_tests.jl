@@ -78,14 +78,12 @@ end
         latent_dim = 2
         latent_layers = 2
         model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim, latent_layers)
-        protocol = GenerativeModelProtocol(model)
 
         randomize_chains!(model.encoders)
         randomize_chains!(model.decoders)
 
         save_path = joinpath(@__DIR__(), "test_vae_model.h5")
-        save(save_path, protocol)
-        @test check_file_size(save_path)
+        test_model_save(save_path, model)
         
         loaded_model = GenerativeModelProtocols.VariationalAutoencoder(save_path)
         test_compare_models(model, loaded_model)

@@ -66,15 +66,12 @@ end
     @testset "Save and Load Test" begin
         k = 15
         input_size = 3
-
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
-        protocol = GenerativeModelProtocol(model)
 
         randomize_chains!(model.predictor_network)
 
         save_path = joinpath(@__DIR__(), "test_gmm_model.h5")
-        save(save_path, protocol)
-        @test check_file_size(save_path)
+        test_model_save(save_path, model)
         
         loaded_model = GenerativeModelProtocols.GaussianMixtureModel(save_path)
         test_compare_models(model, loaded_model)

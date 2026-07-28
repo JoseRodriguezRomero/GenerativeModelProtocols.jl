@@ -122,15 +122,16 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     opt_state = Flux.setup(protocol.optimiser, model_train_device.predictor_network)
     batchsize_device = protocol.batchsize |> protocol.device
     training_data_device = Float64.(protocol.training_data) |> protocol.device
+    shuffle_device = protocol.shuffle |> protocol.device
     
     K = model_train_device.k
 
-    local loader
+    loader = load_data(training_data_device, batchsize_device, shuffle_device)
 
     if print_log; println("Training GMM via Global EM...") end
     for epoch in 1:protocol.epochs
-        epoch_loss = 0f0
-        total_grad_norm = 0f0
+        epoch_loss = 0.0
+        total_grad_norm = 0.0
 
         π_network_all = softmax(model_train_device.predictor_network(training_data_device), dims=1) 
         log_P_all = log_gaussian_pdf_matrix(training_data_device, model_train_device.μ, model_train_device.log_σ²) 
@@ -160,14 +161,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         model_train_device.log_σ² .= transpose(log.(variance_matrix))
 
         if epoch == 1 || (epoch % 100 == 0 && protocol.shuffle)
-            loader_data = protocol.shuffle ? shuffleobs((training_data_device, γ_all)) : (training_data_device, γ_all)
-            
-            loader = Flux.DataLoader(
-                loader_data, 
-                batchsize = batchsize_device, 
-                shuffle = false,
-                parallel = true
-            )
+            loader = load_data((training_data_device,γ_all), batchsize_device, shuffle_device)
         end
 
         for (x_batch, γ_batch) in loader

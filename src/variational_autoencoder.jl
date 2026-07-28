@@ -296,13 +296,9 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     opt_state = Flux.setup(protocol.optimiser, model_train_device)
     batchsize_device = protocol.batchsize |> protocol.device
     training_data_device = Float64.(protocol.training_data) |> protocol.device
-    
-    loader = Flux.DataLoader(
-        training_data_device, 
-        batchsize = batchsize_device, 
-        shuffle = false,
-        parallel = true
-    )
+    shuffle_device = protocol.shuffle |> protocol.device
+
+    loader = load_data(training_data_device, batchsize_device, shuffle_device)
 
     input_weights = [1.0 / var(protocol.training_data[i,:]) for i in 1:size(protocol.training_data,1)]
     input_weights[input_weights .> 1.0E9] .= 0.0 # ignore nearly deterministic inputs
@@ -314,12 +310,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         total_grad_norm = 0f0
 
         if epoch % 100 == 0 && protocol.shuffle
-            loader = Flux.DataLoader(
-                shuffleobs(training_data_device), 
-                batchsize = batchsize_device, 
-                shuffle = false,
-                parallel = true
-            )
+            loader = load_data(training_data_device, batchsize_device, shuffle_device)
         end
 
         for x_batch in loader
