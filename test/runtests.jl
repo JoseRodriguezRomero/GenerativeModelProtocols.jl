@@ -73,6 +73,15 @@ function compare_chains(chain_a::Chain, chain_b::Chain)
     return compare_chains((chain_a,),(chain_b,))
 end
 
+function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel)    
+    try
+        train!(GenerativeModelProtocol(model))
+        return true
+    catch
+        return false
+    end
+end
+
 function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix{Float64})
     protocol = GenerativeModelProtocol(model, train_data;
         batchsize   = 32,

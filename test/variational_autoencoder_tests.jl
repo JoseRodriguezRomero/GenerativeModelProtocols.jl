@@ -38,6 +38,7 @@ end
 
         model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim; β = [0.1, 0.2])
         test_train_model(model, train_data)
+        test_train_model_no_data(model)
     end
 
     @testset "Incompatible Encoder/Decoder Architecture Test" begin

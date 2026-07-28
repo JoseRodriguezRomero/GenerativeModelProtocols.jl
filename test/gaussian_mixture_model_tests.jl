@@ -36,6 +36,7 @@ end
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
         test_train_model(model, train_data)
+        test_train_model_no_data(model)
     end
 
     @testset "Make Synthetic Data Test" begin

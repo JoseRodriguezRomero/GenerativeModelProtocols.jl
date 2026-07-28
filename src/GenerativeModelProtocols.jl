@@ -67,10 +67,6 @@ macro _train!(protocol, model, print_log)
     :(_train!($(esc(protocol)), $(esc(model)); $(print_log = esc(print_log))))
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::AbstractGenerativeModel; print_log::Bool = true)
-    @_train!(protocol, model, print_log)
-end
-
 function clean_logged_data!(log::Vector{Float64}, epochs::Int)
     resize!(log, epochs)
     log[:] .= Float64(0.0)
@@ -90,11 +86,11 @@ method can be called again after it finishes to resume training.
 function train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
     clean_logged_data!(protocol._log, protocol.epochs)
 
-    if isnothing(protocol.training_data)
+    if isnothing(protocol.training_data) || isempty(protocol.training_data)
         throw(ArgumentError("No training data was loaded!"))
     end
 
-    _train!(protocol, protocol.model; print_log = print_log)
+    @_train!(protocol, protocol.model, print_log)
 end
 
 macro _eval(protocol, model, n_samples)
