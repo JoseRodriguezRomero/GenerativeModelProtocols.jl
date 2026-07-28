@@ -53,8 +53,8 @@ function compare_chains(chains_a::Tuple{Vararg{Chain}}, chains_b::Tuple{Vararg{C
             layer_a = chain_a[j]
             layer_b = chain_b[j]
 
-            bias_diff = abs(maximum(layer_a.bias - layer_b.bias))
-            weight_diff = abs(maximum(layer_a.weight - layer_b.weight))
+            bias_diff = maximum(abs.(layer_a.bias - layer_b.bias))
+            weight_diff = maximum(abs.(layer_a.weight - layer_b.weight))
 
             if (bias_diff > ϵ) || (weight_diff > ϵ)
                 return false
@@ -63,6 +63,50 @@ function compare_chains(chains_a::Tuple{Vararg{Chain}}, chains_b::Tuple{Vararg{C
     end
 
     return true
+end
+
+function compare_chains(chain_a::Chain, chain_b::Chain)
+    return compare_chains((chain_a,),(chain_b,))
+end
+
+function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix{Float64})
+    protocol = GenerativeModelProtocol(model, train_data;
+        batchsize   = 32,
+        epochs      = 20,
+        optimiser   = Adam(; eta = 1.0E-3, beta = (0.95, 0.999)),
+        device      = cpu_device()
+    )
+
+    train_log = train!(protocol)
+    @test isa(train_log, typeof(protocol._log))
+end
+
+function test_model_make_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel)
+    protocol = GenerativeModelProtocol(model)
+
+    x_synthetic = protocol(100)
+    @test isa(x_synthetic, Matrix)
+end
+
+function capture_display(obj::Any)
+    pipe = Pipe()
+
+    redirect_stdout(pipe) do
+        display(obj)
+    end
+
+    close(pipe.in)
+    printed_string = read(pipe.out, String)
+    println(printed_string)
+
+    return printed_string
+end
+
+function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel)
+    protocol = GenerativeModelProtocol(model) 
+
+    @test isa(capture_display(protocol), String)
+    @test isa(capture_display(model), String)
 end
 
 include("gaussian_mixture_model_tests.jl")

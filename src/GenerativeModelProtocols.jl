@@ -345,7 +345,11 @@ function Base.display(protocol::GenerativeModelProtocol)
     )
 
     println("GenerativeModelProtocol:")
-    println("training_data = $(size(protocol.training_data,1))×$(size(protocol.training_data,2)) Matrix{Float64}")
+    if isnothing(protocol.training_data)
+        println("training_data = nothing")
+    else
+        println("training_data = $(size(protocol.training_data,1))×$(size(protocol.training_data,2)) Matrix{Float64}")
+    end
     println("epochs        = $(protocol.epochs)")
     println("batchsize     = $(protocol.batchsize)")
     println("shuffle       = $(protocol.shuffle)")
