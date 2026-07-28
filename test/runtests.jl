@@ -122,8 +122,8 @@ function test_model_categorize(model::GenerativeModelProtocols.AbstractGenerativ
             break
         end
 
-        p_samples = categorize(protocol, protocol(i, 100))
-        @test isa(p_samples, Matrix)
+        @test isa(categorize(protocol, protocol(i, 100)), Matrix)
+        @test isa(categorize(protocol, protocol()), Vector)
     end
 end
 

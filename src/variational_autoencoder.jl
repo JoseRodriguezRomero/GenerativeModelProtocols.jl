@@ -364,11 +364,11 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
 end
 
 """
-    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z)
+    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Matrix)
 
 Decodes the latent space representations `z` back into the data space.
 """
-function decode(model::VariationalAutoencoder, z)
+function decode(model::VariationalAutoencoder, z::Matrix{Float64})
     num_latent_layers = length(model.decoders)
 
     for i in 1:(num_latent_layers-1)
@@ -383,11 +383,20 @@ function decode(model::VariationalAutoencoder, z)
 end
 
 """
-    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x)
+    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Vector)
+
+Decodes the latent space representations `z` back into the data space.
+"""
+function decode(model::VariationalAutoencoder, z::Vector{Float64})
+    return decode(model, reshape(z,:,1))[:]
+end
+
+"""
+    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Matrix)
 
 Encodes the data space variable `x` into a latent space variable.
 """
-function encode(model::VariationalAutoencoder, x)
+function encode(model::VariationalAutoencoder, x::Matrix{Float64})
     num_latent_layers = length(model.encoders)
 
     enc_out = model.encoders[1](x)
@@ -399,6 +408,15 @@ function encode(model::VariationalAutoencoder, x)
     end
 
     return z
+end
+
+"""
+    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Vector)
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(model::VariationalAutoencoder, x::Vector{Float64})
+    return encode(model, reshape(x, :, 1))[:]
 end
 
 function _eval(_::GenerativeModelProtocol, model::VariationalAutoencoder, n_samples::Int)

@@ -124,6 +124,38 @@ end
         )
 
         @test test_encoder_decoder(encoders, decoders)
+
+        # Test incompatible activation function encoder
+        num_inputs = 2
+        latent_dim = 1 
+
+        encoder = Chain(
+            Dense(num_inputs => hidden_layer_size, sin),
+            Dense(hidden_layer_size => 2*latent_dim)
+        ) |> f64
+
+        decoder = Chain(
+            Dense(latent_dim => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => num_inputs)
+        ) |> f64
+
+        @test test_encoder_decoder((encoder,), (decoder,))
+
+        # Test incompatible activation function decoder
+        num_inputs = 2
+        latent_dim = 1 
+
+        encoder = Chain(
+            Dense(num_inputs => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => 2*latent_dim)
+        ) |> f64
+
+        decoder = Chain(
+            Dense(latent_dim => hidden_layer_size, sin),
+            Dense(hidden_layer_size => num_inputs)
+        ) |> f64
+
+        @test test_encoder_decoder((encoder,), (decoder,))
     end
 
     @testset "Make Synthetic Data Test" begin
@@ -138,8 +170,21 @@ end
         latent_dim = 2
         latent_layers = 2
         model = GenerativeModelProtocols.VariationalAutoencoder(input_dim, latent_dim, latent_layers)
+        protocol = GenerativeModelProtocol(model)
 
-        x = rand(Float64, input_dim, 100)
+        # Vector single call
+        x = protocol()
+        z = encode(model, x)
+        x̂ = decode(model, z)
+
+        @test isa(x, Vector)
+        @test isa(z, Vector)
+
+        @test isa(x̂, Vector)
+        @test length(x) == length(x̂)
+
+        # Matrix batch call
+        x = protocol(100)
         z = encode(model, x)
         x̂ = decode(model, z)
 

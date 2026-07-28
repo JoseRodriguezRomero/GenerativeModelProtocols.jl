@@ -60,7 +60,6 @@ macro load_gaussian_mixture_parameters(saved_model, main_group_name, generative_
         $(main_group_name = esc(main_group_name)),
         $(generative_model_group_name = esc(generative_model_group_name))
     ))
-    throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_gaussian_mixture_parameters` interface."))
 end
 
 function GaussianMixtureModel(saved_model::Any; 

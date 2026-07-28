@@ -109,6 +109,10 @@ function (protocol::GenerativeModelProtocol)(n_samples::Int)
     return @_eval(protocol, protocol.model, n_samples)
 end
 
+function (protocol::GenerativeModelProtocol)()
+    return protocol(1)[:]
+end
+
 function (protocol::GenerativeModelProtocol)(category_index::Int, n_samples::Int)
     return @_categorical_eval(protocol, protocol.model, category_index, n_samples)
 end
