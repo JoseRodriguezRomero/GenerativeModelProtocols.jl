@@ -16,11 +16,21 @@ function make_test_train_data(num_samples)
     return collect(transpose(hcat(x,y)))
 end
 
+function randomize_layers!(layers::Tuple{Vararg{Dense}})
+    for i in eachindex(layers)
+        layers[i].bias .= rand(Float64, size(layers[i].bias))
+        layers[i].weight .= rand(Float64, size(layers[i].weight))
+    end
+end
+
+function randomize_layers!(layer::Dense)
+    randomize_layers!((layer,))
+end
+
 function randomize_chains!(chains::Tuple{Vararg{Chain}})
     for i in eachindex(chains)
         for j in eachindex(chains[i])
-            chains[i][j].bias .= rand(Float64, size(chains[i][j].bias))
-            chains[i][j].weight .= rand(Float64, size(chains[i][j].weight))
+            randomize_layers!(chains[i][j])
         end
     end
 end
@@ -39,12 +49,36 @@ function remove_file(file_path::String)
     end
 end
 
+function compare_layers(layers_a::Tuple{Vararg{Dense}}, layers_b::Tuple{Vararg{Dense}})
+    if length(layers_a) != length(layers_b)
+        return false
+    end
+
+    ϵ = 1.0E-9
+    for i in eachindex(layers_a)
+        layer_a = layers_a[i]
+        layer_b = layers_b[i]
+
+        bias_diff = maximum(abs.(layer_a.bias - layer_b.bias))
+        weight_diff = maximum(abs.(layer_a.weight - layer_b.weight))
+
+        if (bias_diff > ϵ) || (weight_diff > ϵ)
+            return false
+        end
+    end
+
+    return true
+end
+
+function compare_layers(layer_a::Dense, layer_b::Dense)
+    return compare_layers((layer_a,), (layer_b,))
+end
+
 function compare_chains(chains_a::Tuple{Vararg{Chain}}, chains_b::Tuple{Vararg{Chain}})
     if length(chains_a) != length(chains_b)
         return false
     end
 
-    ϵ = 1.0E-9
     for i in eachindex(chains_a)
         chain_a = chains_a[i]
         chain_b = chains_b[i]
@@ -57,10 +91,7 @@ function compare_chains(chains_a::Tuple{Vararg{Chain}}, chains_b::Tuple{Vararg{C
             layer_a = chain_a[j]
             layer_b = chain_b[j]
 
-            bias_diff = maximum(abs.(layer_a.bias - layer_b.bias))
-            weight_diff = maximum(abs.(layer_a.weight - layer_b.weight))
-
-            if (bias_diff > ϵ) || (weight_diff > ϵ)
+            if !compare_layers(layer_a, layer_b)
                 return false
             end
         end
@@ -167,6 +198,7 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
     @test check_file_size(save_path)
 end
 
+include("diffusion_model_tests.jl")
 include("gaussian_mixture_model_tests.jl")
 include("variational_autoencoder_tests.jl")
 

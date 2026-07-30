@@ -3,14 +3,18 @@ function test_compare_models(model_a::GenerativeModelProtocols.VariationalAutoen
     @test compare_chains(model_a.decoders, model_b.decoders)
 end
 
+function randomize_variational_autoencoder!(model::GenerativeModelProtocols.VariationalAutoencoder)
+    randomize_chains!(model.encoders)
+    randomize_chains!(model.decoders)
+end
+
 @testset "VariationalAutoencoder Tests" begin
     @testset "Constructors Tests" begin
         input_size = 3
         latent_dim = 3
 
         model_1 = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim; β = 0.1)
-        randomize_chains!(model_1.encoders)
-        randomize_chains!(model_1.decoders)
+        randomize_variational_autoencoder!(model_1)
 
         model_2 = GenerativeModelProtocols.VariationalAutoencoder(model_1.encoders, model_1.decoders; β = 0.2)
         model_3 = GenerativeModelProtocols.VariationalAutoencoder(;
@@ -211,9 +215,7 @@ end
         latent_dim = 2
         latent_layers = 2
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
-
-        randomize_chains!(model.encoders)
-        randomize_chains!(model.decoders)
+        randomize_variational_autoencoder!(model)
 
         save_path = joinpath(@__DIR__(), "test_vae_model.h5")
         test_model_save(save_path, model)

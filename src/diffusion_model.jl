@@ -1,11 +1,12 @@
-function default_denoiser_network(num_inputs::Int, hidden_layer_size::Int = 32)
-    return Chain(
-        Dense(num_inputs => hidden_layer_size, relu), 
-        Dense(hidden_layer_size => hidden_layer_size, relu),
-        Dense(hidden_layer_size => hidden_layer_size, relu),
-        Dense(hidden_layer_size => hidden_layer_size, relu),
-        Dense(hidden_layer_size => hidden_layer_size, relu),
-        Dense(hidden_layer_size => num_inputs)
+macro _dm_default_activation_function()
+    return relu
+end
+
+function default_denoiser_network(num_inputs::Int, T::Int, hidden_layer_size::Int = 32, activation_function = @_dm_default_activation_function)
+    return TabularDenoiser(num_inputs; 
+        T                   = T,
+        hidden_layer_size   = hidden_layer_size,
+        activation_function = activation_function
     ) |> f64
 end
 
@@ -30,15 +31,24 @@ $TYPEDFIELDS
     """Variance of the Gaussian noise added in each diffusion step."""
     β::Vector{Float64}
     """Neural network parametrizing the denoising model, that is, a model that probabilisitically undoes the Gaussian noise."""
-    denoiser_model::Chain
+    denoiser_model::TabularDenoiser
     """Number of training epochs for the VAE."""
 end
 
-function DiffusionModel(T::Int, β::Vector{Float64}, denoiser_model::Chain)
+"""
+    GenerativeModelProtocols.DiffusionModel(β::Vector{Float64}, denoiser_model::GenerativeModelProtocols.TabularDenoiser)
+
+Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
+
+Sets the values of `α` and `ᾱ` automatically for the user, using user specified 
+`denoiser_model`. The user is responsible to ensuring that `denoiser_model` is
+compatible with `β`.
+"""
+function DiffusionModel(β::Vector{Float64}, denoiser_model::TabularDenoiser)
     α = Float64(1.0) .- β
     ᾱ = cumprod(α)
     return DiffusionModel(
-        T = T,
+        T = length(β),
         α = α,
         ᾱ = ᾱ,
         β = β,
@@ -46,16 +56,46 @@ function DiffusionModel(T::Int, β::Vector{Float64}, denoiser_model::Chain)
     )
 end
 
+"""
+    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, T::Int, β::Vector{Float64})
+
+Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
+
+Sets the values of `α` and `ᾱ` automatically for the user. A default 
+`denoiser_model` is created based on `num_inputs`.
+"""
+function DiffusionModel(num_inputs::Int, β::Vector{Float64})
+    return DiffusionModel(β = β, denoiser_model = default_denoiser_network(num_inputs, T))
+end
+
 function _generative_model(::DiffusionModel)::GenerativeModel
     return diffusion_model
 end
 
-function DiffusionModel(T::Int, β_start::Float64, β_end::Float64, denoiser_model::Chain)
-    return DiffusionModel(T, Float64.(collect(range(β_start, β_end, length=T))), denoiser_model)
+"""
+    GenerativeModelProtocols.DiffusionModel(T::Int, β_start::Float64, β_end::Float64, denoiser_model::GenerativeModelProtocols.TabularDenoiser)
+
+Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
+
+Sets the values of `α` and `ᾱ` automatically for the user, using user specified 
+`denoiser_model`. This constructor initializes `β` with 
+`collect(range(β_start, β_end, length=T))`.
+"""
+function DiffusionModel(T::Int, β_start::Float64, β_end::Float64, denoiser_model::TabularDenoiser)
+    return DiffusionModel(Float64.(collect(range(β_start, β_end, length=T))), denoiser_model)
 end
 
+"""
+    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, T::Int = 5, β_start::Float64=1.0E-4, β_end::Float64=0.02)
+
+Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
+
+Sets the values of `α` and `ᾱ` automatically for the user. A default 
+`denoiser_model` is created based on `num_inputs`. This constructor initializes 
+`β` with `collect(range(β_start, β_end, length=T))`.
+"""
 function DiffusionModel(num_inputs::Int, T::Int = 5, β_start::Float64=1.0E-4, β_end::Float64=0.02)
-    return DiffusionModel(T, β_start, β_end, default_denoiser_network(num_inputs))
+    return DiffusionModel(T, β_start, β_end, default_denoiser_network(num_inputs, T))
 end
 
 function load_diffusion_model_parameters(saved_model::Any;
@@ -90,6 +130,7 @@ end
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print_log::Bool = true)
     model_train_device = model |> protocol.device
     opt_state = Flux.setup(protocol.optimiser, model_train_device)
+    
     batchsize_device = protocol.batchsize |> protocol.device
     training_data_device = Float64.(protocol.training_data) |> protocol.device
 
@@ -104,8 +145,8 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
 
     if print_log; println("Training Diffusion Model...") end
     for epoch in 1:protocol.epochs
-        epoch_loss = 0f0
-        total_grad_norm = 0f0
+        epoch_loss = 0.0
+        total_grad_norm = 0.0
 
         if epoch % 100 == 0 && protocol.shuffle
             loader = Flux.DataLoader(
@@ -119,18 +160,20 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
         for x₀ in loader
             b_size = size(x₀, 2)
 
-            t_raw = rand(1:model.T, b_size)
-            xₜ, ϵ_true = forward_diffusion(model, x₀, t_raw)
+            t_raw = rand(1:model.T, b_size) |> protocol.device
+            xₜ, ϵ_true = forward_diffusion(model_train_device, x₀, t_raw)
 
             loss, grads = Flux.withgradient(model_train_device) do m
-                ϵ_pred = m.denoiser_model(xₜ)
-                Flux.Losses.mse(ϵ_pred, ϵ_true) / loader_length_device
+                ϵ_pred = m.denoiser_model(xₜ, t_raw)
+                return Flux.Losses.mse(ϵ_pred, ϵ_true) / loader_length_device
             end
 
-            raw_gradient_arrays = Optimisers.trainables(grads[1])
+            g_tree = grads[1] 
+            raw_gradient_arrays = Optimisers.trainables(g_tree)
             batch_grad_norm = sqrt(sum(sum(abs2, g) for g in raw_gradient_arrays if g isa AbstractArray))
 
-            Flux.update!(opt_state, model, grads[1])
+            Flux.update!(opt_state, model_train_device, g_tree)
+            
             epoch_loss += loss
             total_grad_norm += batch_grad_norm
         end
@@ -139,7 +182,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
         protocol._log.loss_grad_norm[epoch] = total_grad_norm / length(loader)
 
         if (epoch % 5 == 0 || epoch == 1) && print_log
-            println("Epoch: $epoch | Mean MSE Loss: $(protocol._log.loss[epoch])")
+            @printf("Epoch: %8d | Mean MSE Loss: %-15.6f | Grad Norm: %-10.4f\n", epoch, protocol._log.loss[epoch], protocol._log.loss_grad_norm[epoch])
         end
     end
     if print_log; println("Training complete!") end
@@ -150,28 +193,30 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
 end
 
 function _eval(protocol::GenerativeModelProtocol, model::DiffusionModel, n_samples::Int)
-    x = randn(Float64,n_samples,size(protocol.training_data,1))
-    x = collect(transpose(x))
-
-    for t in model.T:-1:1
-        ϵ_pred = model.denoiser_model(x)
-        βₜ = model.β[t]
-        αₜ = model.α[t]
-        ᾱₜ = model.ᾱ[t]
-
-        coeff = βₜ / sqrt(1.0 - ᾱₜ)
-        σₜ = sqrt(βₜ)
-        μₜ = (1.0 / sqrt(αₜ)) .* (x .- coeff .* ϵ_pred)
-
+    model_device = model |> protocol.device
+    num_features = size(model_device.denoiser_model.output_projection.weight, 1)
+    
+    x = randn(Float64, num_features, n_samples) |> protocol.device
+    
+    α = model_device.α
+    ᾱ = model_device.ᾱ
+    β = model_device.β
+    
+    for t in model_device.T:-1:1
+        t_batch = fill(t, n_samples) |> protocol.device
+        ϵ_pred = model_device.denoiser_model(x, t_batch)
+        x_mean = (x .- (β[t] / sqrt(1.0 - ᾱ[t])) .* ϵ_pred) ./ sqrt(α[t]) 
+        
         if t > 1
-            z = randn(Float64, size(x))
-            x = μₜ .+ σₜ .* z
+            σ_t = sqrt(β[t] * (1.0 - ᾱ[t-1]) / (1.0 - ᾱ[t]))
+            z = randn(Float64, size(x)...) |> protocol.device
+            x = x_mean .+ σ_t .* z
         else
-            x = μₜ
+            x = x_mean
         end
     end
-
-    return collect(transpose(x))
+    
+    return x |> cpu
 end
 
 struct DiffusionModelParameters

@@ -93,13 +93,19 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
     @_train!(protocol, protocol.model, print_log)
 end
 
+function _eval end
+
 macro _eval(protocol, model, n_samples)
     return :(_eval($(esc(protocol)), $(esc(model)), $(esc(n_samples))))
 end
 
+function _categorical_eval end
+
 macro _categorical_eval(protocol, model, category_index, n_samples)
     return :(_categorical_eval($(esc(protocol)), $(esc(model)), $(esc(category_index)), $(esc(n_samples))))
 end
+
+function _categorize end
 
 macro _categorize(protocol, model, x)
     return :(_categorize($(esc(protocol)), $(esc(model)), $(esc(x))))
@@ -353,6 +359,8 @@ function Base.display(protocol::GenerativeModelProtocol)
     println("device        = $(nameof(protocol.device))")
     println("model         = $(device_flag_map[_generative_model(protocol.model)])")
 end
+
+include("tabular_denoiser.jl")
 
 include("diffusion_model.jl")
 include("gaussian_mixture_model.jl")
