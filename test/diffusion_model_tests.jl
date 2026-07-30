@@ -61,6 +61,13 @@ end
     end
 
     @testset "Display Test" begin
+        input_size = 3
+        T = 30
+
+        model = GenerativeModelProtocols.DiffusionModel(input_size, T)
+        test_model_display(model)
+        test_model_display(model, input_size)
+        test_display(model.denoiser_model)
     end
 
     @testset "Save and Load Test" begin

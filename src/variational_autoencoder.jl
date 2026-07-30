@@ -171,7 +171,7 @@ end
 
 function Base.display(model::VariationalAutoencoder)
     print_padding = @_default_print_padding
-    println("GenerativeModelProtocols.VariationalAutoencoder:")
+    println("$(summary(model)):")
     println("β             = $(model.β)")
     println("latent_dim    = $(model.latent_dim)")
     println("latent_layers = $(model.latent_layers)")

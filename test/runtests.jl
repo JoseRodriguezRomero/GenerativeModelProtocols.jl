@@ -172,20 +172,19 @@ function capture_display(obj::Any)
     return printed_string
 end
 
-function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel)
-    protocol = GenerativeModelProtocol(model) 
+function test_display(obj::Any)
+    @test isa(capture_display(obj), String)
+end
 
-    @test isa(capture_display(protocol), String)
-    @test isa(capture_display(model), String)
+function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel)
+    test_display(GenerativeModelProtocol(model))
+    test_display(model)
 end
 
 function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
-    protocol = GenerativeModelProtocol(model, rand(Float64, input_size, 100)) 
-
-    @test isa(capture_display(protocol), String)
-    @test isa(capture_display(model), String)
+    test_display(GenerativeModelProtocol(model, rand(Float64, input_size, 100)))
+    test_display(model)
 end
-
 
 function test_model_save(save_path::String, model::GenerativeModelProtocols.AbstractGenerativeModel)
     metadata = Dict(

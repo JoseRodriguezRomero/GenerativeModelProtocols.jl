@@ -82,9 +82,9 @@ function Base.display(model::GaussianMixtureModel)
     print_padding = @_default_print_padding
     println("GenerativeModelProtocols.GaussianMixtureModel:")
     println("k      = $(model.k)")
-    println("μ      = $(size(model.μ,1))×$(size(model.μ,2)) Matrix{Float64}")
-    println("log_σ² = $(size(model.log_σ²,1))×$(size(model.log_σ²,2)) Matrix{Float64}")
-    println("p      = $(length(model.p))-element Vector{Float64}")
+    println("μ      = $(summary(model.μ))")
+    println("log_σ² = $(summary(model.log_σ²))")
+    println("p      = $(summary(model.p))")
     println("")
 
     function print_chains(chains)

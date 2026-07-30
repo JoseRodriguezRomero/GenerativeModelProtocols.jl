@@ -120,6 +120,15 @@ function DiffusionModel(saved_model::Any;
     )
 end
 
+function Base.display(model::DiffusionModel)
+    println("$(summary(model)):")
+    println("T              = $(model.T)")
+    println("α              = $(summary(model.α))")
+    println("ᾱ              = $(summary(model.ᾱ))")
+    println("β              = $(summary(model.β))")
+    println("denoiser_model = $(summary(model.denoiser_model))")
+end
+
 function forward_diffusion(model::DiffusionModel, x₀::AbstractMatrix, t::Vector{Int})
     ϵ = Flux.randn_like(x₀, size(x₀))
     ᾱₜ = reshape(model.ᾱ[t], 1, :)
@@ -216,7 +225,7 @@ function _eval(protocol::GenerativeModelProtocol, model::DiffusionModel, n_sampl
         end
     end
     
-    return x |> cpu
+    return x |> cpu_device()
 end
 
 struct DiffusionModelParameters

@@ -322,15 +322,25 @@ macro _default_print_padding()
     return "   "
 end
 
-function _print_chains(chains::Tuple{Chain}, print_padding = @_default_print_padding)
+function _base_print_layers(layers::Tuple{Vararg{Dense}}, print_padding::String = @_default_print_padding)
+    for layer in layers
+        print(print_padding * print_padding)
+        println(layer)
+    end
+end
+
+function _print_chains(chains::Tuple{Chain}, print_padding::String = @_default_print_padding)
     for i in eachindex(chains)
         println(print_padding * "Chain(")
-        for layer in chains[i]
-            print(print_padding * print_padding)
-            println(layer)
-        end
+        _base_print_layers(chains[i].layers)
         println(print_padding * ")")
     end
+end
+
+function _print_layers(layers::Tuple{Vararg{Dense}}, print_padding::String = @_default_print_padding)
+    println(print_padding * "Tuple()")
+    _base_print_layers(layers)
+    println(print_padding * ")")
 end
 
 function _print_chains(chain::Chain, print_padding)
@@ -338,30 +348,20 @@ function _print_chains(chain::Chain, print_padding)
 end
 
 function Base.display(protocol::GenerativeModelProtocol)
-    device_flag_map = Dict(
-        variational_autoencoder         => "VariationalAutoencoder",
-        diffusion_model                 => "DiffusionModel",
-        generative_adversarial_network  => "GenerativeAdversationNetwork",
-        normalizing_flow                => "NormalizingFlow",
-        gaussian_mixture_model          => "GaussianMixtureModel"
-    )
-
-    println("GenerativeModelProtocol:")
-    if isnothing(protocol.training_data)
-        println("training_data = nothing")
-    else
-        println("training_data = $(size(protocol.training_data,1))×$(size(protocol.training_data,2)) Matrix{Float64}")
-    end
+    println("$(summary(protocol)):")
+    println("training_data = $(summary(protocol.training_data))")
     println("epochs        = $(protocol.epochs)")
     println("batchsize     = $(protocol.batchsize)")
     println("shuffle       = $(protocol.shuffle)")
     println("optimiser     = $(protocol.optimiser)")
     println("device        = $(nameof(protocol.device))")
-    println("model         = $(device_flag_map[_generative_model(protocol.model)])")
+    println("model         = $(summary(protocol.model))")
 end
 
+# Auxiliary scripts
 include("tabular_denoiser.jl")
 
+# Generative models
 include("diffusion_model.jl")
 include("gaussian_mixture_model.jl")
 include("variational_autoencoder.jl")

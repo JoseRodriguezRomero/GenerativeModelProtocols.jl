@@ -64,6 +64,32 @@ function TabularDenoiser(num_inputs::Int;
     )
 end
 
+function Base.display(denoiser_model::TabularDenoiser)
+    print_padding = @_default_print_padding
+    println("$(summary(denoiser_model)):")
+    println("T                 = $(denoiser_model.T)")
+    println("max_period        = $(denoiser_model.max_period)")
+    
+    print("input_projection  = ")
+    println(denoiser_model.input_projection)
+
+    print("output_projection = ")
+    println(denoiser_model.output_projection)
+    println("")
+
+    println("time_embedding_mlp:")
+    _print_chains(denoiser_model.time_embedding_mlp, print_padding)
+    println("")
+
+    println("residual_layers:")
+    _print_layers(denoiser_model.residual_layers, print_padding)
+    println("")
+
+    println("time_projection_layers:")
+    _print_layers(denoiser_model.time_projection_layers, print_padding)
+    println("")
+end
+
 function compute_sinusoidal_frequencies(t, T::Int, max_period::Float64)
     half_dim = T ÷ 2
     
