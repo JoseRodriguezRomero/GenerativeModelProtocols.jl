@@ -45,7 +45,7 @@ end
         train_data = make_test_train_data(500)
 
         input_size = size(train_data,1)
-        T = 20
+        T = 21
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
         test_train_model(model, train_data)

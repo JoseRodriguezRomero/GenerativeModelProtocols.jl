@@ -113,16 +113,17 @@ function Base.display(denoiser_model::TabularDenoiser)
 end
 
 function compute_sinusoidal_frequencies(t, T::Int, max_period::Float64)
-    half_dim = T ÷ 2
-    
-    scale = log(max_period) / (half_dim - 1)
-    frequencies = exp.(collect(0:half_dim-1) * -scale)
+    frequencies = Zygote.ignore() do
+        half_dim = ceil(Int, T / 2.0)
+        scale = log(max_period) / (half_dim - 1)
+        frequencies = exp.(-collect(0:half_dim-1) * scale)
+    end
     
     scaled_time = t' .* frequencies
     sin_components = sin.(scaled_time)
     cos_components = cos.(scaled_time)
     
-    return vcat(sin_components, cos_components)
+    return vcat(sin_components, cos_components)[1:T,:]
 end
 
 function (m::TabularDenoiser)(x, t)

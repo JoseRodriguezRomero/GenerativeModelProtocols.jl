@@ -18,7 +18,7 @@ num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 
-model = GenerativeModelProtocols.DiffusionModel(2,150, 1.0E-4, 1.0E-3)
+model = GenerativeModelProtocols.DiffusionModel(2, 151, 1.0E-4, 1.0E-3)
 protocol = GenerativeModelProtocol(model,train_data;
     batchsize   = 256,
     epochs      = 500,
