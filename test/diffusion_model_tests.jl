@@ -1,7 +1,7 @@
 function test_compare_tabular_denoiser(denoiser_a::GenerativeModelProtocols.TabularDenoiser, denoiser_b::GenerativeModelProtocols.TabularDenoiser)
     ϵ = 1.0E-9
 
-    @test denoiser_a.T == denoiser_b
+    @test denoiser_a.T == denoiser_b.T
     @test compare_chains(denoiser_a.time_embedding_mlp,denoiser_b.time_embedding_mlp)
     @test compare_layers(denoiser_a.input_projection, denoiser_b.input_projection)
     @test compare_layers(denoiser_a.residual_layers, denoiser_b.residual_layers)
@@ -71,6 +71,19 @@ end
     end
 
     @testset "Save and Load Test" begin
+        input_size = 3
+        T = 30
+
+        model = GenerativeModelProtocols.DiffusionModel(input_size, T)
+        randomize_diffusion_model!(model)
+
+        save_path = joinpath(@__DIR__(), "test_dm_model.h5")
+        test_model_save(save_path, model)
+        
+        loaded_model = GenerativeModelProtocols.DiffusionModel(save_path)
+        test_compare_models(model, loaded_model)
+
+        remove_file(save_path)
     end
 end
 

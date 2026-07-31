@@ -113,19 +113,7 @@ function DiffusionModel(saved_model::String;
     generative_model_group_name::String = @default_generative_model_group_name,
     tabular_denoiser_group_name::String = @default_tabular_denoiser_group_name)
 
-    diffusion_model_parameters = @load_diffusion_model_parameters(saved_model, main_group_name, generative_model_group_name, tabular_denoiser_group_name)
-    denoiser_model_parameters = diffusion_model_parameters.denoiser_model
-    denoiser_model = TabularDenoiser(;
-        T = length(diffusion_model_parameters.β),
-        time_embedding_mlp     = Chain((layer_parameters(layer) for layer in denoiser_model_parameters.time_embedding_mlp)...),
-        input_projection       = layer_parameters(denoiser_model_parameters.input_projection),
-        residual_layers        = Tuple(layer_parameters(layer) for layer in denoiser_model_parameters.residual_layers),
-        time_projection_layers = Tuple(layer_parameters(layer) for layer in denoiser_model_parameters.time_projection_layers),
-        output_projection      = layer_parameters(denoiser_model_parameters.output_projection),
-        max_period             = denoiser_model_parameters.max_period
-    )
-
-    return DiffusionModel(diffusion_model_parameters.β, denoiser_model)
+    return @load_diffusion_model_parameters(saved_model, main_group_name, generative_model_group_name, tabular_denoiser_group_name)
 end
 
 function Base.display(model::DiffusionModel)

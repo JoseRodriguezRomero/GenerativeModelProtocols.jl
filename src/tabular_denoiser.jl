@@ -8,7 +8,7 @@ models.
 
 $TYPEDFIELDS
 """
-struct TabularDenoiser
+@kwdef struct TabularDenoiser
     T::Int
     time_embedding_mlp::Chain
     input_projection::Dense

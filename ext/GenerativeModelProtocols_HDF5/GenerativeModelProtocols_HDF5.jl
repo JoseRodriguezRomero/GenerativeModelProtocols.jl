@@ -22,6 +22,7 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     metadata::Dict{String,Any} = Dict{String,Any}())
+
     HDF5.h5open(file.filename, "r+") do file
         main_group = file[main_group_name]
         metadata_group = HDF5.create_group(main_group, metadata_group_name)
@@ -45,39 +46,50 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
     end
 end
 
-function write_chain_to_file(chain, chain_group)
+function write_layer_to_file(layer::Dense, layer_group)
     activation_function_map = GenerativeModelProtocols.activation_function_map()
     lay_dt = make_enum_type(instances(GenerativeModelProtocols.ActivationFunction)[1])
     scalar_space = HDF5.Dataspace(HDF5.API.h5s_create(HDF5.API.H5S_SCALAR))
 
-    for i in eachindex(chain.layers)
-        layer = chain.layers[i]
-        layer_group = HDF5.create_group(chain_group, "layer $i")
-        attr_lay = HDF5.create_attribute(layer_group, "activation_function", lay_dt, scalar_space)
-        HDF5.write_attribute(attr_lay, lay_dt, Int64(activation_function_map[layer.σ]))
-        HDF5.write(layer_group, "bias", layer.bias)
-        HDF5.write(layer_group, "weight", layer.weight)
+    attr_lay = HDF5.create_attribute(layer_group, "activation_function", lay_dt, scalar_space)
+    HDF5.write_attribute(attr_lay, lay_dt, Int64(activation_function_map[layer.σ]))
+    HDF5.write(layer_group, "bias", layer.bias)
+    HDF5.write(layer_group, "weight", layer.weight)
+end
+
+function write_layers_to_file(layers::Tuple{Vararg{Dense}}, layers_group)
+    for i in eachindex(layers)
+        layer = layers[i]
+        layer_group = HDF5.create_group(layers_group, "layer $i")
+        write_layer_to_file(layer, layer_group)
     end
 end
 
-function read_group_layer_parameters(layers_group)
-    activation_function_inverse_map = GenerativeModelProtocols.activation_function_inverse_map()
-    layers = Vector{Dense}(undef, length(keys(layers_group)))
-    for i in eachindex(layers)
-        layer_group = layers_group["layer $i"]
-        W = read(layer_group["weight"])
-        bias = read(layer_group["bias"])
-        σ = activation_function_inverse_map[UInt8(read(HDF5.attributes(layer_group)["activation_function"]))]
-        layers[i] = Dense(W, bias, σ)
-    end
+function write_chain_to_file(chain::Chain, chain_group)
+    write_layers_to_file(chain.layers, chain_group)
+end
 
-    return Tuple(layers)
+function read_group_layer_parameters(layer_group)
+    activation_function_inverse_map = GenerativeModelProtocols.activation_function_inverse_map()
+
+    W = read(layer_group["weight"])
+    bias = read(layer_group["bias"])
+    σ = activation_function_inverse_map[UInt8(read(HDF5.attributes(layer_group)["activation_function"]))]
+    return Dense(W, bias, σ)
+end
+
+function read_group_layers_parameters(layers_group)
+    return Tuple(read_group_layer_parameters(layer_group) for layer_group in layers_group)
 end
 
 function read_group_chain_parameters(chain_group)
-    return Chain(read_group_layer_parameters(chain_group))
+    return Chain(read_group_layers_parameters(chain_group))
 end
 
+# Auxiliary scripts
+include("tabular_denoiser_HDF5.jl")
+
+# Generative models
 include("diffusion_model_HDF5.jl")
 include("gaussian_mixture_model_HDF5.jl")
 include("variational_autoencoder_HDF5.jl")

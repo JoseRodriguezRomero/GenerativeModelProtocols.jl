@@ -5,6 +5,7 @@ function GenerativeModelProtocols.load_gaussian_mixture_parameters(file::FileIO.
     HDF5.h5open(file.filename, "r") do file
         gaussian_mixture_model_parameters_group = file[main_group_name][generative_model_group_name]
         predictor_network_group = gaussian_mixture_model_parameters_group["predictor_network"]
+
         predictor_network = read_group_chain_parameters(predictor_network_group)
         k = HDF5.attrs(gaussian_mixture_model_parameters_group)["k"]
         log_σ² = read(gaussian_mixture_model_parameters_group["log_sigma_squared"])
