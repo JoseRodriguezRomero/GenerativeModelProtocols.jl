@@ -13,16 +13,15 @@ end
         input_size = 3
         latent_dim = 3
 
-        model_1 = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim; β = 0.1)
+        model_1 = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
         randomize_variational_autoencoder!(model_1)
 
-        model_2 = GenerativeModelProtocols.VariationalAutoencoder(model_1.encoders, model_1.decoders; β = 0.2)
+        model_2 = GenerativeModelProtocols.VariationalAutoencoder(model_1.encoders, model_1.decoders)
         model_3 = GenerativeModelProtocols.VariationalAutoencoder(;
             latent_dim      = latent_dim,
             latent_layers   = length(model_1.encoders),
             encoders        = model_1.encoders,
-            decoders        = model_1.decoders,
-            β               = [0.1, 0.2]
+            decoders        = model_1.decoders
         )
 
         @test isa(model_1, GenerativeModelProtocols.VariationalAutoencoder)
@@ -41,9 +40,9 @@ end
         latent_dim = 2
         latent_layers = 2
 
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers; β = [0.1, 0.2])
-        test_train_model(model, train_data)
-        test_train_model_no_data(model)
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
+        test_train_model(model, train_data; β = [0.1, 0.2])
+        test_train_model_no_data(model; β = [0.1, 0.2])
     end
 
     @testset "Incompatible Encoder/Decoder Architecture Test" begin

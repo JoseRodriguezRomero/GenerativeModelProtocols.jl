@@ -104,16 +104,16 @@ function compare_chains(chain_a::Chain, chain_b::Chain)
     return compare_chains((chain_a,),(chain_b,))
 end
 
-function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel)    
+function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel; kwargs...)
     try
-        train!(GenerativeModelProtocol(model))
+        train!(GenerativeModelProtocol(model); kwargs...)
         return true
     catch
         return false
     end
 end
 
-function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix{Float64})
+function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix{Float64}; kwargs...)
     protocol = GenerativeModelProtocol(model, train_data;
         batchsize   = 32,
         epochs      = 20,
@@ -121,7 +121,7 @@ function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeMode
         device      = cpu_device()
     )
 
-    train_log = train!(protocol)
+    train_log = train!(protocol; kwargs...)
     @test isa(train_log, typeof(protocol._log))
 end
 

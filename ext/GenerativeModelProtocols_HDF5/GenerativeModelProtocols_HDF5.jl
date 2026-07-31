@@ -1,5 +1,7 @@
 module GenerativeModelProtocols_HDF5
 
+using Flux
+
 import GenerativeModelProtocols
 import FileIO, HDF5
 
@@ -44,7 +46,7 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
 end
 
 function write_chain_to_file(chain, chain_group)
-    activation_function_map = GenerativeModelProtocols.enum_activation_function_map()
+    activation_function_map = GenerativeModelProtocols.activation_function_map()
     lay_dt = make_enum_type(instances(GenerativeModelProtocols.ActivationFunction)[1])
     scalar_space = HDF5.Dataspace(HDF5.API.h5s_create(HDF5.API.H5S_SCALAR))
 
@@ -52,26 +54,28 @@ function write_chain_to_file(chain, chain_group)
         layer = chain.layers[i]
         layer_group = HDF5.create_group(chain_group, "layer $i")
         attr_lay = HDF5.create_attribute(layer_group, "activation_function", lay_dt, scalar_space)
-        HDF5.write_attribute(attr_lay, lay_dt, Int64(activation_function_map[layer.activation_function]))
-        HDF5.write(layer_group, "node_bias", layer.node_bias)
-        HDF5.write(layer_group, "node_weights", layer.node_weights)
+        HDF5.write_attribute(attr_lay, lay_dt, Int64(activation_function_map[layer.σ]))
+        HDF5.write(layer_group, "bias", layer.bias)
+        HDF5.write(layer_group, "weight", layer.weight)
     end
 end
 
-function read_group_layer_parameters(chain_group)
-    activation_function_inverse_map = GenerativeModelProtocols.enum_activation_function_inverse_map()
-    layers = Vector{GenerativeModelProtocols.LayerParameters}(undef, length(keys(chain_group)))
+function read_group_layer_parameters(layers_group)
+    activation_function_inverse_map = GenerativeModelProtocols.activation_function_inverse_map()
+    layers = Vector{Dense}(undef, length(keys(layers_group)))
     for i in eachindex(layers)
-        layer_group = chain_group["layer $i"]
-        new_layer = GenerativeModelProtocols.LayerParameters(
-            read(layer_group["node_bias"]),
-            read(layer_group["node_weights"]),
-            activation_function_inverse_map[UInt8(read(HDF5.attributes(layer_group)["activation_function"]))]
-        )
-        layers[i] = new_layer
+        layer_group = layers_group["layer $i"]
+        W = read(layer_group["weight"])
+        bias = read(layer_group["bias"])
+        σ = activation_function_inverse_map[UInt8(read(HDF5.attributes(layer_group)["activation_function"]))]
+        layers[i] = Dense(W, bias, σ)
     end
 
-    return layers
+    return Tuple(layers)
+end
+
+function read_group_chain_parameters(chain_group)
+    return Chain(read_group_layer_parameters(chain_group))
 end
 
 include("diffusion_model_HDF5.jl")

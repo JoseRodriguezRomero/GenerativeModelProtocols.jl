@@ -64,6 +64,29 @@ function TabularDenoiser(num_inputs::Int;
     )
 end
 
+function load_tabular_denoiser_parameters end
+
+macro default_tabular_denoiser_group_name()
+    return "tabular_denoiser"
+end
+
+macro load_tabular_denoiser_parameters(saved_model, main_group_name, generative_model_group_name, tabular_denoiser_group_name)
+    return :(load_tabular_denoiser_parameters($(esc(saved_model)); 
+        $(main_group_name = esc(main_group_name)), 
+        $(generative_model_group_name = esc(generative_model_group_name)),
+        $(tabular_denoiser_group_name = esc(tabular_denoiser_group_name))
+    ))
+end
+
+function TabularDenoiser(saved_model::String; 
+    main_group_name::String = @default_main_group_name,
+    generative_model_group_name::String = @default_generative_model_group_name,
+    tabular_denoiser_group_name::String = @default_tabular_denoiser_group_name)
+
+    denoiser_model_parameters = @load_tabular_denoiser_parameters(saved_model, main_group_name, generative_model_group_name, tabular_denoiser_group_name)
+    return tabular_denoiser_parameters(denoiser_model_parameters)
+end
+
 function Base.display(denoiser_model::TabularDenoiser)
     print_padding = @_default_print_padding
     println("$(summary(denoiser_model)):")

@@ -120,8 +120,6 @@ $TYPEDFIELDS
     encoders::Tuple{Vararg{Chain}} 
     """Decoder chain of the VAE, responsible for generating time-series data from the latent representation."""
     decoders::Tuple{Vararg{Chain}}
-    """Weighting factor for the KL divergence term in the VAE loss function."""
-    β::Union{Float64,Vector{Float64}} = 1.0
 end
 
 """
@@ -137,20 +135,18 @@ align structurally.
 """
 function VariationalAutoencoder(
     encoders::Tuple{Vararg{Chain}},
-    decoders::Tuple{Vararg{Chain}};
-    β::Union{Float64,Vector{Float64}} = 1.0)
+    decoders::Tuple{Vararg{Chain}})
 
     if !compatible_vae_model(encoders, decoders)
         @error "Incompatible Encoder/Decoder architecture!"
         throw(MethodError(VariationalAutoencoder, (encoders, decoders), (β,)))
     end
 
-    VariationalAutoencoder(
-        latent_dim = size(decoders[1][1].weight)[2], 
+    VariationalAutoencoder(;
+        latent_dim    = size(decoders[1][1].weight)[2], 
         latent_layers = length(decoders), 
-        encoders = encoders, 
-        decoders = decoders, 
-        β = β
+        encoders      = encoders, 
+        decoders      = decoders
     )
 end
 
@@ -161,18 +157,16 @@ Convenience constructor that generates a
 `GenerativeModelProtocols.VariationalAutoencoder` using default encoder and 
 decoder network architectures.
 """
-function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1; β::Union{Float64,Vector{Float64}} = 1.0)
+function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1)
     return VariationalAutoencoder(
         _vae_default_encoder_network(input_dim, latent_dim, latent_layers),
-        _vae_default_decoder_network(input_dim, latent_dim, latent_layers);
-        β = β
+        _vae_default_decoder_network(input_dim, latent_dim, latent_layers)
     )
 end
 
 function Base.display(model::VariationalAutoencoder)
     print_padding = @_default_print_padding
     println("$(summary(model)):")
-    println("β             = $(model.β)")
     println("latent_dim    = $(model.latent_dim)")
     println("latent_layers = $(model.latent_layers)")
     println("")
@@ -194,30 +188,11 @@ macro load_variational_autoencoder_parameters(saved_model, main_group_name, gene
     ))
 end
 
-function VariationalAutoencoder(saved_model::Any; 
-    β::Union{Float64,Vector{Float64}} = 1.0,
+function VariationalAutoencoder(saved_model::String; 
     main_group_name::String = @default_main_group_name,
     generative_model_group_name::String = @default_generative_model_group_name)
 
-    autoencoder_parameters = @load_variational_autoencoder_parameters(saved_model, main_group_name, generative_model_group_name)
-    encoders = Vector{Chain}(undef, length(autoencoder_parameters.encoders))
-    decoders = Vector{Chain}(undef, length(autoencoder_parameters.decoders))
-
-    for i in eachindex(autoencoder_parameters.encoders)
-        encoders[i] = Chain([layer_parameters(layer) for layer in autoencoder_parameters.encoders[i].layers]...)
-    end
-
-    for i in eachindex(autoencoder_parameters.decoders)
-        decoders[i] = Chain([layer_parameters(layer) for layer in autoencoder_parameters.decoders[i].layers]...)
-    end
-
-    return VariationalAutoencoder(;
-        latent_dim = size(decoders[1][1].weight)[2], 
-        latent_layers = length(decoders),
-        encoders = Tuple(encoders), 
-        decoders = Tuple(decoders),
-        β = β
-    )
+    return @load_variational_autoencoder_parameters(saved_model, main_group_name, generative_model_group_name)
 end
 
 function _generative_model(::VariationalAutoencoder)::GenerativeModel
@@ -350,17 +325,13 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     return protocol._log
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder, β::Vector; print_log::Bool = true)
+function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; β::Union{Vector{Float64}, Float64} = 1.0, print_log::Bool = true)
     training_log = nothing
     for i in eachindex(β)
         training_log = _train!(protocol, model, β[i]; print_log = print_log)
     end
 
     return training_log
-end
-
-function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; print_log::Bool = true)
-    return _train!(protocol, model, model.β; print_log = print_log)
 end
 
 """
@@ -422,17 +393,5 @@ end
 function _eval(_::GenerativeModelProtocol, model::VariationalAutoencoder, n_samples::Int)
     z = randn(Float64,model.latent_dim,n_samples)
     return decode(model,z)
-end
-
-struct VariationalAutoencoderParameters
-    encoders::Vector{ChainParameters}
-    decoders::Vector{ChainParameters}
-end
-
-function variational_autoencoder_parameters(model::VariationalAutoencoder)::VariationalAutoencoderParameters
-    return VariationalAutoencoderParameters(
-        [chain_parameters(encoder) for encoder in model.encoders],
-        [chain_parameters(decoder) for decoder in model.decoders]
-    )
 end
 

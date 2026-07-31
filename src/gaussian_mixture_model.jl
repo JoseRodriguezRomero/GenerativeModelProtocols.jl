@@ -62,20 +62,11 @@ macro load_gaussian_mixture_parameters(saved_model, main_group_name, generative_
     ))
 end
 
-function GaussianMixtureModel(saved_model::Any; 
+function GaussianMixtureModel(saved_model::String; 
     main_group_name = @default_main_group_name,
     generative_model_group_name = @default_generative_model_group_name)
 
-    gaussian_mixture_parameters = @load_gaussian_mixture_parameters(saved_model, main_group_name, generative_model_group_name)
-    predictor_network = Chain([layer_parameters(layer) for layer in gaussian_mixture_parameters.predictor_network.layers])
-
-    return GaussianMixtureModel(;
-        k                   = gaussian_mixture_parameters.k,
-        log_σ²              = gaussian_mixture_parameters.log_σ²,
-        μ                   = gaussian_mixture_parameters.μ,
-        predictor_network   = predictor_network,
-        p                   = gaussian_mixture_parameters.p
-    )
+    return @load_gaussian_mixture_parameters(saved_model, main_group_name, generative_model_group_name)
 end
 
 function Base.display(model::GaussianMixtureModel)
@@ -252,23 +243,5 @@ end
 
 function _categorize(_::GenerativeModelProtocol, model::GaussianMixtureModel, x::Vector{Float64})
     return model.predictor_network(x)
-end
-
-struct GaussianMixtureModelParameters
-    k::Int
-    log_σ²::Matrix{Float64}
-    μ::Matrix{Float64}
-    predictor_network::ChainParameters
-    p::Vector{Float64}
-end
-
-function gaussian_mixture_model_parameters(model::GaussianMixtureModel)::GaussianMixtureModelParameters
-    return GaussianMixtureModelParameters(
-        model.k,
-        model.log_σ²,
-        model.μ,
-        chain_parameters(model.predictor_network),
-        model.p
-    )
 end
 

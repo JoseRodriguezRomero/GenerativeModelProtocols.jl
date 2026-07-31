@@ -63,8 +63,8 @@ function GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64},
     )
 end
 
-macro _train!(protocol, model, print_log)
-    :(_train!($(esc(protocol)), $(esc(model)); $(print_log = esc(print_log))))
+macro _train!(protocol, model, print_log, kwargs...)
+    :(_train!($(esc(protocol)), $(esc(model)); $(print_log = esc(print_log)), $(esc(kwargs...))))
 end
 
 function clean_logged_data!(log::Vector{Float64}, epochs::Int)
@@ -78,19 +78,19 @@ function clean_logged_data!(log::TrainingLog, epochs::Int)
 end
 
 """
-    train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
+    train!(protocol::GenerativeModelProtocol; kwargs...)
 
 Method to train the model inside `protocol` with its `training_data`. This 
 method can be called again after it finishes to resume training.
 """
-function train!(protocol::GenerativeModelProtocol; print_log::Bool = true)
+function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwargs...)
     clean_logged_data!(protocol._log, protocol.epochs)
 
     if isnothing(protocol.training_data) || isempty(protocol.training_data)
         throw(ArgumentError("No training data was loaded!"))
     end
 
-    @_train!(protocol, protocol.model, print_log)
+    @_train!(protocol, protocol.model, print_log, kwargs...)
 end
 
 function _eval end
@@ -200,16 +200,21 @@ end
 
 function activation_function_map()
     return Dict(
-        relu        => _relu,
-        gelu        => _gelu,
-        tanh        => _tanh,
-        sigmoid     => _sigmoid,
-        softmax     => _softmax,
-        leakyrelu   => _leakyrelu,
-        elu         => _elu,
-        swish       => _swish,
-        identity    => _identity
+        relu        => UInt8(_relu),
+        gelu        => UInt8(_gelu),
+        tanh        => UInt8(_tanh),
+        sigmoid     => UInt8(_sigmoid),
+        softmax     => UInt8(_softmax),
+        leakyrelu   => UInt8(_leakyrelu),
+        elu         => UInt8(_elu),
+        swish       => UInt8(_swish),
+        identity    => UInt8(_identity)
     )
+end
+
+function activation_function_inverse_map()
+    foo_map = activation_function_map()
+    return Dict(foo_map[key] => key for key in keys(foo_map))
 end
 
 function compatible_neural_networks(networks::Tuple{Vararg{Chain}})
@@ -230,52 +235,6 @@ function compatible_neural_network(network::Chain)
     end
 
     return true
-end
-
-function activation_function_inverse_map()
-    foo_map = activation_function_map()
-    return Dict(foo_map[key] => key for key in keys(foo_map))
-end
-
-function enum_activation_function_map()
-    return Dict(f => UInt8(f) for f in instances(ActivationFunction))
-end
-
-function enum_activation_function_inverse_map()
-    return Dict(UInt8(f) => f for f in instances(ActivationFunction))
-end
-
-struct LayerParameters
-    node_bias::Vector{Float64}
-    node_weights::Matrix{Float64}
-    activation_function::ActivationFunction
-end
-
-struct ChainParameters
-    layers::Vector{LayerParameters}
-end
-
-function layer_parameters(layer::Dense)::LayerParameters
-    foo_map = activation_function_map()
-    return LayerParameters(
-        layer.bias,
-        layer.weight,
-        foo_map[layer.σ]
-    )
-end
-
-function layer_parameters(layer::LayerParameters)::Dense
-    foo_inv_map = activation_function_inverse_map()
-    return Dense(layer.node_weights, layer.node_bias, foo_inv_map[layer.activation_function])
-end
-
-function chain_parameters(chain::Chain)::ChainParameters
-    layers = Vector{LayerParameters}(undef, length(chain))
-    for i in eachindex(chain)
-        layers[i] = layer_parameters(chain[i])
-    end
-
-    return ChainParameters(layers)
 end
 
 macro default_main_group_name()

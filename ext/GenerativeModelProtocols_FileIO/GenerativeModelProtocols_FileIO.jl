@@ -31,20 +31,6 @@ function GenerativeModelProtocols._save_model(file_name::String, model::Generati
     )
 end
 
-"""
-    FileIO.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol; main_group_name::String, metadata_group_name::String, generative_model_group_name::String, metadata::Union{Dict{String,Any}, NamedTuple, Nothing})
-    
-Convenience function for saving already trained generative models. End users can
-use this convenience function the exact same way regardless of the generative 
-model architecture.
-
-# Arguments
-* `main_group_name::String`:
-* `metadata_group_name::String`:
-* `generative_model_group_name::String`:
-* `metadata::Union{Dict{String,Any}, NamedTuple, Nothing}`:
-
-"""
 function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol; 
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
@@ -59,6 +45,10 @@ function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.Gener
     )
 end
 
+# Auxiliary scripts
+include("tabular_denoiser_FileIO.jl")
+
+# Generative models
 include("diffusion_model_FileIO.jl")
 include("gaussian_mixture_model_FileIO.jl")
 include("variational_autoencoder_FileIO.jl")

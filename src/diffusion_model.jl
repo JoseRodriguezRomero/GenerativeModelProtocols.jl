@@ -98,26 +98,34 @@ function DiffusionModel(num_inputs::Int, T::Int = 5, β_start::Float64=1.0E-4, �
     return DiffusionModel(T, β_start, β_end, default_denoiser_network(num_inputs, T))
 end
 
-function load_diffusion_model_parameters(saved_model::Any;
-    main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
-    throw(ArgumentError("Types $(typeof(saved_model)) does not implement the required `load_diffusion_model_parameters` interface."))
+function load_diffusion_model_parameters end
+
+macro load_diffusion_model_parameters(saved_model, main_group_name, generative_model_group_name, tabular_denoiser_group_name)
+    return :(load_diffusion_model_parameters($(esc(saved_model)); 
+        $(main_group_name = esc(main_group_name)), 
+        $(generative_model_group_name = esc(generative_model_group_name)),
+        $(tabular_denoiser_group_name = esc(tabular_denoiser_group_name))
+    ))
 end
 
-function DiffusionModel(saved_model::Any; 
+function DiffusionModel(saved_model::String; 
     main_group_name::String = @default_main_group_name,
-    generative_model_group_name::String = @default_generative_model_group_name)
+    generative_model_group_name::String = @default_generative_model_group_name,
+    tabular_denoiser_group_name::String = @default_tabular_denoiser_group_name)
 
-    diffusion_model_parameters = load_diffusion_model_parameters(saved_model;
-        main_group_name = main_group_name,
-        generative_model_group_name = generative_model_group_name
+    diffusion_model_parameters = @load_diffusion_model_parameters(saved_model, main_group_name, generative_model_group_name, tabular_denoiser_group_name)
+    denoiser_model_parameters = diffusion_model_parameters.denoiser_model
+    denoiser_model = TabularDenoiser(;
+        T = length(diffusion_model_parameters.β),
+        time_embedding_mlp     = Chain((layer_parameters(layer) for layer in denoiser_model_parameters.time_embedding_mlp)...),
+        input_projection       = layer_parameters(denoiser_model_parameters.input_projection),
+        residual_layers        = Tuple(layer_parameters(layer) for layer in denoiser_model_parameters.residual_layers),
+        time_projection_layers = Tuple(layer_parameters(layer) for layer in denoiser_model_parameters.time_projection_layers),
+        output_projection      = layer_parameters(denoiser_model_parameters.output_projection),
+        max_period             = denoiser_model_parameters.max_period
     )
 
-    return DiffusionModel(
-        diffusion_model_parameters.T,
-        diffusion_model_parameters.β,
-        Chain([layer_parameters(layer) for layer in diffusion_model_parameters.denoiser_model.layers]...)
-    )
+    return DiffusionModel(diffusion_model_parameters.β, denoiser_model)
 end
 
 function Base.display(model::DiffusionModel)
@@ -226,19 +234,5 @@ function _eval(protocol::GenerativeModelProtocol, model::DiffusionModel, n_sampl
     end
     
     return x |> cpu_device()
-end
-
-struct DiffusionModelParameters
-    T::Int
-    β::Vector{Float64}
-    denoiser_model::ChainParameters
-end
-
-function diffusion_model_parameters(model::DiffusionModel)
-    return DiffusionModelParameters(
-        model.T,
-        model.β,
-        chain_parameters(model.denoiser_model)
-    )
 end
 
