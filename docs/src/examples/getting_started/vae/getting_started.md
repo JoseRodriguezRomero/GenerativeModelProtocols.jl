@@ -33,7 +33,7 @@ train_data = collect(transpose(hcat(x_train,y_train)))
 we then define the VAE that is to be trained on this data, whose latent 
 variables are also two-dimensional as
 ```julia
-model = GenerativeModelProtocols.VariationalAutoencoder(2, 2; β = 0.05)
+model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
 ```
 thus, our trainable generative model protocol is defined, and trained, as
 ```julia
@@ -43,7 +43,7 @@ protocol = GenerativeModelProtocol(model, train_data;
     optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
     device      = cpu_device()
 )
-train!(protocol)
+train!(protocol; β = 0.05)
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia

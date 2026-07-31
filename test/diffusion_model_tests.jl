@@ -83,6 +83,11 @@ end
         loaded_model = GenerativeModelProtocols.DiffusionModel(save_path)
         test_compare_models(model, loaded_model)
 
+        model_β = loaded_model.β
+        model_denoiser = GenerativeModelProtocols.TabularDenoiser(save_path)
+        loaded_model = GenerativeModelProtocols.DiffusionModel(model_β, model_denoiser)
+        test_compare_models(model, loaded_model)
+
         remove_file(save_path)
     end
 end
