@@ -13,7 +13,7 @@ function GenerativeModelProtocols.load_diffusion_model_parameters(file::FileIO.F
         diffusion_model_parameters_group = file[main_group_name][generative_model_group_name]
         β = read(diffusion_model_parameters_group["beta"])
 
-        return GenerativeModelProtocols.DiffusionModel(β, denoiser_model)
+        return GenerativeModelProtocols.DiffusionModel(Tuple(β), denoiser_model)
     end
 end
 
@@ -27,7 +27,7 @@ function GenerativeModelProtocols._save_model(file::FileIO.File{FileIO.DataForma
         main_group = HDF5.create_group(file, main_group_name)
         generative_model_group = HDF5.create_group(main_group, generative_model_group_name)
 
-        HDF5.write(generative_model_group, "beta", model.β)
+        HDF5.write(generative_model_group, "beta", collect(model.β))
     end
 
     GenerativeModelProtocols._save_model(file, model.denoiser_model;

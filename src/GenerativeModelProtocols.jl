@@ -93,50 +93,32 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwarg
     @_train!(protocol, protocol.model, print_log, kwargs...)
 end
 
-function _eval end
-
-macro _eval(protocol, model, n_samples)
-    return :(_eval($(esc(protocol)), $(esc(model)), $(esc(n_samples))))
-end
-
-function _categorical_eval end
-
-macro _categorical_eval(protocol, model, category_index, n_samples)
-    return :(_categorical_eval($(esc(protocol)), $(esc(model)), $(esc(category_index)), $(esc(n_samples))))
-end
-
-function _categorize end
-
-macro _categorize(protocol, model, x)
-    return :(_categorize($(esc(protocol)), $(esc(model)), $(esc(x))))
-end
-
 function (protocol::GenerativeModelProtocol)(n_samples::Int)
-    return @_eval(protocol, protocol.model, n_samples)
+    return  protocol.model(n_samples)
 end
 
 function (protocol::GenerativeModelProtocol)()
-    return protocol(1)[:]
+    return protocol.model()
 end
 
 function (protocol::GenerativeModelProtocol)(category_index::Int, n_samples::Int)
-    return @_categorical_eval(protocol, protocol.model, category_index, n_samples)
+    return protocol.model(category_index, n_samples)
 end
 
 """
-    categorize(protocol::GenerativeModelProtocol, x::Vector{Float64}) -> Vector{Float64}
+    categorize(protocol::GenerativeModelProtocol, x::Vector) -> Vector
 
 Compute the posterior probability distribution over the mixture components for a 
 given input vector `x`. Returns a vector where the k-th element represents the 
 conditional probability that the input stems from the k-th categorical cluster 
 of the model.
 """
-function categorize(protocol::GenerativeModelProtocol, x::Vector{Float64})::Vector{Float64}
-    return @_categorize(protocol, protocol.model, x)
+function categorize(protocol::GenerativeModelProtocol, x::Vector)::Vector
+    return categorize(protocol.model, x)
 end
 
 """
-    categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64}) -> Matrix{Float64}
+    categorize(protocol::GenerativeModelProtocol, x::Matrix) -> Matrix
 
 Batch compute the posterior probability distributions over the mixture 
 components for multiple input vectors. Each sample in the input matrix `x` is 
@@ -144,8 +126,44 @@ mapped to a normalized categorical probability vector where the k-th element
 represents the conditional probability that the sample stems from the k-th 
 cluster.
 """
-function categorize(protocol::GenerativeModelProtocol, x::Matrix{Float64})::Matrix{Float64}
-    return @_categorize(protocol, protocol.model, x)
+function categorize(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
+    return categorize(protocol.model, x)
+end
+
+"""
+    encode(protocol::GenerativeModelProtocol, x::Matrix) -> Matrix
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
+    return encode(protocol.model, x)
+end
+
+"""
+    encode(protocol::GenerativeModelProtocol, x::Vector) -> Vector
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(protocol::GenerativeModelProtocol, x::Vector)::Vector
+    return encode(protocol.model, x)
+end
+
+"""
+    decode(protocol::GenerativeModelProtocol, z::Matrix) -> Matrix
+
+Decodes the latent space representations `z` back into the data space.
+"""
+function decode(protocol::GenerativeModelProtocol, z::Matrix)::Matrix
+    return decode(protocol.model, z)
+end
+
+"""
+    decode(protocol::GenerativeModelProtocol, z::Vector) -> Vector
+
+Decodes the latent space representations `z` back into the data space.
+"""
+function decode(protocol::GenerativeModelProtocol, z::Vector)::Vector
+    return decode(protocol.model, z)
 end
 
 function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
@@ -304,6 +322,22 @@ end
 
 function _print_chains(chain::Chain, print_padding)
     _print_chains((chain,), print_padding)
+end
+
+function input_size(layer::Dense)
+    return size(layer.weight, 2)
+end
+
+function input_size(chain::Chain)
+    return input_size(chain[1])
+end
+
+function output_size(layer::Dense)
+    return size(layer.weight, 1)
+end
+
+function output_size(chain::Chain)
+    return output_size(chain[end])
 end
 
 function Base.display(protocol::GenerativeModelProtocol)

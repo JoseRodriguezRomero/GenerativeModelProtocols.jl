@@ -13,6 +13,34 @@ function _gmm_default_default_predictor_network(input_size::Int, k::Int, hidden_
     ) |> f64
 end
 
+function compatible_gmm_model(k::Int, log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
+    if size(log_σ², 1) != k
+        return false
+    end
+
+    if size(μ, 1) != k
+        return false
+    end
+
+    if length(p) != k
+        return false
+    end
+
+    if size(log_σ², 2) != size(μ, 2)
+        return false
+    end
+
+    if (input_size(predictor_network) != size(log_σ², 2))
+        return false
+    end
+
+    if (output_size(predictor_network) != k)
+        return false
+    end
+
+    return true
+end
+
 @compat public GaussianMixtureModel
 
 """
@@ -34,6 +62,15 @@ $TYPEDFIELDS
     predictor_network::Chain
     """Vector containing the categorical probabilities of each cluster."""
     p::Vector{Float64}
+
+    function GaussianMixtureModel(k::Int, log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
+        if !compatible_gmm_model(k, log_σ², μ, predictor_network, p)
+            @error "Incompatible GaussianMixtureModel architecture!"
+            throw(MethodError(GaussianMixtureModel, (k, log_σ², μ, predictor_network, p)))
+        end
+
+        return new(k, log_σ², μ, predictor_network, p)
+    end
 end
 
 """
@@ -198,7 +235,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     return protocol._log
 end
 
-function _categorical_eval(_::GenerativeModelProtocol, model::GaussianMixtureModel, category::Int, n_samples::Int)
+function (model::GaussianMixtureModel)(category::Int, n_samples::Int)
     D = size(model.μ, 2)
     synthetic_X = randn(Float64, D, n_samples)
     σ = exp.(0.5 .* model.log_σ²)
@@ -212,7 +249,7 @@ function _categorical_eval(_::GenerativeModelProtocol, model::GaussianMixtureMod
     return synthetic_X
 end
 
-function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n_samples::Int)
+function (model::GaussianMixtureModel)(n_samples::Int)
     D = size(model.μ, 2)
     
     cum_p = cumsum(model.p)
@@ -231,17 +268,38 @@ function _eval(protocol::GenerativeModelProtocol, model::GaussianMixtureModel, n
     for k in 1:model.k
         counts[k] == 0 && continue
         
-        final_X[:, starts[k]:ends[k]] .= _categorical_eval(protocol, model, k, counts[k])
+        final_X[:, starts[k]:ends[k]] .= model(k, counts[k])
     end
     
     return final_X
 end
 
-function _categorize(_::GenerativeModelProtocol, model::GaussianMixtureModel, x::Matrix{Float64})
+function (model::GaussianMixtureModel)()
+    return model(1)[:]
+end
+
+"""
+    categorize(model::GenerativeModelProtocols.GaussianMixtureModel, x::Vector) -> Vector
+
+Compute the posterior probability distribution over the mixture components for a 
+given input vector `x`. Returns a vector where the k-th element represents the 
+conditional probability that the input stems from the k-th categorical cluster 
+of the model.
+"""
+function categorize(model::GaussianMixtureModel, x::Matrix)::Matrix
     return model.predictor_network(x)
 end
 
-function _categorize(_::GenerativeModelProtocol, model::GaussianMixtureModel, x::Vector{Float64})
+"""
+    categorize(model::GenerativeModelProtocols.GaussianMixtureModel, x::Matrix) -> Matrix
+
+Batch compute the posterior probability distributions over the mixture 
+components for multiple input vectors. Each sample in the input matrix `x` is 
+mapped to a normalized categorical probability vector where the k-th element 
+represents the conditional probability that the sample stems from the k-th 
+cluster.
+"""
+function categorize(model::GaussianMixtureModel, x::Vector)::Vector
     return model.predictor_network(x)
 end
 

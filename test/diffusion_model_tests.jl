@@ -14,9 +14,9 @@ function test_compare_models(model_a::GenerativeModelProtocols.DiffusionModel, m
     ϵ = 1.0E-9
 
     @test model_a.T == model_b.T
-    @test maximum(model_a.α - model_b.α) < ϵ
-    @test maximum(model_a.ᾱ - model_b.ᾱ) < ϵ
-    @test maximum(model_a.β - model_b.β) < ϵ
+    @test maximum(collect(model_a.α) - collect(model_b.α)) < ϵ
+    @test maximum(collect(model_a.ᾱ) - collect(model_b.ᾱ)) < ϵ
+    @test maximum(collect(model_a.β) - collect(model_b.β)) < ϵ
     test_compare_tabular_denoiser(model_a.denoiser_model, model_b.denoiser_model)
 end
 
@@ -58,6 +58,37 @@ end
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
         test_model_make_synthetic_data(model)
+    end
+
+    @testset "Encode/Decode Test" begin
+        input_size = 3
+        T = 30
+
+        model = GenerativeModelProtocols.DiffusionModel(input_size, T)
+        protocol = GenerativeModelProtocol(model)
+
+        # Vector single call
+        x = protocol()
+        z = encode(protocol, x)
+        x̂ = decode(protocol, z)
+
+        @test isa(x, Vector)
+        @test isa(z, Vector)
+
+        @test isa(x̂, Vector)
+        @test length(x) == length(x̂)
+
+        # Matrix batch call
+        x = protocol(100)
+        z = encode(protocol, x)
+        x̂ = decode(protocol, z)
+
+        @test isa(x, Matrix)
+        @test isa(z, Matrix)
+
+        @test isa(x̂, Matrix)
+        @test size(x) == size(x̂)
+        @test size(z) == (input_size, size(x,2))
     end
 
     @testset "Display Test" begin

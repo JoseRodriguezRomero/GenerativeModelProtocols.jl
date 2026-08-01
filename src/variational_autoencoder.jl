@@ -68,24 +68,24 @@ function _vae_default_decoder_network(num_inputs::Int, latent_dim::Int, latent_l
     return Tuple(decoders)
 end
 
-function compatible_vae_model(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})::Bool
-    enc_input_dim = size(encoders[1][1].weight)[2]
-    enc_latent_dim = round(Int, size(encoders[end][end].weight)[1] / 2.0)
+function compatible_vae_model(latent_dim::Int, latent_layers::Int, encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})::Bool
+    enc_input_dim = input_size(encoders[1])
+    enc_latent_dim = round(Int, output_size(encoders[end]) / 2.0)
     enc_latent_layers = length(encoders)
 
-    dec_input_dim = size(decoders[1][end].weight)[1]
-    dec_latent_dim = size(decoders[end][1].weight)[2]
+    dec_input_dim = output_size(decoders[1])
+    dec_latent_dim = input_size(decoders[end])
     dec_latent_layers = length(decoders)
 
+    if (latent_dim != enc_latent_dim) || (latent_dim != dec_latent_dim)
+        return false
+    end
+
+    if (latent_layers != enc_latent_layers) || (latent_layers != dec_latent_layers)
+        return false
+    end
+
     if dec_input_dim != enc_input_dim
-        return false
-    end
-
-    if dec_latent_dim != enc_latent_dim
-        return false
-    end
-
-    if dec_latent_layers != enc_latent_layers
         return false
     end
 
@@ -95,6 +95,18 @@ function compatible_vae_model(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Va
 
     if !compatible_neural_networks(decoders)
         return false
+    end
+
+    for i in 1:(latent_layers - 1)
+        if input_size(encoders[i+1]) != round(Int, output_size(encoders[i]) / 2.0)
+            return false
+        end
+    end
+
+    for i in 1:(latent_layers - 2)
+        if input_size(decoders[i]) != round(Int, output_size(decoders[i+1]) / 2.0)
+            return false
+        end
     end
 
     return true
@@ -120,6 +132,15 @@ $TYPEDFIELDS
     encoders::Tuple{Vararg{Chain}} 
     """Decoder chain of the VAE, responsible for generating time-series data from the latent representation."""
     decoders::Tuple{Vararg{Chain}}
+
+    function VariationalAutoencoder(latent_dim::Int, latent_layers::Int, encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})
+        if !compatible_vae_model(latent_dim, latent_layers, encoders, decoders)
+            @error "Incompatible VariationalAutoencoder architecture!"
+            throw(MethodError(VariationalAutoencoder, (latent_dim, latent_layers, encoders, decoders)))
+        end
+
+        return new(latent_dim, latent_layers, encoders, decoders)
+    end
 end
 
 """
@@ -136,11 +157,6 @@ align structurally.
 function VariationalAutoencoder(
     encoders::Tuple{Vararg{Chain}},
     decoders::Tuple{Vararg{Chain}})
-
-    if !compatible_vae_model(encoders, decoders)
-        @error "Incompatible Encoder/Decoder architecture!"
-        throw(MethodError(VariationalAutoencoder, (encoders, decoders), (β,)))
-    end
 
     VariationalAutoencoder(;
         latent_dim    = size(decoders[1][1].weight)[2], 
@@ -215,14 +231,14 @@ function _encode_vae(encoders::Tuple{Vararg{Chain}}, x, latent_dim, num_latent_l
     enc_out = encoders[1](x)
     μ_buf[:, 1, :] = enc_out[1:latent_dim, :]
     logσ²_buf[:, 1, :] = enc_out[(latent_dim+1):end, :]
-    σ_buf[:, 1, :] = exp.(logσ²_buf[:, 1, :] .* 0.5f0)
+    σ_buf[:, 1, :] = exp.(logσ²_buf[:, 1, :] .*  0.5)
     z_buf[:, 1, :] = sample_latent(μ_buf[:, 1, :], σ_buf[:, 1, :])
 
     for i in 2:num_latent_layers
         enc_out = encoders[i](z_buf[:, i-1, :])
         μ_buf[:, i, :] = enc_out[1:latent_dim, :]
         logσ²_buf[:, i, :] = enc_out[(latent_dim+1):end, :]
-        σ_buf[:, i, :] = exp.(logσ²_buf[:, i, :] .* 0.5f0)
+        σ_buf[:, i, :] = exp.(logσ²_buf[:, i, :] .*  0.5)
         z_buf[:, i, :] = sample_latent(μ_buf[:, i, :], σ_buf[:, i, :])
     end
 
@@ -245,7 +261,7 @@ function _decode_vae(decoders::Tuple{Vararg{Chain}}, z, latent_dim, num_latent_l
         dec_out = decoders[idx+1](z[:, idx+1, :])
         μ_buf[:, idx, :] = dec_out[1:latent_dim, :]
         logσ²_buf[:, idx, :] = dec_out[(latent_dim+1):end, :]
-        σ_buf[:, idx, :] = exp.(logσ²_buf[:, idx, :] .* 0.5f0)
+        σ_buf[:, idx, :] = exp.(logσ²_buf[:, idx, :] .*  0.5)
     end
 
     x̂ = decoders[1](z[:, 1, :])
@@ -260,8 +276,8 @@ function vae_loss(model::VariationalAutoencoder, β::Float64, input_weights, x)
     μ_enc, σ_enc, logσ²_enc, z = _encode_vae(model.encoders, x, latent_dim, num_latent_layers)
     μ_dec, σ_dec, logσ²_dec, x̂ = _decode_vae(model.decoders, z, latent_dim, num_latent_layers)
 
-    recon_loss = 0.5f0 .* sum(input_weights .* ((x .- x̂).^2))   
-    kl_loss = 0.5f0 .* sum(logσ²_dec .- logσ²_enc .+ (σ_enc.^2 .+ (μ_enc .- μ_dec).^2) ./ σ_dec.^2 .- 1.0f0)
+    recon_loss =  0.5 .* sum(input_weights .* ((x .- x̂).^2))   
+    kl_loss =  0.5 .* sum(logσ²_dec .- logσ²_enc .+ (σ_enc.^2 .+ (μ_enc .- μ_dec).^2) ./ σ_dec.^2 .- 1.0)
 
     return (recon_loss + β * kl_loss) / batch_size
 end
@@ -281,8 +297,8 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
 
     if print_log; println("Training VAE... (β = $β)") end
     for epoch in 1:protocol.epochs
-        epoch_loss = 0f0
-        total_grad_norm = 0f0
+        epoch_loss = 0.0
+        total_grad_norm = 0.0
 
         if epoch % 100 == 0 && protocol.shuffle
             loader = load_data(training_data_device, batchsize_device, shuffle_device)
@@ -335,18 +351,46 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
 end
 
 """
-    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Matrix)
+    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Matrix) -> Matrix
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(model::VariationalAutoencoder, x::Matrix)
+    num_latent_layers = length(model.encoders)
+
+    enc_out = model.encoders[1](x)
+    z = sample_latent(enc_out[1:model.latent_dim,:], exp.(enc_out[(model.latent_dim+1):end,:] .*  0.5))
+    
+    for i in 2:num_latent_layers
+        enc_out = model.encoders[i](z)
+        z = sample_latent(enc_out[1:model.latent_dim,:], exp.(enc_out[(model.latent_dim+1):end,:] .*  0.5))
+    end
+
+    return z
+end
+
+"""
+    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Vector) -> Vector
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(model::VariationalAutoencoder, x::Vector)
+    return encode(model, reshape(x, :, 1))[:]
+end
+
+"""
+    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Matrix) -> Matrix
 
 Decodes the latent space representations `z` back into the data space.
 """
-function decode(model::VariationalAutoencoder, z::Matrix{Float64})
+function decode(model::VariationalAutoencoder, z::Matrix)
     num_latent_layers = length(model.decoders)
 
     for i in 1:(num_latent_layers-1)
         dec_out = model.decoders[num_latent_layers-i+1](z)
         z = sample_latent(
             dec_out[1:model.latent_dim, :], 
-            exp.(dec_out[(model.latent_dim+1):end, :] .* 0.5f0)
+            exp.(dec_out[(model.latent_dim+1):end, :] .*  0.5)
         )
     end
 
@@ -354,44 +398,20 @@ function decode(model::VariationalAutoencoder, z::Matrix{Float64})
 end
 
 """
-    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Vector)
+    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Vector) -> Vector
 
 Decodes the latent space representations `z` back into the data space.
 """
-function decode(model::VariationalAutoencoder, z::Vector{Float64})
+function decode(model::VariationalAutoencoder, z::Vector)
     return decode(model, reshape(z,:,1))[:]
 end
 
-"""
-    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Matrix)
-
-Encodes the data space variable `x` into a latent space variable.
-"""
-function encode(model::VariationalAutoencoder, x::Matrix{Float64})
-    num_latent_layers = length(model.encoders)
-
-    enc_out = model.encoders[1](x)
-    z = sample_latent(enc_out[1:model.latent_dim,:], exp.(enc_out[(model.latent_dim+1):end,:] .* 0.5f0))
-    
-    for i in 2:num_latent_layers
-        enc_out = model.encoders[i](z)
-        z = sample_latent(enc_out[1:model.latent_dim,:], exp.(enc_out[(model.latent_dim+1):end,:] .* 0.5f0))
-    end
-
-    return z
-end
-
-"""
-    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Vector)
-
-Encodes the data space variable `x` into a latent space variable.
-"""
-function encode(model::VariationalAutoencoder, x::Vector{Float64})
-    return encode(model, reshape(x, :, 1))[:]
-end
-
-function _eval(_::GenerativeModelProtocol, model::VariationalAutoencoder, n_samples::Int)
+function (model::VariationalAutoencoder)(n_samples::Int)
     z = randn(Float64,model.latent_dim,n_samples)
     return decode(model,z)
+end
+
+function (model::VariationalAutoencoder)()
+    return model(1)[:]
 end
 

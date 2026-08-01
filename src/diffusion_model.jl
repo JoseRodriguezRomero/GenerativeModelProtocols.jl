@@ -10,6 +10,34 @@ function default_denoiser_network(num_inputs::Int, T::Int, hidden_layer_size::In
     ) |> f64
 end
 
+function compatible_dm_model(T::Int, α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
+    if length(α) != T
+        return false
+    end
+
+    if length(ᾱ) != T
+        return false
+    end
+
+    if length(β) != T
+        return false
+    end
+
+    if T != denoiser_model.T
+        return false
+    end
+
+    if α != (1.0 .- β)
+        return false
+    end
+
+    if ᾱ != cumprod(α)
+        return false
+    end
+
+    return true
+end
+
 @compat public DiffusionModel
 
 """
@@ -24,15 +52,24 @@ $TYPEDFIELDS
 @kwdef struct DiffusionModel <: AbstractGenerativeModel
     """Number of diffusion steps (number of steps in the Markov chain)."""
     T::Int
-    """Float64(1.0) .- β"""
-    α::Vector{Float64}
+    """1.0 .- β"""
+    α::Tuple{Vararg{Float64}}
     """cumprod(α)"""
-    ᾱ::Vector{Float64}
+    ᾱ::Tuple{Vararg{Float64}}
     """Variance of the Gaussian noise added in each diffusion step."""
-    β::Vector{Float64}
+    β::Tuple{Vararg{Float64}}
     """Neural network parametrizing the denoising model, that is, a model that probabilisitically undoes the Gaussian noise."""
     denoiser_model::TabularDenoiser
     """Number of training epochs for the VAE."""
+
+    function DiffusionModel(T::Int, α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
+        if !compatible_dm_model(T, α, ᾱ, β, denoiser_model)
+            @error "Incompatible DiffusionModel architecture!"
+            throw(MethodError(DiffusionModel, (T, α, ᾱ, β, denoiser_model)))
+        end
+
+        return new(T, α, ᾱ, β, denoiser_model)
+    end
 end
 
 """
@@ -44,8 +81,8 @@ Sets the values of `α` and `ᾱ` automatically for the user, using user specif
 `denoiser_model`. The user is responsible to ensuring that `denoiser_model` is
 compatible with `β`.
 """
-function DiffusionModel(β::Vector{Float64}, denoiser_model::TabularDenoiser)
-    α = Float64(1.0) .- β
+function DiffusionModel(β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
+    α = 1.0 .- β
     ᾱ = cumprod(α)
     return DiffusionModel(
         T = length(β),
@@ -64,7 +101,7 @@ Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 Sets the values of `α` and `ᾱ` automatically for the user. A default 
 `denoiser_model` is created based on `num_inputs`.
 """
-function DiffusionModel(num_inputs::Int, β::Vector{Float64})
+function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{Float64}})
     return DiffusionModel(β = β, denoiser_model = default_denoiser_network(num_inputs, T))
 end
 
@@ -82,7 +119,7 @@ Sets the values of `α` and `ᾱ` automatically for the user, using user specif
 `collect(range(β_start, β_end, length=T))`.
 """
 function DiffusionModel(T::Int, β_start::Float64, β_end::Float64, denoiser_model::TabularDenoiser)
-    return DiffusionModel(Float64.(collect(range(β_start, β_end, length=T))), denoiser_model)
+    return DiffusionModel(Tuple(collect(range(β_start, β_end, length=T))), denoiser_model)
 end
 
 """
@@ -125,11 +162,15 @@ function Base.display(model::DiffusionModel)
     println("denoiser_model = $(summary(model.denoiser_model))")
 end
 
-function forward_diffusion(model::DiffusionModel, x₀::AbstractMatrix, t::Vector{Int})
+function forward_diffusion(model::DiffusionModel, x₀::Matrix, t::Vector{Int})
     ϵ = Flux.randn_like(x₀, size(x₀))
-    ᾱₜ = reshape(model.ᾱ[t], 1, :)
+    ᾱₜ = reshape(collect(model.ᾱ[t]), 1, :)
     xₜ = sqrt.(ᾱₜ) .* x₀ + sqrt.(Float64(1.0) .- ᾱₜ) .* ϵ
     return xₜ, ϵ
+end
+
+function forward_diffusion(model::DiffusionModel, x₀::Matrix, t::Int)
+    return forward_diffusion(model, x₀, [t])
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print_log::Bool = true)
@@ -197,30 +238,71 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
     return protocol._log
 end
 
-function _eval(protocol::GenerativeModelProtocol, model::DiffusionModel, n_samples::Int)
-    model_device = model |> protocol.device
-    num_features = size(model_device.denoiser_model.output_projection.weight, 1)
-    
-    x = randn(Float64, num_features, n_samples) |> protocol.device
-    
-    α = model_device.α
-    ᾱ = model_device.ᾱ
-    β = model_device.β
-    
-    for t in model_device.T:-1:1
-        t_batch = fill(t, n_samples) |> protocol.device
-        ϵ_pred = model_device.denoiser_model(x, t_batch)
+"""
+    encode(model::GenerativeModelProtocols.DiffusionModel, x::Matrix) -> Matrix
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(model::DiffusionModel, x::Matrix)::Matrix
+    z, _ = forward_diffusion(model, x, model.T)
+    return z
+end
+
+"""
+    encode(model::GenerativeModelProtocols.DiffusionModel, x::Vector) -> Vector
+
+Encodes the data space variable `x` into a latent space variable.
+"""
+function encode(model::DiffusionModel, x::Vector)::Vector
+    return encode(model, reshape(x, :, 1))[:]
+end
+
+"""
+    decode(model::GenerativeModelProtocols.DiffusionModel, z::Matrix) -> Matrix
+
+Decodes the latent space representations `z` back into the data space.
+"""
+function decode(model::DiffusionModel, z::Matrix)::Matrix
+    α = model.α
+    ᾱ = model.ᾱ
+    β = model.β
+
+    x = z
+    for t in model.T:-1:1
+        t_batch = fill(t, size(z, 2))
+        ϵ_pred = model.denoiser_model(x, t_batch)
         x_mean = (x .- (β[t] / sqrt(1.0 - ᾱ[t])) .* ϵ_pred) ./ sqrt(α[t]) 
         
         if t > 1
             σ_t = sqrt(β[t] * (1.0 - ᾱ[t-1]) / (1.0 - ᾱ[t]))
-            z = randn(Float64, size(x)...) |> protocol.device
+            z = randn(Float64, size(x)...)
             x = x_mean .+ σ_t .* z
         else
             x = x_mean
         end
     end
     
-    return x |> cpu_device()
+    return x
+end
+
+"""
+    decode(model::GenerativeModelProtocols.DiffusionModel, z::Vector) -> Vector
+
+Decodes the latent space representations `z` back into the data space.
+"""
+function decode(model::DiffusionModel, z::Vector)::Vector
+    return decode(model, reshape(z, :, 1))[:]
+end
+
+
+function (model::DiffusionModel)(n_samples::Int)
+    num_features = size(model.denoiser_model.output_projection.weight, 1)
+    z = randn(Float64, num_features, n_samples)
+    
+    return decode(model, z)
+end
+
+function (model::DiffusionModel)()
+    return model(1)[:]
 end
 

@@ -53,19 +53,20 @@ where
 
 # Denoiser Model
 
-Various neural network architectures have been proposed for the denoiser component 
-of diffusion models. A highly popular choice is the U-Net architecture, which is 
-well-suited for processing high-dimensional spatial data like images due to its 
-hierarchical downsampling and upsampling skip connections. However, since the 
-primary focus of this module is on low-dimensional synthetic data generation, 
-the architecture utilized for the denoiser model is a time-conditioned residual 
-neural network (ResNet), which efficiently tracks and processes lower-dimensional 
-topologies without spatial bottlenecking.
+Various neural network architectures have been proposed for the denoiser 
+component of diffusion models. A highly popular choice is the U-Net 
+architecture, which is well-suited for processing high-dimensional spatial data 
+like images due to its hierarchical downsampling and upsampling skip 
+connections. However, since the primary focus of this module is on 
+low-dimensional synthetic data generation, the architecture utilized for the 
+denoiser model is a time-conditioned residual neural network (ResNet), which 
+efficiently tracks and processes lower-dimensional topologies without spatial 
+bottlenecking.
 
 The underlying model is implemented as a `TabularDenoiser`, a custom Flux layer 
-designed specifically for vector-based tabular inputs. Mathematically, it computes 
-the function $\epsilon_\theta(x, t)$ to output a noise state vector matching the 
-dimensions of the input data.
+designed specifically for vector-based tabular inputs. Mathematically, it 
+computes the function $\epsilon_\theta(x, t)$ to output a noise state vector 
+matching the dimensions of the input data.
 
 ### 1. Sinusoidal Time Embedding Pipeline
 
@@ -75,10 +76,11 @@ using sinusoidal frequencies controlled by a maximum period parameter
 $\omega_{\max}$. For a coordinate dimension index $i \in \{0, \dots, T/2 - 1\}$, 
 the frequency scale is defined as:
 ```math
-\lambda_i = \exp\left( - \frac{i \cdot \ln(\omega_{\max})}{T / 2} \right). 
+\lambda_i = \exp\left( - \frac{i \cdot \log(\omega_{\max})}{T / 2} \right). 
 ```
 The static sinusoidal features are constructed by concatenating the sine and 
-cosine transformations of the scaled time vector, truncated exactly to dimension $T$:
+cosine transformations of the scaled time vector, truncated exactly to dimension 
+$T$:
 ```math
 \mathbf{t}_{\text{static}} = \begin{bmatrix} \sin(t \cdot \lambda_0) \\ 
     \vdots \\ \sin(t \cdot \lambda_{T/2 - 1}) \\[0.15cm] \cos(t \cdot 
@@ -92,9 +94,9 @@ followed by a linear projection layer, yielding a shared time context vector of
 size $d_h$:
 ```math
 \mathbf{e}(t) = \mathbf{W}_2 \cdot \sigma_1 (\mathbf{W}_1 \cdot 
-    \mathbf{t}_{\text{static}} + \mathbf{b}_1) + \mathbf{b}_2, \quad 
-    \text{where } \mathbf{e}(t) \in \mathbb{R}^{d_h}.
+    \mathbf{t}_{\text{static}} + \mathbf{b}_1) + \mathbf{b}_2,
 ```
+where $\mathbf{e}(t) \in \mathbb{R}^{d_h}$.
 
 ### 2. Latent Processing & Time-Conditioned Residual Blocks
 
@@ -107,7 +109,7 @@ The hidden state features are then iteratively updated through a sequence of
 three independent time-conditioned residual operations. Each block tracks the 
 interaction of a learned feature transformation (`residual_layers`) and a 
 dedicated temporal bias projection (`time_projection_layers`). For each block 
-$k \in \{1, 2, 3\}$, the update evaluates to:
+$k \in \{1, 2, 3\}$ by default, the update evaluates to:
 ```math
 h_k = \sigma_\text{feat}^{(k)} \left(\mathbf{W}_{\text{feat}}^{(k)} \cdot 
     h_{k-1} + \mathbf{b}_{\text{feat}}^{(k)}\right) + 

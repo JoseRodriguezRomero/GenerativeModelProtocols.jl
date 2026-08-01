@@ -1,21 +1,85 @@
+function compatible_tabular_denoiser(T::Int, time_embedding_mlp::Chain, input_projection::Dense, residual_layers::Tuple{Vararg{Dense}}, time_projection_layers::Tuple{Vararg{Dense}}, output_projection::Dense, max_period::Float64)
+    if max_period ≤ 0
+        return false
+    end
+    
+    if input_size(time_embedding_mlp) != T
+        return false
+    end
+
+    if input_size(input_projection) != output_size(output_projection)
+        return false
+    end
+
+    if output_size(input_projection) != input_size(output_projection)
+        return false
+    end
+
+    if length(residual_layers) != length(time_projection_layers)
+        return false
+    end
+
+    hidden_layer_size = output_size(input_projection)
+
+    function check_hidden_layers(layers::Tuple{Vararg{Dense}})
+        for layer in layers
+            if input_size(layer) != hidden_layer_size
+                return false
+            end
+
+            if output_size(layer) != hidden_layer_size
+                return false
+            end
+        end
+
+        return true
+    end
+
+    if !check_hidden_layers(residual_layers)
+        return false
+    end
+
+    if !check_hidden_layers(time_projection_layers)
+        return false
+    end
+    
+    return true
+end
+
 @compat public TabularDenoiser
 
 """
 $TYPEDEF
 
 A time-conditioned residual neural network for vector-based diffusion 
-models.
+models.latent_dim, latent_layers, encoders, decoders
 
 $TYPEDFIELDS
 """
 @kwdef struct TabularDenoiser
+    """Total number of discrete time steps in the forward noising process and reverse denoising timeline."""
     T::Int
+    """Multi-layer perceptron that maps static sinusoidal time frequencies into a globally shared learned temporal context vector."""
     time_embedding_mlp::Chain
+    """Entry layer that projects the raw noisy input data vector into the initial hidden feature state."""
     input_projection::Dense
+    """Tuple of sequential dense layers that transform hidden features inside the recurrent residual block loop."""
     residual_layers::Tuple{Vararg{Dense}}
+    """Tuple of dense layers that map the shared temporal context into a dynamic additive bias shift inside the recurrent residual block loop."""
     time_projection_layers::Tuple{Vararg{Dense}}
+    """Exit layer that projects final hidden features out of the residual block loop back to the original data dimensions to output the noise prediction."""
     output_projection::Dense
+    """Constant that sets the maximum periodic scale for the base sinusoidal time step calculation."""
     max_period::Float64
+
+    function TabularDenoiser(T::Int, time_embedding_mlp::Chain, input_projection::Dense, residual_layers::Tuple{Vararg{Dense}}, time_projection_layers::Tuple{Vararg{Dense}}, output_projection::Dense, max_period::Float64)
+        if !compatible_tabular_denoiser(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)
+            @error "Incompatible TabularDenoiser architecture!"
+            throw(MethodError(TabularDenoiser, (T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)))
+        end
+
+        return new(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)
+    end
 end
 
 Flux.@layer TabularDenoiser
@@ -46,9 +110,9 @@ function TabularDenoiser(num_inputs::Int;
     )
     
     time_projection_layers = (
-        Dense(hidden_layer_size => hidden_layer_size),
-        Dense(hidden_layer_size => hidden_layer_size),
-        Dense(hidden_layer_size => hidden_layer_size)
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function)
     )
     
     output_projection = Dense(hidden_layer_size => num_inputs)

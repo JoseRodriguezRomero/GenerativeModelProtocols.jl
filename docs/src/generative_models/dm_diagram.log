@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.12.26)  31 JUL 2026 19:29
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.12.26)  31 JUL 2026 22:32
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -483,15 +483,15 @@ LaTeX Font Info:    External font `cmex10' loaded for size
 (Font)              <35> on input line 30.
 
 LaTeX Font Warning: Font shape `OT1/cmss/bx/it' undefined
-(Font)              using `OT1/cmss/bx/n' instead on input line 117.
+(Font)              using `OT1/cmss/bx/n' instead on input line 118.
 
 
 LaTeX Font Warning: Font shape `OT1/cmss/bx/it' in size <80> not available
-(Font)              size <24.88> substituted on input line 117.
+(Font)              size <24.88> substituted on input line 118.
 
 
 LaTeX Font Warning: Font shape `OT1/cmr/bx/n' in size <80> not available
-(Font)              size <24.88> substituted on input line 142.
+(Font)              size <24.88> substituted on input line 146.
 
 [1
 
@@ -510,10 +510,10 @@ LaTeX Font Warning: Some font shapes were not available, defaults substituted.
 
  ) 
 Here is how much of TeX's memory you used:
- 13188 strings out of 476182
- 277799 string characters out of 5795594
- 1950975 words of memory out of 5000000
- 34972 multiletter control sequences out of 15000+600000
+ 13211 strings out of 476182
+ 278248 string characters out of 5795594
+ 1951975 words of memory out of 5000000
+ 34995 multiletter control sequences out of 15000+600000
  561711 words of font info for 48 fonts, out of 8000000 for 9000
  14 hyphenation exceptions out of 8191
  117i,8n,121p,460b,948s stack positions out of 10000i,1000n,20000p,200000b,200000s
@@ -523,7 +523,7 @@ e/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmr17.pfb></usr/share/texli
 ve/texmf-dist/fonts/type1/public/amsfonts/cm/cmss17.pfb></usr/share/texlive/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb></usr/share/texlive/texmf-d
 ist/fonts/type1/public/amsfonts/cm/cmsy10.pfb>
-Output written on dm_diagram.pdf (1 page, 63611 bytes).
+Output written on dm_diagram.pdf (1 page, 64019 bytes).
 PDF statistics:
  41 PDF objects out of 1000 (max. 8388607)
  25 compressed objects within 1 object stream

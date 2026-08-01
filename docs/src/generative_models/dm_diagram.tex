@@ -79,17 +79,18 @@
 		% ==========================================================
 		% BOTTOM DIAGRAM: HORIZONTALLY CENTERED INTERNAL ARCHITECTURE
 		% ==========================================================
-		\coordinate (internal_origin) at ($(x0.south)!0.5!(xt.south) + (4.0, -32.0)$);
+		\coordinate (internal_origin) at ($(x0.south)!0.5!(xt.south) + (6.0, -32.0)$);
 		
 		% Primary layer sequence centered around the singular remaining adder node
 		\node[op, at={(internal_origin)}] (add_t) {$+$};
 		\node[layer, left=of add_t, xshift=1.0cm] (c1) {residual\_layers[k]};
-		\node[layer, left=of c1, xshift=-4.0cm] (in_proj) {input\_projection};
-		\node[layer, right=of add_t, xshift=6.5cm] (out_proj) {output\_projection};
+		\node[layer, left=of c1, xshift=-3.5cm] (in_proj) {input\_projection};
+		\node[layer, right=of add_t, xshift=5.5cm] (out_proj) {output\_projection};
 		
 		% Loop block splitting points (One knot station before feature layer)
 		\node[circle, fill=black, inner sep=6pt, left=1.5cm of c1] (solid_branch) {};
 		
+		\node[above=0.35 of solid_branch] (hkminus1_node) {$h_{k-1}$};
 		
 		% Time Embedding modules
 		\node[layer, above=8.5cm of add_t] (mlp) {time\_embedding\_mlp};
@@ -99,7 +100,7 @@
 		\node[layer, left=4.0cm of mlp] (freqs) 			{compute\_sinusoidal\_frequencies};
 		
 		% Slightly shorter anchor below the residual loop path to reduce bounding padding cleanly
-		\coordinate (residual_low_anchor) at ($(solid_branch.center) + (0.0, -3.1)$);
+		\coordinate (residual_low_anchor) at ($(solid_branch.center) + (0.0, -3.0)$);
 		
 		% Ordered drawing structure within the background layer scope to prevent masking
 		\begin{scope}[on background layer]
@@ -126,8 +127,11 @@
 		\draw[->, line width=2pt] (in_proj) -- (solid_branch) node[pos=0.35, above] {$h_0$};
 		\draw[->, line width=2pt] (solid_branch.center) -- (c1);
 		\draw[->, line width=2pt] (c1) -- (add_t);
-		\draw[->, line width=2pt] (add_t) -- (out_proj) node[pos=0.75, above] {$h_3$};
+		\draw[->, line width=2pt] (add_t) -- (out_proj) node[pos=0.75, above] {};
 		\draw[->, line width=2pt] (out_proj) -- (block_out);
+		
+		\node[above right=0.0 and 7.0 of add_t.center] (h3_node) {$h_3$};
+		\node[above right=0.0 and 3.0 of add_t.center] (hk_node) {$h_k$};
 		
 		% Time data paths (Flows completely out, straight un-interrupted paths directly into nodes)
 		\draw[->, line width=2pt] (t_step) -- (freqs.west);
@@ -136,7 +140,7 @@
 		\draw[->, line width=2pt] (time_proj.south) -- (add_t.north) node[pos=0.5, right] {};
 		
 		% Solid Inner Residual Connection tucked cleanly inside with adjusted lower padding clearance
-		\draw[->, line width=2pt, rounded corners=12pt] (solid_branch.center) -- ++(0,-2.5) -| (add_t.south);
+		\draw[->, line width=2pt, rounded corners=12pt] (solid_branch.center) -- ++(0,-3.0) -| (add_t.south);
 		
 		% Title string for the outermost diagram container
 		\node[anchor=south west, font=\bfseries] at ($(box.north west) + (0.0, 0.5)$) {Denoiser Model};
