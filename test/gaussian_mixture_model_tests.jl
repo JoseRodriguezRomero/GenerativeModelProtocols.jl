@@ -1,14 +1,54 @@
-function test_compare_models(model_a::GenerativeModelProtocols.GaussianMixtureModel, model_b::GenerativeModelProtocols.GaussianMixtureModel)
-    ϵ = 1.0E-9
-    
-    @test model_a.k == model_b.k
-    @test maximum(abs.(model_a.log_σ² - model_b.log_σ²)) < ϵ
-    @test maximum(abs.(model_a.μ - model_b.μ)) < ϵ
-    @test compare_chains(model_a.predictor_network, model_b.predictor_network)
-    @test maximum(abs.(model_a.p - model_b.p)) < ϵ
-end
-
 @testset "GaussianMixtureModel Tests" begin
+    function test_compare_models(model_a::GenerativeModelProtocols.GaussianMixtureModel, model_b::GenerativeModelProtocols.GaussianMixtureModel)
+        ϵ = 1.0E-9
+        
+        @test model_a.k == model_b.k
+        @test maximum(abs.(model_a.log_σ² - model_b.log_σ²)) < ϵ
+        @test maximum(abs.(model_a.μ - model_b.μ)) < ϵ
+        @test compare_chains(model_a.predictor_network, model_b.predictor_network)
+        @test maximum(abs.(model_a.p - model_b.p)) < ϵ
+    end
+
+    function example_chain(input_size::Int, output_size::Int; hidden_layer_size::Int = 16, activation_function::Function = relu)
+        return Chain(
+            Dense(input_size => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => hidden_layer_size, activation_function),
+            Dense(hidden_layer_size => output_size),
+        )
+    end
+
+    function example_gmm(k::Int, input_size::Int; 
+        log_σ²::Union{Matrix{Float64}, Nothing} = nothing, 
+        μ::Union{Matrix{Float64}, Nothing} = nothing, 
+        predictor_network::Union{Chain, Nothing} = nothing,
+        p::Union{Vector{Float64}, Nothing} = nothing)
+
+        if isnothing(log_σ²)
+            log_σ² = rand(Float64, k, input_size)
+        end
+
+        if isnothing(μ)
+            μ = rand(Float64, k, input_size)
+        end
+
+        if isnothing(predictor_network)
+            predictor_network = example_chain(input_size, k)
+        end
+
+        if isnothing(p)
+            p = rand(Float64, k)
+        end
+
+        return GenerativeModelProtocols.GaussianMixtureModel(;
+            k                   = k,
+            log_σ²              = log_σ²,
+            μ                   = μ,
+            predictor_network   = predictor_network,
+            p                   = p
+        )
+    end
+
     @testset "Constructors Tests" begin
         k = 15
         input_size = 3
@@ -37,6 +77,19 @@ end
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
         test_train_model(model, train_data)
         test_train_model_no_data(model)
+    end
+
+    @testset "Incompatible GaussianMixtureModel Architecture Test" begin
+        # Test incompatible input size
+        @test_throws Exception example_gmm(5, 2; log_σ² = rand(Float64, 5, 3))
+        @test_throws Exception example_gmm(5, 2; μ = rand(Float64, 5, 3))
+        @test_throws Exception example_gmm(5, 2; predictor_network = example_chain(3, 5))
+
+        # Test incompatible k
+        @test_throws Exception example_gmm(5, 2; log_σ² = rand(Float64, 4, 2))
+        @test_throws Exception example_gmm(5, 2; μ = rand(Float64, 4, 2))
+        @test_throws Exception example_gmm(5, 2; p = rand(Float64, 4))
+        @test_throws Exception example_gmm(5, 2; predictor_network = example_chain(2, 4))        
     end
 
     @testset "Make Synthetic Data Test" begin
