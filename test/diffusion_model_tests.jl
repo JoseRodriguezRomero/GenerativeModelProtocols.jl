@@ -28,6 +28,39 @@ function randomize_tabular_denoiser!(denoiser::GenerativeModelProtocols.TabularD
     randomize_layers!(denoiser.output_projection)
 end
 
+function example_diffusion_model(; 
+    T::Union{Int64, Nothing} = nothing, 
+    α::Union{Tuple{Vararg{Float64}}, Nothing} = nothing,
+    ᾱ::Union{Tuple{Vararg{Float64}}, Nothing} = nothing,
+    β::Union{Tuple{Vararg{Float64}}, Nothing} = nothing)
+
+    default_model = GenerativeModelProtocols.DiffusionModel(2, 30)
+
+    if isnothing(T)
+        T = default_model.T
+    end
+
+    if isnothing(α)
+        α = default_model.α
+    end
+
+    if isnothing(ᾱ)
+        ᾱ = default_model.ᾱ
+    end
+
+    if isnothing(β)
+        β = default_model.β
+    end
+
+    return GenerativeModelProtocols.DiffusionModel(;
+        T              = T,
+        α              = α,
+        ᾱ              = ᾱ,
+        β              = β,
+        denoiser_model = default_model.denoiser_model
+    )
+end
+
 function randomize_diffusion_model!(model::GenerativeModelProtocols.DiffusionModel)
     randomize_tabular_denoiser!(model.denoiser_model)
 end
@@ -50,6 +83,22 @@ end
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
         test_train_model(model, train_data)
         test_train_model_no_data(model)
+    end
+
+    @testset "Incompatible VariationalAutoencoder Architecture Test" begin
+        default_dm = example_diffusion_model()
+
+        # Test incompatible T
+        @test_throws Exception example_diffusion_model(; T = default_dm.T + 1)
+
+        # Test incompatible vector lengths
+        @test_throws Exception example_diffusion_model(; α = rand(Float64, default_dm.T) + 1)
+        @test_throws Exception example_diffusion_model(; ᾱ = rand(Float64, default_dm.T) + 1)
+        @test_throws Exception example_diffusion_model(; β = rand(Float64, default_dm.T) + 1)
+
+        # Test incompatible α
+        @test_throws Exception example_diffusion_model(; α = zeros(Float64, size(default_dm.α)))
+        @test_throws Exception example_diffusion_model(; ᾱ = zeros(Float64, size(default_dm.ᾱ)))
     end
 
     @testset "Make Synthetic Data Test" begin

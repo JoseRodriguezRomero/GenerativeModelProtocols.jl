@@ -59,7 +59,9 @@ synthetic_data = protocol(num_samples)
                height: auto; 
                border: 1px solid transparent;
                border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+               background-image: 
+                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
+                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
                background-origin: border-box;
                background-clip: content-box, border-box;
                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
@@ -125,7 +127,9 @@ recon_test_data = GenerativeModelProtocols.decode(model,z_test_data)
                height: auto; 
                border: 1px solid transparent;
                border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+               background-image: 
+                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
+                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
                background-origin: border-box;
                background-clip: content-box, border-box;
                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
@@ -150,7 +154,9 @@ z_test_data = GenerativeModelProtocols.encode(model,test_data)
                height: auto; 
                border: 1px solid transparent;
                border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+               background-image: 
+                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
+                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
                background-origin: border-box;
                background-clip: content-box, border-box;
                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
@@ -175,7 +181,9 @@ spearman_corr = corspearman(z_test_data[1,:],z_test_data[2,:])
                height: auto; 
                border: 1px solid transparent;
                border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
+               background-image: 
+                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
+                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
                background-origin: border-box;
                background-clip: content-box, border-box;
                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
