@@ -32,7 +32,46 @@ synthetic_data = protocol(num_samples)
 p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
 p2 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false,frame=:box)
 
-p = plot(p1,p2; layout=(2,1))
+function plot_model_density(protocol)
+    data = protocol(50000)
+    
+    fig = histogram2d(data[1,:], data[2,:],
+        bins=(200,200),
+        show_empty_bins=true,
+        title="VAE PDF\n2D Histogram",
+        xlims=(-1.1,1.1),
+        ylims=(-1.1,1.1),
+        fillcolor=:viridis,
+        aspect_ratio=:equal,
+        colorbar=true,
+        normalize=:pdf
+    )
+    
+    return fig
+end
+
+function plot_real_density()
+    x_test, y_test = make_data(50000)
+    
+    fig = histogram2d(x_test, y_test,
+        bins=(200,200),
+        show_empty_bins=true,
+        title="Exact Data PDF\n2D Histogram",
+        xlims=(-1.1,1.1),
+        ylims=(-1.1,1.1),
+        fillcolor=:viridis,
+        aspect_ratio=:equal,
+        colorbar=true,
+        normalize=:pdf
+    )
+    
+    return fig
+end
+
+p11 = plot_real_density()
+p22 = plot_model_density(protocol)
+
+p = plot(p1,p11,p2,p22; layout=(2,2), size = (900, 800), link = :x)
 savefig(p, "intro_example.svg")
 
 ## Test reconstruction
@@ -81,3 +120,4 @@ plot!(xlabel="z₁", ylabel="z₂")
 plot!(title="pearson_corr = $(round(pearson_corr,digits=4))\nspearman_corr = $(round(spearman_corr,digits=4))")
 plot!(top_margin = 5mm)
 savefig(p, "intro_example_latents_corr.svg")
+

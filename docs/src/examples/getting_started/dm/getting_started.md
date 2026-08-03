@@ -1,8 +1,8 @@
-# Variational Autoencoders
+# Diffusion Models
 
-To demonstrate how to use this module, we will train a Variational Autoencoder
-(VAE) [Diederik2013](@cite) to generate synthetic data that mirrors a 
-two-dimensional target distribution. The VAE must learn to mimic this 
+To demonstrate how to use this module, we will train a Diffusion Model
+(DM) [Sohl2015](@cite) to generate synthetic data that mirrors a 
+two-dimensional target distribution. The DM must learn to mimic this 
 distribution using only the provided training samples, without direct access to 
 the true underlying distribution or the ability to sample additional data.
 
@@ -30,10 +30,10 @@ num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 ```
-we then define the VAE that is to be trained on this data, whose latent 
+we then define the DM that is to be trained on this data, whose latent 
 variables are also two-dimensional as
 ```julia
-model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
+model = GenerativeModelProtocols.DiffusionModel(2, 250)
 ```
 thus, our trainable generative model protocol is defined, and trained, as
 ```julia
@@ -43,7 +43,7 @@ protocol = GenerativeModelProtocol(model, train_data;
     optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
     device      = cpu_device()
 )
-train!(protocol; β = 0.05)
+train!(protocol)
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia
@@ -73,42 +73,26 @@ structures that users can need. We can easily read the configuration of
 `protocol` from the REPL by inputting
 ```julia-repl
 julia> protocol
-GenerativeModelProtocol:
-training_data = 2×2000 Matrix{Float64}
+GenerativeModelProtocol{GenerativeModelProtocols.DiffusionModel}:
+training_data = 2×5000 Matrix{Float64}
 epochs        = 1500
-batchsize     = 128
+batchsize     = 256
 shuffle       = true
 optimiser     = Adam(eta=0.001, beta=(0.95, 0.999), epsilon=1.0e-8)
 device        = CPUDevice
-model         = GenerativeModelProtocols.VariationalAutoencoder
+model         = GenerativeModelProtocols.DiffusionModel
+
 ```
 likewise, we can also read the configuration of `model` from the REPL by
 inputting
 ```julia-repl
 julia> model
-GenerativeModelProtocols.VariationalAutoencoder:
-latent_dim    = 2
-latent_layers = 1
-
-encoders: 
-   Chain(
-      Dense(2 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 4)
-   )
-
-decoders: 
-   Chain(
-      Dense(2 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 32, relu)
-      Dense(32 => 2)
-   )
+GenerativeModelProtocols.DiffusionModel:
+T              = 250
+α              = NTuple{250, Float64}
+ᾱ              = NTuple{250, Float64}
+β              = NTuple{250, Float64}
+denoiser_model = GenerativeModelProtocols.TabularDenoiser
 ```
 
 ## Model validation
@@ -119,7 +103,7 @@ tests to assess whether the model is functioning as intended:
 * __Test Data Reconstruction__: Encode and decode a separate, unseen test 
   dataset to see if the reconstructed data closely resembles the original.
 * __Latent Space Validation__: Verify that all latent variables in our trained 
-  VAE act as statistically independent random variables following a standard 
+  DM act as statistically independent random variables following a standard 
   normal distribution (zero mean and unit variance).
 
 For our given example, we can easily test the ability of our trained model to 
@@ -150,7 +134,7 @@ recon_test_data = GenerativeModelProtocols.decode(model,z_test_data)
 
 To test if the latent variables of our trained model follow a normal 
 distribution with zero mean and unit variance we solely need to use the 
-model's encoder, however, unlike our previous reconstruction example it is 
+DM's noise model, however, unlike our previous reconstruction example it is 
 preferable to use a larger test dataset
 ```julia
 x_test, y_test = make_data(10000)
@@ -172,15 +156,8 @@ z_test_data = GenerativeModelProtocols.encode(model,test_data)
                box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
 </div>
 ```
-this immediately explains why the trained VAE struggles to reproduce the true 
-training data distribution. In both the reconstruction and synthetic generation 
-tests, we observe a noticeable amount of scattered, noisy data points. 
-Furthermore, the synthetic samples exhibit artifacting, such as unintended 
-sharp edges and unnaturally thin lines, failing to capture the smooth geometry 
-of the target distribution, which is to be expected given the topology of our 
-training data [Falorsi2018](@cite). 
 
-To evaluate whether the latent variables of our trained VAE behave as 
+To evaluate whether the latent variables of our trained DM behave as 
 independent random variables by calculating the Pearson correlation coefficient 
 or, more robustly, the Spearman rank correlation coefficient.
 ```julia
@@ -209,10 +186,10 @@ to zero to confirm that the latent variables are effectively independent.
 
 ## Source code
 
-The scripts used to create and train the VAE, and to produce all the plots shown 
+The scripts used to create and train the DM, and to produce all the plots shown 
 in this page are included in the `examples` folder of this module.
 ```bash
-cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/vae_example
+cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/dm_example
 julia intro_example.jl
 ```
 

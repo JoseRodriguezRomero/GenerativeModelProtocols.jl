@@ -1,6 +1,15 @@
 \documentclass[tikz, border=25pt]{standalone}
 \usetikzlibrary{arrows.meta, positioning, calc, fit, backgrounds}
 \usepackage{moresize}
+\usepackage{amssymb}
+
+% Define custom keys for separate horizontal padding controls
+\pgfkeys{
+	/tikz/inner xsep-left/.store in=\innerxsepleft,
+	/tikz/inner xsep-right/.store in=\innerxsepright,
+	/tikz/inner xsep-left=0cm,   % Initial default
+	/tikz/inner xsep-right=0cm,  % Initial default
+}
 
 % ==========================================================
 % GLOBAL FONT CONFIGURATION
@@ -19,7 +28,8 @@
 		dashed_block/.style={rectangle, draw=black, dashed, fill=white, rounded corners=6pt, inner sep=25pt, align=center, line width=2pt},
 		op/.style={circle, draw=black, fill=white, minimum size=2.5cm, inner sep=0pt, line width=2pt},
 		container/.style={rectangle, draw=black, dashed, rounded corners=6pt, line width=2pt},
-		loop_container/.style={rectangle, draw=black, dashed, rounded corners=6pt, line width=2pt}
+		loop_container/.style={rectangle, draw=black, dashed, rounded corners=6pt, line width=2pt},
+		sr/.style={rectangle, draw=black, fill=black!10, minimum width=0.4cm, minimum height=0.7cm, inner sep=0pt, line width=2pt, font=\fontsize{15pt}{5pt}\selectfont}
 		]
 		
 		% ==========================================================
@@ -35,14 +45,13 @@
 		\node[right=of m2] (x2) {$x_2$};
 		
 		\node[right=of x2] (dots) {$\dots$};
-		
 		\node[dashed_block, right=of dots] (mt) {Markov Step \\ $q(x_T|x_{T-1})$};
 		\node[right=of mt] (xt) {$x_T$};
 		
 		% Flow connections for main chain
 		\draw[->, line width=2pt] (x0) -- (m1);
 		\draw[->, line width=2pt] (m1) -- (x1);
-		\draw[->, line width=4pt] (x1) -- (m2);
+		\draw[->, line width=2pt] (x1) -- (m2);
 		\draw[->, line width=2pt] (m2) -- (x2);
 		\draw[->, line width=2pt] (x2) -- (dots);
 		\draw[->, line width=2pt] (dots) -- (mt);
@@ -84,13 +93,11 @@
 		% Primary layer sequence centered around the singular remaining adder node
 		\node[op, at={(internal_origin)}] (add_t) {$+$};
 		\node[layer, left=of add_t, xshift=1.0cm] (c1) {residual\_layers[k]};
-		\node[layer, left=of c1, xshift=-3.5cm] (in_proj) {input\_projection};
+		\node[layer, left=of c1, xshift=-4.0cm] (in_proj) {input\_projection};
 		\node[layer, right=of add_t, xshift=5.5cm] (out_proj) {output\_projection};
 		
 		% Loop block splitting points (One knot station before feature layer)
 		\node[circle, fill=black, inner sep=6pt, left=1.5cm of c1] (solid_branch) {};
-		
-		\node[above=0.35 of solid_branch] (hkminus1_node) {$h_{k-1}$};
 		
 		% Time Embedding modules
 		\node[layer, above=8.5cm of add_t] (mlp) {time\_embedding\_mlp};
@@ -104,14 +111,21 @@
 		
 		% Ordered drawing structure within the background layer scope to prevent masking
 		\begin{scope}[on background layer]
-			% 1. Render nested loop container first with slightly decreased bottom padding clearance
-			\node[loop_container, fit=(solid_branch) (c1) (add_t) (time_proj) (residual_low_anchor), 
-			inner xsep=1.2cm, inner ysep=1.5cm] (loop_box) {};
+			% 1. Render nested loop box with your newly defined asymmetric parameters
+			\node[loop_container, 
+			inner xsep-left=2.25cm, 
+			inner xsep-right=6.5cm, 
+			fit={($(solid_branch) + (-\innerxsepleft, 0)$) ($(add_t) + (\innerxsepright, 0)$) (c1) (time_proj) (residual_low_anchor)}, 
+			inner xsep=0pt, inner ysep=1.5cm] (loop_box) {};
 			
 			% 2. Render outermost container wrapper second, explicitly fitting everything inside
 			\node[container, fit=(in_proj) (out_proj) (mlp) (loop_box), 
 			inner xsep=1.5cm, inner ysep=1.5cm] (box) {};
 		\end{scope}
+		
+		% LabVIEW Shift Registers placed directly on the inner loop_box borders
+		\node[sr, anchor=center] (sr_left) at (loop_box.west |- c1) {\HUGE $\blacktriangledown$};
+		\node[sr, anchor=center] (sr_right) at (loop_box.east |- c1) {\HUGE $\blacktriangle$};
 		
 		% Label for the internal loop rectangle
 		\node[anchor=south west, font=\sffamily\bfseries\itshape, text=black!70] 
@@ -124,14 +138,13 @@
 		
 		% Core data path execution (Flows completely out, straight un-interrupted paths directly into nodes)
 		\draw[->, line width=2pt] (block_in) -- (in_proj);
-		\draw[->, line width=2pt] (in_proj) -- (solid_branch) node[pos=0.35, above] {$h_0$};
+		\draw[->, line width=2pt] (in_proj) -- (sr_left);
+		\draw[->, line width=2pt] (sr_left) -- (solid_branch);
 		\draw[->, line width=2pt] (solid_branch.center) -- (c1);
 		\draw[->, line width=2pt] (c1) -- (add_t);
-		\draw[->, line width=2pt] (add_t) -- (out_proj) node[pos=0.75, above] {};
+		\draw[->, line width=2pt] (add_t) -- (sr_right);
+		\draw[->, line width=2pt] (sr_right) -- (out_proj);
 		\draw[->, line width=2pt] (out_proj) -- (block_out);
-		
-		\node[above right=0.0 and 7.0 of add_t.center] (h3_node) {$h_3$};
-		\node[above right=0.0 and 3.0 of add_t.center] (hk_node) {$h_k$};
 		
 		% Time data paths (Flows completely out, straight un-interrupted paths directly into nodes)
 		\draw[->, line width=2pt] (t_step) -- (freqs.west);

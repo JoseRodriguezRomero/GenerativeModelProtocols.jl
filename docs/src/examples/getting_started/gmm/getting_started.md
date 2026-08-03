@@ -41,7 +41,7 @@ thus, our trainable generative model protocols are defined, and trained, as
 protocols = [
     GenerativeModelProtocol(model, train_data;
         batchsize = 256,
-        epochs = 500,
+        epochs = 1500,
         optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
         device = cpu_device()
     )
