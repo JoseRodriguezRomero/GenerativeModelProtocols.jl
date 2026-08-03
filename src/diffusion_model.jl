@@ -11,27 +11,33 @@ function default_denoiser_network(num_inputs::Int, T::Int, hidden_layer_size::In
 end
 
 function compatible_dm_model(T::Int, α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
+    if T != denoiser_model.T
+        println("D")
+        return false
+    end
+
     if length(α) != T
+        println("A")
         return false
     end
 
     if length(ᾱ) != T
+        println("B")
         return false
     end
 
     if length(β) != T
-        return false
-    end
-
-    if T != denoiser_model.T
+        println("C")
         return false
     end
 
     if α != (1.0 .- β)
+        println("E")
         return false
     end
 
     if ᾱ != cumprod(α)
+        println("F")
         return false
     end
 

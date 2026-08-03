@@ -92,13 +92,13 @@ end
         @test_throws Exception example_diffusion_model(; T = default_dm.T + 1)
 
         # Test incompatible vector lengths
-        @test_throws Exception example_diffusion_model(; α = rand(Float64, default_dm.T) + 1)
-        @test_throws Exception example_diffusion_model(; ᾱ = rand(Float64, default_dm.T) + 1)
-        @test_throws Exception example_diffusion_model(; β = rand(Float64, default_dm.T) + 1)
+        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_dm.T + 1)))
+        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_dm.T + 1)))
+        @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float64, default_dm.T + 1)))
 
         # Test incompatible α
-        @test_throws Exception example_diffusion_model(; α = zeros(Float64, size(default_dm.α)))
-        @test_throws Exception example_diffusion_model(; ᾱ = zeros(Float64, size(default_dm.ᾱ)))
+        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_dm.T)))
+        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_dm.T)))
     end
 
     @testset "Make Synthetic Data Test" begin
