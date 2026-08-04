@@ -235,7 +235,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     return protocol._log
 end
 
-function (model::GaussianMixtureModel)(category::Int, n_samples::Int)
+function _eval(model::GaussianMixtureModel, category::Int, n_samples::Int)
     D = size(model.μ, 2)
     synthetic_X = randn(Float64, D, n_samples)
     σ = exp.(0.5 .* model.log_σ²)
@@ -249,7 +249,7 @@ function (model::GaussianMixtureModel)(category::Int, n_samples::Int)
     return synthetic_X
 end
 
-function (model::GaussianMixtureModel)(n_samples::Int)
+function _eval(model::GaussianMixtureModel, n_samples::Int)
     D = size(model.μ, 2)
     
     cum_p = cumsum(model.p)
@@ -268,38 +268,21 @@ function (model::GaussianMixtureModel)(n_samples::Int)
     for k in 1:model.k
         counts[k] == 0 && continue
         
-        final_X[:, starts[k]:ends[k]] .= model(k, counts[k])
+        final_X[:, starts[k]:ends[k]] .= _eval(model, k, counts[k])
     end
     
     return final_X
 end
 
-function (model::GaussianMixtureModel)()
-    return model(1)[:]
+function _eval(model::GaussianMixtureModel)
+    return _eval(model,1)[:]
 end
 
-"""
-    categorize(model::GenerativeModelProtocols.GaussianMixtureModel, x::Vector) -> Vector
-
-Compute the posterior probability distribution over the mixture components for a 
-given input vector `x`. Returns a vector where the k-th element represents the 
-conditional probability that the input stems from the k-th categorical cluster 
-of the model.
-"""
-function categorize(model::GaussianMixtureModel, x::Matrix)::Matrix
+function _categorize(model::GaussianMixtureModel, x::Matrix)::Matrix
     return model.predictor_network(x)
 end
 
-"""
-    categorize(model::GenerativeModelProtocols.GaussianMixtureModel, x::Matrix) -> Matrix
-
-Batch compute the posterior probability distributions over the mixture 
-components for multiple input vectors. Each sample in the input matrix `x` is 
-mapped to a normalized categorical probability vector where the k-th element 
-represents the conditional probability that the sample stems from the k-th 
-cluster.
-"""
-function categorize(model::GaussianMixtureModel, x::Vector)::Vector
+function _categorize(model::GaussianMixtureModel, x::Vector)::Vector
     return model.predictor_network(x)
 end
 

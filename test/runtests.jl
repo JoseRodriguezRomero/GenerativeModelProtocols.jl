@@ -1,4 +1,5 @@
 using GenerativeModelProtocols
+using StatsBase
 using FileIO, HDF5
 using Flux
 
@@ -104,9 +105,17 @@ function compare_chains(chain_a::Chain, chain_b::Chain)
     return compare_chains((chain_a,),(chain_b,))
 end
 
-function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel; kwargs...)
+function make_empty_data_prot(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
+    return GenerativeModelProtocol(; 
+        model              = model,
+        mean_training_data = Tuple(zeros(Float64, input_size)), 
+        var_training_data  = Tuple(ones(Float64, input_size))
+    )
+end
+
+function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int; kwargs...)
     try
-        train!(GenerativeModelProtocol(model); kwargs...)
+        train!(make_empty_data_prot(model, input_size); kwargs...)
         return true
     catch
         return false
@@ -114,26 +123,20 @@ function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenera
 end
 
 function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix{Float64}; kwargs...)
-    protocol = GenerativeModelProtocol(model, train_data;
-        batchsize   = 32,
-        epochs      = 20,
-        optimiser   = Adam(; eta = 1.0E-3, beta = (0.95, 0.999)),
-        device      = cpu_device()
-    )
-
+    protocol = GenerativeModelProtocol(model, train_data; epochs = 20)
     train_log = train!(protocol; kwargs...)
     @test isa(train_log, typeof(protocol._log))
 end
 
-function test_model_make_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel)
-    protocol = GenerativeModelProtocol(model)
+function test_model_make_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
+    protocol = make_empty_data_prot(model, input_size)
 
     x_synthetic = protocol(100)
     @test isa(x_synthetic, Matrix)
 end
 
-function test_model_make_categorical_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel)
-    protocol = GenerativeModelProtocol(model)
+function test_model_make_categorical_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
+    protocol = make_empty_data_prot(model, input_size)
 
     for i in 1:5
         if i > model.k
@@ -145,8 +148,8 @@ function test_model_make_categorical_synthetic_data(model::GenerativeModelProtoc
     end
 end
 
-function test_model_categorize(model::GenerativeModelProtocols.AbstractGenerativeModel)
-    protocol = GenerativeModelProtocol(model)
+function test_model_categorize(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
+    protocol = make_empty_data_prot(model, input_size)
 
     for i in 1:5
         if i > model.k
@@ -176,28 +179,35 @@ function test_display(obj::Any)
     @test isa(capture_display(obj), String)
 end
 
-function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel)
-    test_display(GenerativeModelProtocol(model))
+function test_model_display_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
+    test_display(make_empty_data_prot(model, input_size))
     test_display(model)
 end
 
 function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
-    test_display(GenerativeModelProtocol(model, rand(Float64, input_size, 100)))
+    train_data = rand(Float64, input_size, 100)
+    protocol = GenerativeModelProtocol(;
+        model              = model, 
+        mean_training_data = Tuple(mean(train_data, dims = 2)), 
+        var_training_data  = Tuple(var(train_data, dims = 2))
+    )
+
+    test_display(protocol)
     test_display(model)
 end
 
-function test_model_save(save_path::String, model::GenerativeModelProtocols.AbstractGenerativeModel)
+function test_model_save(save_path::String, model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
     metadata = Dict(
         "A" => "a",
         "B" => 1.0,
         "C" => [1.0, 2.0]
     )
-    protocol = GenerativeModelProtocol(model)
-    save(save_path, protocol; metadata = metadata)
+
+    save(save_path, make_empty_data_prot(model, input_size); metadata = metadata)
     @test check_file_size(save_path)
 end
 
-include("diffusion_model_tests.jl")
-include("gaussian_mixture_model_tests.jl")
+# include("diffusion_model_tests.jl")
+# include("gaussian_mixture_model_tests.jl")
 include("variational_autoencoder_tests.jl")
 

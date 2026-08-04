@@ -20,6 +20,41 @@ abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
     loss_grad_norm::Vector{Float64} = Float64[]
 end
 
+function compatible_generative_protocol(
+    training_data::Union{Matrix{Float64}, Nothing},
+    var_training_data::Tuple{Vararg{Float64}})
+
+    ϵ = 1.0E-9
+    if !isnothing(training_data)
+        if maximum(abs.(mean(training_data, dims = 2))) > ϵ
+            return false
+        end
+
+        if maximum(abs.(var(training_data, dims = 2) .- 1.0)) > ϵ
+            return false
+        end
+    end
+
+    if minimum(var_training_data) < 0.0
+        return false
+    end
+
+    return true
+end
+
+macro default_main_group_name()
+    return "generative_model_protocol"
+end
+
+macro default_metadata_group_name()
+    return "metadata"
+end
+
+macro default_generative_model_group_name()
+    return "generative_model"
+end
+
+
 """
 $TYPEDEF
 
@@ -31,8 +66,12 @@ changed by setting `device` to a GPU device of preference.
 $TYPEDFIELDS
 """
 @kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
-    """Vector containing all the data that is to be used for training."""
-    training_data::Union{Matrix{Float64}, Nothing}
+    """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
+    training_data::Union{Matrix{Float64}, Nothing} = nothing
+    """Mean of the raw (unshifted and unscaled) training data."""
+    mean_training_data::Tuple{Vararg{Float64}}
+    """Variance of the raw (unshifted and unscaled) training data."""
+    var_training_data::Tuple{Vararg{Float64}}
     """Number of training epochs for the generative model."""
     epochs::Int = 100
     """Batch size for training the generative model."""
@@ -47,7 +86,30 @@ $TYPEDFIELDS
     model::M
     """Stores the time-series data generated while training the generative model."""
     _log::TrainingLog = TrainingLog()
+
+    function GenerativeModelProtocol(
+        training_data::Union{Matrix{Float64}, Nothing},
+        mean_training_data::Tuple{Vararg{Float64}},
+        var_training_data::Tuple{Vararg{Float64}},
+        epochs::Int,
+        batchsize::Int,
+        shuffle::Bool,
+        optimiser::Union{Optimisers.AbstractRule, Flux.Optimise.AbstractOptimiser},
+        device::Flux.MLDataDevices.AbstractDevice,
+        model::M,
+        _log::TrainingLog
+        ) where {M<:AbstractGenerativeModel}
+
+        if !compatible_generative_protocol(training_data, var_training_data)
+            @error "Incompatible GenerativeModelProtocol parameters!"
+            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)))
+        end
+
+        return new{M}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)
+    end
 end
+
+GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel} = GenerativeModelProtocol(args...; kwargs...)
 
 """
     GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64}, Nothing}; kwargs...) where {M<:AbstractGenerativeModel}
@@ -55,11 +117,65 @@ end
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
 """
-function GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64}, Nothing} = nothing; kwargs...) where {M<:AbstractGenerativeModel}
+function GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwargs...) where {M<:AbstractGenerativeModel}
+    copy_training_data = copy(training_data)
+
+    mean_training_data = mean(copy_training_data, dims = 2)
+    var_training_data = var(copy_training_data, dims = 2)
+
+    copy_training_data .-= mean_training_data
+    copy_training_data ./= sqrt.(var_training_data)
+
     return GenerativeModelProtocol{M}(;
-        training_data = training_data,
-        model = model,
+        training_data      = copy_training_data,
+        mean_training_data = Tuple(mean_training_data),
+        var_training_data  = Tuple(var_training_data),
+        model              = model,
         kwargs...
+    )
+end
+
+function _read_metadata end
+
+macro _read_metadata(saved_protocol, main_group_name, metadata_group_name)
+    return :(_read_metadata($(esc(saved_protocol)); 
+        $(main_group_name = esc(main_group_name)), 
+        $(metadata_group_name = esc(metadata_group_name))
+    )) 
+end
+
+function GenerativeModelProtocol(saved_protocol::String;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    model = nothing
+    generative_model, mean_training_data, var_training_data = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
+
+    if generative_model == variational_autoencoder
+        model = VariationalAutoencoder(saved_protocol;
+            main_group_name             = main_group_name,
+            generative_model_group_name = generative_model_group_name
+        )
+    elseif generative_model == diffusion_model
+        model = DiffusionModel(saved_protocol;
+            main_group_name             = main_group_name,
+            generative_model_group_name = generative_model_group_name
+        )
+    elseif generative_model == generative_adversarial_network
+        model = nothing # Temporary dummy line
+    elseif generative_model == normalizing_flow
+        model = nothing # Temporary dummy line
+    elseif generative_model == gaussian_mixture_model
+        model = GaussianMixtureModel(saved_protocol;
+            main_group_name             = main_group_name,
+            generative_model_group_name = generative_model_group_name
+        )
+    end
+
+    return GenerativeModelProtocol(model;
+        mean_training_data = mean_training_data,
+        var_training_data  = var_training_data
     )
 end
 
@@ -93,16 +209,32 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwarg
     @_train!(protocol, protocol.model, print_log, kwargs...)
 end
 
+function _shift_and_scale(protocol::GenerativeModelProtocol, x::Matrix)
+    return (x .- protocol.mean_training_data) ./ sqrt.(protocol.var_training_data)
+end
+
+function _shift_and_scale(protocol::GenerativeModelProtocol, x::Vector)
+    return _shift_and_scale(protocol, reshape(x, :, 1))[:]
+end
+
+function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Matrix)
+    return (x .* sqrt.(protocol.var_training_data)) .+ protocol.mean_training_data
+end
+
+function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Vector)
+    return _unscale_and_unshift(protocol, reshape(x, :, 1))[:]
+end
+
 function (protocol::GenerativeModelProtocol)(n_samples::Int)
-    return  protocol.model(n_samples)
+    return _unscale_and_unshift(protocol, _eval(protocol.model, n_samples))
 end
 
 function (protocol::GenerativeModelProtocol)()
-    return protocol.model()
+    return _unscale_and_unshift(protocol, _eval(protocol.model))
 end
 
 function (protocol::GenerativeModelProtocol)(category_index::Int, n_samples::Int)
-    return protocol.model(category_index, n_samples)
+    return _unscale_and_unshift(protocol, _eval(protocol.model, category_index, n_samples))
 end
 
 """
@@ -114,7 +246,7 @@ conditional probability that the input stems from the k-th categorical cluster
 of the model.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Vector)::Vector
-    return categorize(protocol.model, x)
+    return _categorize(protocol.model, _shift_and_scale(protocol, x))
 end
 
 """
@@ -127,7 +259,7 @@ represents the conditional probability that the sample stems from the k-th
 cluster.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
-    return categorize(protocol.model, x)
+    return _categorize(protocol.model, _shift_and_scale(protocol, x))
 end
 
 """
@@ -136,7 +268,7 @@ end
 Encodes the data space variable `x` into a latent space variable.
 """
 function encode(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
-    return encode(protocol.model, x)
+    return _encode(protocol.model, _shift_and_scale(protocol, x))
 end
 
 """
@@ -145,7 +277,7 @@ end
 Encodes the data space variable `x` into a latent space variable.
 """
 function encode(protocol::GenerativeModelProtocol, x::Vector)::Vector
-    return encode(protocol.model, x)
+    return _encode(protocol.model, _shift_and_scale(protocol, x))
 end
 
 """
@@ -154,7 +286,7 @@ end
 Decodes the latent space representations `z` back into the data space.
 """
 function decode(protocol::GenerativeModelProtocol, z::Matrix)::Matrix
-    return decode(protocol.model, z)
+    return _unscale_and_unshift(protocol, _decode(protocol.model, z))
 end
 
 """
@@ -163,7 +295,7 @@ end
 Decodes the latent space representations `z` back into the data space.
 """
 function decode(protocol::GenerativeModelProtocol, z::Vector)::Vector
-    return decode(protocol.model, z)
+    return _unscale_and_unshift(protocol, _decode(protocol.model, z))
 end
 
 function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
@@ -194,6 +326,16 @@ end
     generative_adversarial_network  = 2
     normalizing_flow                = 3
     gaussian_mixture_model          = 4
+end
+
+function generative_model_map()
+    return Dict(
+        UInt8(variational_autoencoder)        => variational_autoencoder,
+        UInt8(diffusion_model)                => diffusion_model,
+        UInt8(generative_adversarial_network) => generative_adversarial_network,
+        UInt8(normalizing_flow)               => normalizing_flow,
+        UInt8(gaussian_mixture_model)         => gaussian_mixture_model
+    )
 end
 
 macro _generative_model(model)
@@ -253,18 +395,6 @@ function compatible_neural_network(network::Chain)
     end
 
     return true
-end
-
-macro default_main_group_name()
-    return "generative_model_protocol"
-end
-
-macro default_metadata_group_name()
-    return "metadata"
-end
-
-macro default_generative_model_group_name()
-    return "generative_model"
 end
 
 function _save_metadata end

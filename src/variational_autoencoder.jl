@@ -268,7 +268,7 @@ function _decode_vae(decoders::Tuple{Vararg{Chain}}, z, latent_dim, num_latent_l
     return copy(μ_buf), copy(σ_buf), copy(logσ²_buf), x̂
 end
 
-function vae_loss(model::VariationalAutoencoder, β::Float64, input_weights, x)
+function vae_loss(model::VariationalAutoencoder, β::Float64, x)
     batch_size = size(x, 2)
     latent_dim = size(model.decoders[1][1].weight, 2)
     num_latent_layers = length(model.decoders)
@@ -276,7 +276,7 @@ function vae_loss(model::VariationalAutoencoder, β::Float64, input_weights, x)
     μ_enc, σ_enc, logσ²_enc, z = _encode_vae(model.encoders, x, latent_dim, num_latent_layers)
     μ_dec, σ_dec, logσ²_dec, x̂ = _decode_vae(model.decoders, z, latent_dim, num_latent_layers)
 
-    recon_loss =  0.5 .* sum(input_weights .* ((x .- x̂).^2))   
+    recon_loss =  0.5 .* sum((x .- x̂) .^ 2)   
     kl_loss =  0.5 .* sum(logσ²_dec .- logσ²_enc .+ (σ_enc.^2 .+ (μ_enc .- μ_dec).^2) ./ σ_dec.^2 .- 1.0)
 
     return (recon_loss + β * kl_loss) / batch_size
@@ -291,10 +291,6 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
 
     loader = load_data(training_data_device, batchsize_device, shuffle_device)
 
-    input_weights = [1.0 / var(protocol.training_data[i,:]) for i in 1:size(protocol.training_data,1)]
-    input_weights[input_weights .> 1.0E9] .= 0.0 # ignore nearly deterministic inputs
-    input_weights_device = input_weights |> protocol.device
-
     if print_log; println("Training VAE... (β = $β)") end
     for epoch in 1:protocol.epochs
         epoch_loss = 0.0
@@ -306,7 +302,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
 
         for x_batch in loader
             loss, grads = Flux.withgradient(model_train_device) do m
-                vae_loss(m, β, input_weights_device, x_batch)
+                vae_loss(m, β, x_batch)
             end
 
             raw_gradient_arrays = Optimisers.trainables(grads[1])
@@ -350,12 +346,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     return training_log
 end
 
-"""
-    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Matrix) -> Matrix
-
-Encodes the data space variable `x` into a latent space variable.
-"""
-function encode(model::VariationalAutoencoder, x::Matrix)
+function _encode(model::VariationalAutoencoder, x::Matrix)
     num_latent_layers = length(model.encoders)
 
     enc_out = model.encoders[1](x)
@@ -369,21 +360,11 @@ function encode(model::VariationalAutoencoder, x::Matrix)
     return z
 end
 
-"""
-    encode(model::GenerativeModelProtocols.VariationalAutoencoder, x::Vector) -> Vector
-
-Encodes the data space variable `x` into a latent space variable.
-"""
-function encode(model::VariationalAutoencoder, x::Vector)
-    return encode(model, reshape(x, :, 1))[:]
+function _encode(model::VariationalAutoencoder, x::Vector)
+    return _encode(model, reshape(x, :, 1))[:]
 end
 
-"""
-    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Matrix) -> Matrix
-
-Decodes the latent space representations `z` back into the data space.
-"""
-function decode(model::VariationalAutoencoder, z::Matrix)
+function _decode(model::VariationalAutoencoder, z::Matrix)
     num_latent_layers = length(model.decoders)
 
     for i in 1:(num_latent_layers-1)
@@ -397,21 +378,16 @@ function decode(model::VariationalAutoencoder, z::Matrix)
     return model.decoders[1](z)
 end
 
-"""
-    decode(model::GenerativeModelProtocols.VariationalAutoencoder, z::Vector) -> Vector
-
-Decodes the latent space representations `z` back into the data space.
-"""
-function decode(model::VariationalAutoencoder, z::Vector)
-    return decode(model, reshape(z,:,1))[:]
+function _decode(model::VariationalAutoencoder, z::Vector)
+    return _decode(model, reshape(z,:,1))[:]
 end
 
-function (model::VariationalAutoencoder)(n_samples::Int)
+function _eval(model::VariationalAutoencoder, n_samples::Int)
     z = randn(Float64,model.latent_dim,n_samples)
-    return decode(model,z)
+    return _decode(model,z)
 end
 
-function (model::VariationalAutoencoder)()
-    return model(1)[:]
+function _eval(model::VariationalAutoencoder)
+    return _eval(model,1)[:]
 end
 

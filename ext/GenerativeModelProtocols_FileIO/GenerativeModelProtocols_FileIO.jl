@@ -21,6 +21,16 @@ function GenerativeModelProtocols._save_metadata(file_name::String, protocol::Ge
     )
 end
 
+function GenerativeModelProtocols._read_metadata(file_name::String; 
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name)
+
+    return GenerativeModelProtocols._read_metadata(FileIO.query(file_name);
+        main_group_name     = main_group_name,
+        metadata_group_name = metadata_group_name
+    )
+end
+
 function GenerativeModelProtocols._save_model(file_name::String, model::GenerativeModelProtocols.AbstractGenerativeModel;
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)

@@ -76,7 +76,7 @@
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
         test_train_model(model, train_data)
-        test_train_model_no_data(model)
+        test_train_model_no_data(model, input_size)
     end
 
     @testset "Incompatible GaussianMixtureModel Architecture Test" begin
@@ -97,8 +97,8 @@
         input_size = 3
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
-        test_model_make_synthetic_data(model)
-        test_model_make_categorical_synthetic_data(model)
+        test_model_make_synthetic_data(model, input_size)
+        test_model_make_categorical_synthetic_data(model, input_size)
     end
 
     @testset "Categorize Test" begin
@@ -106,7 +106,7 @@
         input_size = 3
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
-        test_model_categorize(model)
+        test_model_categorize(model, input_size)
     end
 
     @testset "Display Test" begin
@@ -114,7 +114,7 @@
         input_size = 3
 
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
-        test_model_display(model)
+        test_model_display_no_data(model, input_size)
         test_model_display(model, input_size)
     end
 
@@ -126,7 +126,7 @@
         randomize_chains!(model.predictor_network)
 
         save_path = joinpath(@__DIR__(), "test_gmm_model.h5")
-        test_model_save(save_path, model)
+        test_model_save(save_path, model, input_size)
         
         loaded_model = GenerativeModelProtocols.GaussianMixtureModel(save_path)
         test_compare_models(model, loaded_model)

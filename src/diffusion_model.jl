@@ -12,32 +12,26 @@ end
 
 function compatible_dm_model(T::Int, α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
     if T != denoiser_model.T
-        println("D")
         return false
     end
 
     if length(α) != T
-        println("A")
         return false
     end
 
     if length(ᾱ) != T
-        println("B")
         return false
     end
 
     if length(β) != T
-        println("C")
         return false
     end
 
     if α != (1.0 .- β)
-        println("E")
         return false
     end
 
     if ᾱ != cumprod(α)
-        println("F")
         return false
     end
 
@@ -244,31 +238,16 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
     return protocol._log
 end
 
-"""
-    encode(model::GenerativeModelProtocols.DiffusionModel, x::Matrix) -> Matrix
-
-Encodes the data space variable `x` into a latent space variable.
-"""
-function encode(model::DiffusionModel, x::Matrix)::Matrix
+function _encode(model::DiffusionModel, x::Matrix)::Matrix
     z, _ = forward_diffusion(model, x, model.T)
     return z
 end
 
-"""
-    encode(model::GenerativeModelProtocols.DiffusionModel, x::Vector) -> Vector
-
-Encodes the data space variable `x` into a latent space variable.
-"""
-function encode(model::DiffusionModel, x::Vector)::Vector
-    return encode(model, reshape(x, :, 1))[:]
+function _encode(model::DiffusionModel, x::Vector)::Vector
+    return _encode(model, reshape(x, :, 1))[:]
 end
 
-"""
-    decode(model::GenerativeModelProtocols.DiffusionModel, z::Matrix) -> Matrix
-
-Decodes the latent space representations `z` back into the data space.
-"""
-function decode(model::DiffusionModel, z::Matrix)::Matrix
+function _decode(model::DiffusionModel, z::Matrix)::Matrix
     α = model.α
     ᾱ = model.ᾱ
     β = model.β
@@ -291,24 +270,19 @@ function decode(model::DiffusionModel, z::Matrix)::Matrix
     return x
 end
 
-"""
-    decode(model::GenerativeModelProtocols.DiffusionModel, z::Vector) -> Vector
-
-Decodes the latent space representations `z` back into the data space.
-"""
-function decode(model::DiffusionModel, z::Vector)::Vector
-    return decode(model, reshape(z, :, 1))[:]
+function _decode(model::DiffusionModel, z::Vector)::Vector
+    return _decode(model, reshape(z, :, 1))[:]
 end
 
 
-function (model::DiffusionModel)(n_samples::Int)
+function _eval(model::DiffusionModel, n_samples::Int)
     num_features = size(model.denoiser_model.output_projection.weight, 1)
     z = randn(Float64, num_features, n_samples)
     
-    return decode(model, z)
+    return _decode(model, z)
 end
 
-function (model::DiffusionModel)()
-    return model(1)[:]
+function _eval(model::DiffusionModel)
+    return _eval(model, 1)[:]
 end
 

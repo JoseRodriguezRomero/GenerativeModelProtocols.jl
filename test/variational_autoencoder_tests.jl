@@ -72,7 +72,7 @@
 
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
         test_train_model(model, train_data; β = [0.1, 0.2])
-        test_train_model_no_data(model; β = [0.1, 0.2])
+        test_train_model_no_data(model, input_size; β = [0.1, 0.2])
     end
 
     @testset "Incompatible VariationalAutoencoder Architecture Test" begin
@@ -108,7 +108,7 @@
         input_size = 3
         latent_dim = 3
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
-        test_model_make_synthetic_data(model)
+        test_model_make_synthetic_data(model, input_size)
     end
 
     @testset "Encode/Decode Test" begin
@@ -116,7 +116,7 @@
         latent_dim = 2
         latent_layers = 2
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
-        protocol = GenerativeModelProtocol(model)
+        protocol = make_empty_data_prot(model, input_size)
 
         # Vector single call
         x = protocol()
@@ -147,8 +147,8 @@
         latent_dim = 2
         
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
-        test_model_display(model)
         test_model_display(model, input_size)
+        test_model_display_no_data(model, input_size)
     end
 
     @testset "Save and Load Test" begin
@@ -159,7 +159,7 @@
         randomize_variational_autoencoder!(model)
 
         save_path = joinpath(@__DIR__(), "test_vae_model.h5")
-        test_model_save(save_path, model)
+        test_model_save(save_path, model, input_size)
         
         loaded_model = GenerativeModelProtocols.VariationalAutoencoder(save_path)
         test_compare_models(model, loaded_model)

@@ -82,7 +82,7 @@ end
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
         test_train_model(model, train_data)
-        test_train_model_no_data(model)
+        test_train_model_no_data(model, input_size)
     end
 
     @testset "Incompatible VariationalAutoencoder Architecture Test" begin
@@ -106,7 +106,7 @@ end
         T = 30
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
-        test_model_make_synthetic_data(model)
+        test_model_make_synthetic_data(model, input_size)
     end
 
     @testset "Encode/Decode Test" begin
@@ -114,7 +114,7 @@ end
         T = 30
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
-        protocol = GenerativeModelProtocol(model)
+        protocol = make_empty_data_prot(model, input_size)
 
         # Vector single call
         x = protocol()
@@ -145,7 +145,7 @@ end
         T = 30
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
-        test_model_display(model)
+        test_model_display_no_data(model, input_size)
         test_model_display(model, input_size)
         test_display(model.denoiser_model)
     end
@@ -158,7 +158,7 @@ end
         randomize_diffusion_model!(model)
 
         save_path = joinpath(@__DIR__(), "test_dm_model.h5")
-        test_model_save(save_path, model)
+        test_model_save(save_path, model, input_size)
         
         loaded_model = GenerativeModelProtocols.DiffusionModel(save_path)
         test_compare_models(model, loaded_model)

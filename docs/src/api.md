@@ -25,20 +25,10 @@ GenerativeModelProtocols.TabularDenoiser
 train!(::GenerativeModelProtocol)
 categorize(::GenerativeModelProtocol, ::Vector)
 categorize(::GenerativeModelProtocol, ::Matrix)
-categorize(::GenerativeModelProtocols.GaussianMixtureModel, ::Vector)
-categorize(::GenerativeModelProtocols.GaussianMixtureModel, ::Matrix)
 encode(::GenerativeModelProtocol, ::Vector)
 encode(::GenerativeModelProtocol, ::Matrix)
 decode(::GenerativeModelProtocol, ::Vector)
 decode(::GenerativeModelProtocol, ::Matrix)
-encode(::GenerativeModelProtocols.VariationalAutoencoder, ::Vector)
-encode(::GenerativeModelProtocols.VariationalAutoencoder, ::Matrix)
-decode(::GenerativeModelProtocols.VariationalAutoencoder, ::Vector)
-decode(::GenerativeModelProtocols.VariationalAutoencoder, ::Matrix)
-encode(::GenerativeModelProtocols.DiffusionModel, ::Vector)
-encode(::GenerativeModelProtocols.DiffusionModel, ::Matrix)
-decode(::GenerativeModelProtocols.DiffusionModel, ::Vector)
-decode(::GenerativeModelProtocols.DiffusionModel, ::Matrix)
 ```
 
 # Convenience Constructors

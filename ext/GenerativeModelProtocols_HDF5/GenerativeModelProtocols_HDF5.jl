@@ -35,6 +35,8 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
         end
 
         write_attribute_enum("generative_model", GenerativeModelProtocols._generative_model(protocol))
+        HDF5.write(metadata_group, "var_training_data", collect(protocol.var_training_data))
+        HDF5.write(metadata_group, "mean_training_data", collect(protocol.mean_training_data))
 
         for metadata_key in keys(metadata)
             if typeof(metadata[metadata_key]) <: Enum
@@ -43,6 +45,23 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
                 HDF5.write_attribute(metadata_group, metadata_key, metadata[metadata_key])
             end
         end
+    end
+end
+
+function GenerativeModelProtocols._read_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String}; 
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name)
+
+    HDF5.h5open(file.filename, "r") do file
+        main_group = file[main_group_name]
+        metadata_group = main_group[metadata_group_name]
+
+        generative_model_map = GenerativeModelProtocols.generative_model_map()
+        generative_model = generative_model_map[UInt8(read(HDF5.attributes(metadata_group)["generative_model"]))]
+        mean_training_data = Tuple(read(metadata_group["mean_training_data"]))
+        var_training_data = Tuple(read(metadata_group["var_training_data"]))
+        
+        return generative_model, mean_training_data, var_training_data
     end
 end
 

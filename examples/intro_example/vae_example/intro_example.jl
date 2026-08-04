@@ -21,7 +21,7 @@ train_data = collect(transpose(hcat(x_train,y_train)))
 model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
 protocol = GenerativeModelProtocol(model, train_data;
     batchsize = 256,
-    epochs = 500,
+    epochs = 1500,
     optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
     device = cpu_device()
 )
@@ -77,8 +77,8 @@ savefig(p, "intro_example.svg")
 ## Test reconstruction
 x_test, y_test = make_data(800)
 test_data = collect(transpose(hcat(x_test,y_test)))
-z_test_data = GenerativeModelProtocols.encode(model,test_data)
-recon_test_data = GenerativeModelProtocols.decode(model,z_test_data)
+z_test_data = GenerativeModelProtocols.encode(protocol,test_data)
+recon_test_data = GenerativeModelProtocols.decode(protocol,z_test_data)
 
 p = scatter(x_test, y_test, label="input",frame=:box)
 scatter!(recon_test_data[1,:], recon_test_data[2,:], label="reconstruction", frame=:box, legend = :top)
@@ -87,7 +87,7 @@ savefig(p, "intro_example_recon.svg")
 ## Test latent space
 x_test, y_test = make_data(10000)
 test_data = collect(transpose(hcat(x_test,y_test)))
-z_test_data = GenerativeModelProtocols.encode(model,test_data)
+z_test_data = GenerativeModelProtocols.encode(protocol,test_data)
 
 function reference_gaussian(x, μ, σ²)
     return exp(-((x - μ)^2)/(2.0 * σ²))/sqrt(2.0*π*σ²)
