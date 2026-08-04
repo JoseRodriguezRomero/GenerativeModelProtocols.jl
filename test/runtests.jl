@@ -207,7 +207,7 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
     @test check_file_size(save_path)
 end
 
-# include("diffusion_model_tests.jl")
-# include("gaussian_mixture_model_tests.jl")
+include("diffusion_model_tests.jl")
+include("gaussian_mixture_model_tests.jl")
 include("variational_autoencoder_tests.jl")
 
