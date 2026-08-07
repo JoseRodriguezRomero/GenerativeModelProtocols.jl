@@ -18,6 +18,7 @@ GenerativeModelProtocols.VariationalAutoencoder
 GenerativeModelProtocols.DiffusionModel
 GenerativeModelProtocols.GaussianMixtureModel
 GenerativeModelProtocols.TabularDenoiser
+GenerativeModelProtocols.GenerativeAdversarialNetwork
 ```
 
 # Methods
@@ -42,5 +43,6 @@ GenerativeModelProtocols.DiffusionModel(::Int, ::Tuple{Float64})
 GenerativeModelProtocols.DiffusionModel(::Int, ::Float64, ::Float64, ::GenerativeModelProtocols.TabularDenoiser)
 GenerativeModelProtocols.DiffusionModel(::Int, ::Int, ::Float64, ::Float64)
 GenerativeModelProtocols.TabularDenoiser(::Int; ::Int, ::Int, ::Function, ::Float64)
+GenerativeModelProtocols.GenerativeAdversarialNetwork(::Int, ::Int)
 ```
 

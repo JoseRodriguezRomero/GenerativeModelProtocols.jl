@@ -35,7 +35,7 @@ function compatible_generative_protocol(
         end
     end
 
-    if minimum(var_training_data) < 0.0
+    if minimum(var_training_data) < ϵ
         return false
     end
 
@@ -173,7 +173,8 @@ function GenerativeModelProtocol(saved_protocol::String;
         )
     end
 
-    return GenerativeModelProtocol(model;
+    return GenerativeModelProtocol(;
+        model              = model,
         mean_training_data = mean_training_data,
         var_training_data  = var_training_data
     )
@@ -488,6 +489,7 @@ include("tabular_denoiser.jl")
 include("diffusion_model.jl")
 include("gaussian_mixture_model.jl")
 include("variational_autoencoder.jl")
+include("generative_adversarial_network.jl")
 
 end
 

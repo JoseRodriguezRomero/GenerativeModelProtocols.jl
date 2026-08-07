@@ -2,7 +2,7 @@ macro _gmm_default_activation_function()
     return relu
 end
 
-function _gmm_default_default_predictor_network(input_size::Int, k::Int, hidden_layer_size::Int = 32, activation_function::Function = @_gmm_default_activation_function)
+function _gmm_default_predictor_network(input_size::Int, k::Int, hidden_layer_size::Int = 32, activation_function::Function = @_gmm_default_activation_function)
     return Chain(
         Dense(input_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -76,7 +76,7 @@ end
 """
     GenerativeModelProtocols.GaussianMixtureModel(input_size::Int, k::Int)
 
-Convenience constructor that generates a 
+Convenience constructor that creates a 
 `GenerativeModelProtocols.GaussianMixtureModel` using default predictor network 
 architecture.
 """
@@ -85,7 +85,7 @@ function GaussianMixtureModel(input_size::Int, k::Int)
         k                   = k,
         log_σ²              = zeros(Float64,k,input_size),
         μ                   = zeros(Float64,k,input_size),
-        predictor_network   = _gmm_default_default_predictor_network(input_size,k),
+        predictor_network   = _gmm_default_predictor_network(input_size,k),
         p                   = ones(Float64,k) ./ Float64(k)
     )
 end
@@ -108,23 +108,12 @@ end
 
 function Base.display(model::GaussianMixtureModel)
     print_padding = @_default_print_padding
-    println("GenerativeModelProtocols.GaussianMixtureModel:")
+    println("$(summary(model)):")
     println("k      = $(model.k)")
     println("μ      = $(summary(model.μ))")
     println("log_σ² = $(summary(model.log_σ²))")
     println("p      = $(summary(model.p))")
     println("")
-
-    function print_chains(chains)
-        for i in eachindex(chains)
-            println(print_padding * "Chain(")
-            for layer in chains[i]
-                print(print_padding * print_padding)
-                println(layer)
-            end
-            println(print_padding * ")")
-        end
-    end
 
     println("predictor_network: ")
     _print_chains(model.predictor_network, print_padding)

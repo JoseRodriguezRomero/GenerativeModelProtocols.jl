@@ -97,7 +97,10 @@ function TabularDenoiser(num_inputs::Int;
     max_period::Float64 = 10000.0)
 
     time_embedding_mlp = Chain(
-        Dense(T => hidden_layer_size, activation_function), 
+        Dense(T => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size)
     )
     
