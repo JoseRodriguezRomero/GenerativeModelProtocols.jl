@@ -30,13 +30,14 @@ encode(::GenerativeModelProtocol, ::Vector)
 encode(::GenerativeModelProtocol, ::Matrix)
 decode(::GenerativeModelProtocol, ::Vector)
 decode(::GenerativeModelProtocol, ::Matrix)
+input_size(::GenerativeModelProtocol)
+latent_size(::GenerativeModelProtocol)
 ```
 
 # Convenience Constructors
 ```@docs
 GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{Float64})
 GenerativeModelProtocols.VariationalAutoencoder(::Int, ::Int, ::Int)
-GenerativeModelProtocols.VariationalAutoencoder(::Tuple{Vararg{Chain}}, ::Tuple{Vararg{Chain}})
 GenerativeModelProtocols.GaussianMixtureModel(::Int, ::Int)
 GenerativeModelProtocols.DiffusionModel(::Tuple{Float64}, ::GenerativeModelProtocols.TabularDenoiser)
 GenerativeModelProtocols.DiffusionModel(::Int, ::Tuple{Float64})
