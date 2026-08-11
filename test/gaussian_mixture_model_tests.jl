@@ -2,7 +2,6 @@
     function test_compare_models(model_a::GenerativeModelProtocols.GaussianMixtureModel, model_b::GenerativeModelProtocols.GaussianMixtureModel)
         ϵ = 1.0E-9
         
-        @test model_a.k == model_b.k
         @test maximum(abs.(model_a.log_σ² - model_b.log_σ²)) < ϵ
         @test maximum(abs.(model_a.μ - model_b.μ)) < ϵ
         @test compare_chains(model_a.predictor_network, model_b.predictor_network)
@@ -41,7 +40,6 @@
         end
 
         return GenerativeModelProtocols.GaussianMixtureModel(;
-            k                   = k,
             log_σ²              = log_σ²,
             μ                   = μ,
             predictor_network   = predictor_network,
@@ -55,7 +53,6 @@
 
         model_1 = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
         model_2 = GenerativeModelProtocols.GaussianMixtureModel(;
-            k                   = model_1.k,
             log_σ²              = model_1.log_σ²,
             μ                   = model_1.μ,
             predictor_network   = model_1.predictor_network,

@@ -2,19 +2,10 @@ macro _gan_default_activation_function()
     return leakyrelu
 end
 
-function _gan_default_generator_network(latent_size::Int, input_size::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
-    return Chain(
-        Dense(latent_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => input_size)
-    ) |> f64
-end
-
 function _gan_default_discriminator_network(input_size::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
     return Chain(
         Dense(input_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -22,30 +13,19 @@ function _gan_default_discriminator_network(input_size::Int; hidden_layer_size::
     ) |> f64
 end
 
-function _gan_default_encoder_network(input_size::Int, latent_size::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
-    return Chain(
-        Dense(input_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => 2 * latent_size)
-    ) |> f64
+function _gan_default_vae_model(input_size::Int, latent_dim::Int, latent_layers::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
+    default_encoders = _vae_default_encoder_network(input_size, latent_dim, latent_layers, hidden_layer_size, activation_function)
+    default_decoders = _vae_default_decoder_network(input_size, latent_dim, latent_layers, hidden_layer_size, activation_function)
+    
+    return VariationalAutoencoder(default_encoders, default_decoders)
 end
 
-function compatible_gan_model(generator_network::Chain, discriminator_network::Chain, encoder_network::Chain)::Bool
-    if output_size(generator_network) != input_size(discriminator_network)
+function compatible_gan_model(discriminator::Chain, vae_model::VariationalAutoencoder)::Bool
+    if _input_size(vae_model) != _input_size(discriminator)
         return false
     end
 
-    if (2 * input_size(generator_network)) != output_size(encoder_network)
-        return false
-    end
-
-    if input_size(encoder_network) != output_size(generator_network)
-        return false
-    end
-
-    if output_size(discriminator_network) != 1
+    if _output_size(discriminator) != 1
         return false
     end
 
@@ -64,20 +44,18 @@ model.
 $TYPEDFIELDS
 """
 @kwdef struct GenerativeAdversarialNetwork <: AbstractCategoricalGenerativeModel
-    """Neural network for making synthetic data."""
-    generator_network::Chain
     """Neural network discriminating between real and synthetic data."""
-    discriminator_network::Chain
-    """Neural network for encoding data into a latent space."""
-    encoder_network::Chain
-
-    function GenerativeAdversarialNetwork(generator_network::Chain, discriminator_network::Chain, encoder_network::Chain)
-        if !compatible_gan_model(generator_network, discriminator_network, encoder_network)
+    discriminator::Chain
+    """Variational Autoencoder for encoding and decoding."""
+    vae_model::VariationalAutoencoder
+    
+    function GenerativeAdversarialNetwork(discriminator::Chain, vae_model::VariationalAutoencoder)
+        if !compatible_gan_model(discriminator, vae_model)
             @error "Incompatible GenerativeAdversarialNetwork architecture!"
-            throw(MethodError(GenerativeAdversarialNetwork, (generator_network, discriminator_network, encoder_network)))
+            throw(MethodError(GenerativeAdversarialNetwork, (discriminator, vae_model)))
         end
 
-        return new(generator_network, discriminator_network, encoder_network)
+        return new(discriminator, vae_model)
     end
 end
 
@@ -88,11 +66,10 @@ Convenience constructor that creates a
 `GenerativeModelProtocols.GenerativeAdversarialNetwork` using default generator
 and discriminator networks.
 """
-function GenerativeAdversarialNetwork(input_size::Int, latent_size::Int)
+function GenerativeAdversarialNetwork(input_size::Int, latent_size::Int = 1, latent_layers::Int = 1)
     return GenerativeAdversarialNetwork(;
-        generator_network     = _gan_default_generator_network(latent_size, input_size),
-        discriminator_network = _gan_default_discriminator_network(input_size),
-        encoder_network       = _gan_default_encoder_network(input_size, latent_size)
+        discriminator = _gan_default_discriminator_network(input_size),
+        vae_model     = _gan_default_vae_model(input_size, latent_size, latent_layers)
     )
 end
 
@@ -116,79 +93,88 @@ function Base.display(model::GenerativeAdversarialNetwork)
     print_padding = @_default_print_padding
     println("$(summary(model)):")
 
-    println("generator_network: ")
-    _print_chains(model.generator_network, print_padding)
+    println("discriminator: ")
+    _print_chains(model.discriminator, print_padding)
 
     println("")
 
-    println("discriminator_network: ")
-    _print_chains(model.discriminator_network, print_padding)
+    println("encoder: ")
+    _print_chains(model.vae_model.encoders, print_padding)
+
+    println("")
+
+    println("decoder: ")
+    _print_chains(model.vae_model.decoders, print_padding)
 end
+
+function _input_size(model::GenerativeAdversarialNetwork)::Int
+    return _input_size(model.vae_model)
+end
+
+function _latent_size(model::GenerativeAdversarialNetwork)::Int
+    return _latent_size(model.vae_model)
+end 
 
 function _generative_model(::GenerativeAdversarialNetwork)::GenerativeModel
     return generative_adversarial_network
 end
 
-function _gan_encode(encoder_network::Chain, x::Matrix)
-    enc_out = encoder_network(x)
-    μ = enc_out[1:2:end, :]
-    log_σ² = enc_out[2:2:end, :]
-    ϵ = Flux.randn_like(μ, size(x))
-
-    return μ .+ exp.(0.5 .* log_σ²) .* ϵ
+function _gan_make_latent_variables(model::GenerativeAdversarialNetwork, real_data)
+    return Flux.randn_like(real_data, (_latent_size(model.vae_model), size(real_data, 2)))
 end
 
-function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, opt_state_crit; 
-    grad_penalty::Bool, grad_finite_diff::Bool, ϵ, λ::Float64, a::Float64, 
+function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, opt_state_discriminator; 
+    grad_penalty::Bool, grad_finite_diff::Bool, λ::Float64, a::Float64, 
     weight_clipping::Bool, clip_value::Float64)
+    
+    fake_data = Zygote.dropgrad(_decode(model.vae_model, _gan_make_latent_variables(model, real_data)))
+    recon_data = Zygote.dropgrad(_decode(model.vae_model, _encode(model.vae_model, real_data)))
 
-    gen = model.generator_network
-    crit = model.discriminator_network
-    enc = model.encoder_network
-
-    fake_data = Zygote.dropgrad(gen(_gan_encode(enc, real_data)))
-    interpolates = ϵ .* real_data .+ (1.0 .- ϵ) .* fake_data
-
-    loss_c, grads_crit = Flux.withgradient(crit) do c_net
-        crit_real = c_net(real_data)
-        crit_fake = c_net(fake_data)
-        w_loss = Flux.mean(crit_fake) - Flux.mean(crit_real)
+    loss_c, grads_crit = Flux.withgradient(model.discriminator) do discriminator_net
+        disc_real = discriminator_net(real_data)
+        disc_fake = discriminator_net(fake_data)
+        disc_recon = discriminator_net(recon_data)
+        w_loss =  0.5 .* (mean(disc_fake) + mean(disc_recon)) - mean(disc_real)
 
         if grad_penalty
+            ϵ = Flux.rand_like(real_data, size(real_data))
+            interpolates = ϵ .* real_data .+ (1.0 .- ϵ) .* fake_data
+            disc_base = discriminator_net(interpolates)
+
             if grad_finite_diff
                 h = 1.0E-8
-                gp = 0.0
                 N_features = size(real_data, 1)
-
-                for i in 1:N_features
+                
+                approx_grad_squared_elements = map(1:N_features) do i
                     mask = (1:N_features .== i)
                     interpolates_perturbed = interpolates .+ (mask .* h)
-
-                    delta_output = c_net(interpolates_perturbed) .- c_net(interpolates)
-                    approx_grad = delta_output ./ h
-
-                    gp += Flux.mean(max.(0.0, abs.(approx_grad) .- a).^2)
+                    disc_perturbed = discriminator_net(interpolates_perturbed)
+                    approx_grad = (disc_perturbed - disc_base) ./ h
+                    
+                    return approx_grad .^ 2
                 end
 
+                gp_sq_norm = sum(approx_grad_squared_elements)
+                grad_norms = sqrt.(gp_sq_norm .+ 1.0E-8)
+                gp = mean((grad_norms .- a) .^ 2)
+                
                 return w_loss + λ * gp
             else
                 (grads_interp,) = Zygote.gradient(interpolates) do x
-                    sum(c_net(x))
+                    sum(discriminator_net(x))
                 end
 
                 grad_norms = sqrt.(sum(abs2, grads_interp, dims=1) .+ 1.0E-8)
-                gp = Flux.mean(abs2.(grad_norms .- a))
+                gp = mean(abs2.(grad_norms .- a))
                 return w_loss + λ * gp
             end
         else
             return w_loss
         end
     end
-    
-    Flux.update!(opt_state_crit, crit, grads_crit[1])
 
     if weight_clipping
-        foreach(Flux.trainable(crit)) do layer_params
+        foreach(Flux.trainable(model.discriminator)) do layer_params
             foreach(layer_params) do p
                 if p isa AbstractArray
                     p .= clamp.(p, -clip_value, clip_value)
@@ -197,136 +183,98 @@ function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, o
         end
     end
 
+    Flux.update!(opt_state_discriminator, model.discriminator, grads_crit[1])
+
     return loss_c
 end
 
-function _train_generator!(model::GenerativeAdversarialNetwork, real_data, opt_state_gen)
-    gen = model.generator_network
-    crit = model.discriminator_network
-    enc = model.encoder_network
+function _train_vae!(model::GenerativeAdversarialNetwork, real_data, β, opt_state_vae_model)
+    discriminator = model.discriminator
 
-    loss_g, grads_gen = Flux.withgradient(gen) do g_net
-        noise = _gan_encode(enc, real_data)
-        fake_data = g_net(noise)
-        crit_fake = crit(fake_data)
+    loss_vae, grads_model = Flux.withgradient(model.vae_model) do vae_model
+        fake_data = _decode(vae_model, _gan_make_latent_variables(model, real_data))
+        recon_data = _decode(vae_model, _encode(vae_model, real_data))
 
-        return -Flux.mean(crit_fake)
+        disc_fake_data = discriminator(fake_data)
+        disc_recon_data = discriminator(recon_data)
+
+        vae_elbo = _vae_elbo(vae_model, β, real_data)
+        wgan_loss = - 0.5 .* (mean(disc_fake_data) + mean(disc_recon_data))
+        return vae_elbo + wgan_loss
     end
-    
-    Flux.update!(opt_state_gen, gen, grads_gen[1])
-    return loss_g
+    Flux.update!(opt_state_vae_model, model.vae_model, grads_model[1])
+
+    return loss_vae
 end
 
-function _train_encoder!(model::GenerativeAdversarialNetwork, real_data, λ, opt_state_enc)
-    enc = model.encoder_network
-    gen = model.generator_network
-
-    loss_e, grads_enc = Flux.withgradient(enc) do e_net
-        enc_out = e_net(real_data)
-        μ = enc_out[1:2:end, :]
-        log_σ² = enc_out[2:2:end, :]
-
-        z = _gan_encode(e_net, real_data)
-        x̂ = gen(z)
-
-        recon_loss = 0.5 * Flux.mean(sum((real_data .- x̂) .^ 2, dims = 1))
-        kl_loss = 0.5 * λ * Flux.mean(sum(μ.^2 .+ exp.(log_σ²) .- log_σ² .- 1.0, dims = 1))
-
-        return recon_loss + kl_loss
-    end
-
-    Flux.update!(opt_state_enc, enc, grads_enc[1])
-    return loss_e
+function load_model!(dst::GenerativeAdversarialNetwork, src::GenerativeAdversarialNetwork)
+    Flux.loadmodel!(dst.discriminator, src.discriminator)
+    load_model!(dst.vae_model, src.vae_model)
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork; 
-    print_log::Bool = true, λ::Float64 = 1.0,
-    grad_penalty::Bool = false, grad_finite_diff::Bool = true, λ_grad::Float64 = 10.0, a::Float64 = 1.0,
-    weight_clipping::Bool = false, clip_value::Float64 = 1.0,)
+    print_log::Bool = true, β::Float64 = 1.0,
+    grad_penalty::Bool = false, grad_finite_diff::Bool = true, λ::Float64 = 10.0, a::Float64 = 1.0,
+    weight_clipping::Bool = false, clip_value::Float64 = 1.0)
 
     dev = protocol.device
-    gen = model.generator_network |> dev
-    crit = model.discriminator_network |> dev
-    enc = model.encoder_network |> dev
-
+    model_device = model |> dev
     training_data_device = protocol.training_data |> dev
     batchsize_device = protocol.batchsize
     shuffle_device = protocol.shuffle
 
-    opt_gen = deepcopy(protocol.optimiser)
-    opt_crit = deepcopy(protocol.optimiser)
-    opt_enc = deepcopy(protocol.optimiser)
+    opt_discriminator = deepcopy(protocol.optimiser)
+    opt_vae_model = deepcopy(protocol.optimiser)
 
     loader = load_data(training_data_device, batchsize_device, shuffle_device)
 
-    opt_state_gen = Flux.setup(opt_gen, gen)
-    opt_state_crit = Flux.setup(opt_crit, crit)
-    opt_state_enc = Flux.setup(opt_enc, enc)
+    opt_state_vae_model = Flux.setup(opt_vae_model, model_device.vae_model)
+    opt_state_discriminator = Flux.setup(opt_discriminator, model_device.discriminator)
 
     for epoch in 1:protocol.epochs
         if epoch % 100 == 0 && protocol.shuffle
             loader = load_data(training_data_device, batchsize_device, shuffle_device)
         end
 
-        running_loss_c = 0.0
-        running_loss_g = 0.0
-        running_loss_e = 0.0
-        running_w_dist = 0.0
-        steps = 0
+        running_loss_critic = 0.0
+        running_loss_vae = 0.0
 
         for real_data in loader
-            steps += 1
+            loss_critic = 0.0
+            for _ in 1:5
+                loss_critic = _train_discriminator!(model_device, real_data, opt_state_discriminator; 
+                    grad_penalty     = grad_penalty,
+                    grad_finite_diff = grad_finite_diff,
+                    λ                = λ, 
+                    a                = a,
+                    weight_clipping  = weight_clipping,
+                    clip_value       = clip_value
+                )
+            end
 
-            dims = (ones(Int, ndims(real_data) - 1)..., size(real_data, ndims(real_data)))
-            ϵ = Flux.rand_like(real_data, dims)
-
-            loss_c = _train_discriminator!(model, real_data, opt_state_crit; 
-                grad_penalty     = grad_penalty,
-                grad_finite_diff = grad_finite_diff,
-                ϵ                = ϵ, 
-                λ                = λ_grad, 
-                a                = a,
-                weight_clipping  = weight_clipping,
-                clip_value       = clip_value
-            )
-
-            loss_g = _train_generator!(model, real_data, opt_state_gen)
-            w_dist = - (loss_g + loss_c)
-
-            loss_e = _train_encoder!(model, real_data, λ, opt_state_enc)
+            loss_vae = _train_vae!(model_device, real_data, β, opt_state_vae_model)
             
-            running_loss_c += loss_c
-            running_loss_g += loss_g
-            running_loss_e += loss_e
-            running_w_dist += w_dist
+            running_loss_critic += loss_critic
+            running_loss_vae += loss_vae
         end
         
-        if print_log && steps > 0
-            avg_loss_c = running_loss_c / steps
-            avg_loss_g = running_loss_g / steps
-            avg_loss_e = running_loss_e / steps
-            avg_w_dist = running_w_dist / steps
+        if print_log && (epoch % 5 == 0 || epoch == 1)
+            avg_loss_critic = running_loss_critic / length(loader)
+            avg_loss_vae = running_loss_vae / length(loader)
         
             @printf("Epoch %5d", epoch)
-            @printf(" | Avg. Crit. Loss: %15.6E", avg_loss_c)
-            @printf(" | Avg. Gen. Loss: %15.6E", avg_loss_g)
-            @printf(" | Avg. Enc. loss: %15.6E", avg_loss_e)
-            @printf(" | Avg. Wasserstein dist: %15.6E \n", avg_w_dist)
+            @printf(" | Avg. Critic Loss: %15.6E", avg_loss_critic)
+            @printf(" | Avg. VAE Loss: %15.6E \n", avg_loss_vae)
         end
     end
 
-
-    Flux.loadmodel!(model.generator_network, gen)
-    Flux.loadmodel!(model.discriminator_network, crit)
+    load_model!(protocol.model, model_device)
 
     return protocol._log
 end
 
 function _eval(model::GenerativeAdversarialNetwork, n_samples::Int)
-    latent_size = input_size(model.generator_network)
-    noise = randn(Float64, latent_size, n_samples)
-    synthetic_data = model.generator_network(noise)
-    return synthetic_data
+    _eval(model.vae_model, n_samples)
 end
 
 function _eval(model::GenerativeAdversarialNetwork)
@@ -339,5 +287,21 @@ end
 
 function _categorize(model::GenerativeAdversarialNetwork, x::Vector)::Vector
     return _categorize(model, reshape(x, :, 1))[:]
+end
+
+function _encode(model::GenerativeAdversarialNetwork, x::Matrix)::Matrix
+    return _encode(model.vae_model, x)
+end
+
+function _encode(model::GenerativeAdversarialNetwork, x::Vector)::Vector
+    return _encode(model, reshape(x, :, 1))[:]
+end
+
+function _decode(model::GenerativeAdversarialNetwork, z::Matrix)::Matrix
+    return _decode(model.vae_model, z)
+end
+
+function _decode(model::GenerativeAdversarialNetwork, z::Vector)::Vector
+    return _decode(model, reshape(z, :, 1))[:]
 end
 

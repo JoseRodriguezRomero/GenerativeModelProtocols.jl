@@ -3,15 +3,15 @@ function compatible_tabular_denoiser(T::Int, time_embedding_mlp::Chain, input_pr
         return false
     end
     
-    if input_size(time_embedding_mlp) != T
+    if _input_size(time_embedding_mlp) != T
         return false
     end
 
-    if input_size(input_projection) != output_size(output_projection)
+    if _input_size(input_projection) != _output_size(output_projection)
         return false
     end
 
-    if output_size(input_projection) != input_size(output_projection)
+    if _output_size(input_projection) != _input_size(output_projection)
         return false
     end
 
@@ -19,15 +19,15 @@ function compatible_tabular_denoiser(T::Int, time_embedding_mlp::Chain, input_pr
         return false
     end
 
-    hidden_layer_size = output_size(input_projection)
+    hidden_layer_size = _output_size(input_projection)
 
     function check_hidden_layers(layers::Tuple{Vararg{Dense}})
         for layer in layers
-            if input_size(layer) != hidden_layer_size
+            if _input_size(layer) != hidden_layer_size
                 return false
             end
 
-            if output_size(layer) != hidden_layer_size
+            if _output_size(layer) != hidden_layer_size
                 return false
             end
         end

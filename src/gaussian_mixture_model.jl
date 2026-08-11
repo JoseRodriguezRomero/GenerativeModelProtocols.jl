@@ -13,16 +13,12 @@ function _gmm_default_predictor_network(input_size::Int, k::Int, hidden_layer_si
     ) |> f64
 end
 
-function compatible_gmm_model(k::Int, log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
-    if size(log_σ², 1) != k
+function compatible_gmm_model(log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
+    if size(μ, 1) != size(log_σ², 1)
         return false
     end
 
-    if size(μ, 1) != k
-        return false
-    end
-
-    if length(p) != k
+    if length(p) != size(log_σ², 1)
         return false
     end
 
@@ -30,11 +26,11 @@ function compatible_gmm_model(k::Int, log_σ²::Matrix{Float64}, μ::Matrix{Floa
         return false
     end
 
-    if (input_size(predictor_network) != size(log_σ², 2))
+    if (_input_size(predictor_network) != size(log_σ², 2))
         return false
     end
 
-    if (output_size(predictor_network) != k)
+    if (_output_size(predictor_network) != size(log_σ², 1))
         return false
     end
 
@@ -52,8 +48,6 @@ Gaussian Mixture Model (GMM). Once trained, it can be used a generative model.
 $TYPEDFIELDS
 """
 @kwdef struct GaussianMixtureModel <: AbstractCategoricalGenerativeModel
-    """Number Gaussian clusters in the mixture model."""
-    k::Int
     """Logarithm of the square of the variance of the Gaussian clusters of the model."""
     log_σ²::Matrix{Float64}
     """Mean values of the Gaussian clusters of the model."""
@@ -63,13 +57,13 @@ $TYPEDFIELDS
     """Vector containing the categorical probabilities of each cluster."""
     p::Vector{Float64}
 
-    function GaussianMixtureModel(k::Int, log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
-        if !compatible_gmm_model(k, log_σ², μ, predictor_network, p)
+    function GaussianMixtureModel(log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
+        if !compatible_gmm_model(log_σ², μ, predictor_network, p)
             @error "Incompatible GaussianMixtureModel architecture!"
-            throw(MethodError(GaussianMixtureModel, (k, log_σ², μ, predictor_network, p)))
+            throw(MethodError(GaussianMixtureModel, (log_σ², μ, predictor_network, p)))
         end
 
-        return new(k, log_σ², μ, predictor_network, p)
+        return new(log_σ², μ, predictor_network, p)
     end
 end
 
@@ -82,7 +76,6 @@ architecture.
 """
 function GaussianMixtureModel(input_size::Int, k::Int)
     return GaussianMixtureModel(;
-        k                   = k,
         log_σ²              = zeros(Float64,k,input_size),
         μ                   = zeros(Float64,k,input_size),
         predictor_network   = _gmm_default_predictor_network(input_size,k),
@@ -109,7 +102,6 @@ end
 function Base.display(model::GaussianMixtureModel)
     print_padding = @_default_print_padding
     println("$(summary(model)):")
-    println("k      = $(model.k)")
     println("μ      = $(summary(model.μ))")
     println("log_σ² = $(summary(model.log_σ²))")
     println("p      = $(summary(model.p))")
@@ -118,6 +110,14 @@ function Base.display(model::GaussianMixtureModel)
     println("predictor_network: ")
     _print_chains(model.predictor_network, print_padding)
 end
+
+function _input_size(model::GaussianMixtureModel)::Int
+    return size(model.log_σ², 2)
+end
+
+function _latent_size(model::GaussianMixtureModel)::Int
+    return size(model.log_σ², 1)
+end 
 
 function _generative_model(::GaussianMixtureModel)::GenerativeModel
     return gaussian_mixture_model
@@ -147,7 +147,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     training_data_device = Float64.(protocol.training_data) |> protocol.device
     shuffle_device = protocol.shuffle |> protocol.device
     
-    K = model_train_device.k
+    K = _latent_size(model_train_device)
 
     loader = load_data(training_data_device, batchsize_device, shuffle_device)
 
@@ -245,7 +245,9 @@ function _eval(model::GaussianMixtureModel, n_samples::Int)
     cum_p ./= cum_p[end]
     sampled_clusters = [searchsortedfirst(cum_p, rand()) for _ in 1:n_samples]
     
-    counts = zeros(Int, model.k)
+    k = _latent_size(model)
+
+    counts = zeros(Int, k)
     for k in sampled_clusters
         counts[k] += 1
     end
@@ -254,7 +256,7 @@ function _eval(model::GaussianMixtureModel, n_samples::Int)
     starts = [1; ends[1:end-1] .+ 1]
     final_X = Matrix{Float64}(undef, D, n_samples)
     
-    for k in 1:model.k
+    for k in 1:k
         counts[k] == 0 && continue
         
         final_X[:, starts[k]:ends[k]] .= _eval(model, k, counts[k])

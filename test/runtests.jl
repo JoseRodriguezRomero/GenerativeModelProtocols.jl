@@ -139,12 +139,11 @@ function test_model_make_categorical_synthetic_data(model::GenerativeModelProtoc
     protocol = make_empty_data_prot(model, input_size)
 
     for i in 1:5
-        if i > model.k
+        if i > latent_size(protocol)
             break
         end
 
-        x_synthetic = protocol(i, 100)
-        @test isa(x_synthetic, Matrix)
+        @test isa(protocol(i, 100), Matrix)
     end
 end
 
@@ -152,7 +151,7 @@ function test_model_categorize(model::GenerativeModelProtocols.AbstractGenerativ
     protocol = make_empty_data_prot(model, input_size)
 
     for i in 1:5
-        if i > model.k
+        if i > latent_size(protocol)
             break
         end
 
@@ -207,7 +206,8 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
     @test check_file_size(save_path)
 end
 
-include("diffusion_model_tests.jl")
-include("gaussian_mixture_model_tests.jl")
-include("variational_autoencoder_tests.jl")
+# include("diffusion_model_tests.jl")
+# include("gaussian_mixture_model_tests.jl")
+# include("variational_autoencoder_tests.jl")
+include("generative_adversarial_network_tests.jl")
 

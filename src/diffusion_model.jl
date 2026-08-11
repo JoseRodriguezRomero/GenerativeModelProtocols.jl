@@ -162,6 +162,14 @@ function Base.display(model::DiffusionModel)
     println("denoiser_model = $(summary(model.denoiser_model))")
 end
 
+function _input_size(model::DiffusionModel)::Int
+    return _input_size(model.denoiser_model.input_projection)
+end
+
+function _latent_size(model::DiffusionModel)::Int
+    return _input_size(model)
+end 
+
 function forward_diffusion(model::DiffusionModel, x₀::Matrix, t::Vector{Int})
     ϵ = Flux.randn_like(x₀, size(x₀))
     ᾱₜ = reshape(collect(model.ᾱ[t]), 1, :)

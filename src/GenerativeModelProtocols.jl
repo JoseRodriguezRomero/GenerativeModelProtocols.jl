@@ -10,7 +10,7 @@ using DocStringExtensions
 
 using Compat: @compat
 
-export GenerativeModelProtocol, train!, categorize, encode, decode
+export GenerativeModelProtocol, train!, categorize, encode, decode, input_size, latent_size
 
 abstract type AbstractGenerativeModel end
 abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
@@ -299,6 +299,24 @@ function decode(protocol::GenerativeModelProtocol, z::Vector)::Vector
     return _unscale_and_unshift(protocol, _decode(protocol.model, z))
 end
 
+"""
+    input_size(protocol::GenerativeModelProtocol) -> Int
+
+Returns the dimension size of an input vector.
+"""
+function input_size(protocol::GenerativeModelProtocol)::Int
+    return _input_size(protocol.model)
+end
+
+"""
+    latent_size(protocol::GenerativeModelProtocol) -> Int
+
+Returns the dimension size of an encoded latent vector.
+"""
+function latent_size(protocol::GenerativeModelProtocol)::Int
+    return _latent_size(protocol.model)
+end
+
 function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
     data = shuffle ? shuffleobs(data) : data
 
@@ -455,20 +473,32 @@ function _print_chains(chain::Chain, print_padding)
     _print_chains((chain,), print_padding)
 end
 
-function input_size(layer::Dense)
+function _input_size(layer::Dense)
     return size(layer.weight, 2)
 end
 
-function input_size(chain::Chain)
-    return input_size(chain[1])
+function _input_size(chain::Chain)
+    return _input_size(chain[1])
 end
 
-function output_size(layer::Dense)
+function _output_size(layer::Dense)
     return size(layer.weight, 1)
 end
 
-function output_size(chain::Chain)
-    return output_size(chain[end])
+function _output_size(chain::Chain)
+    return _output_size(chain[end])
+end
+
+function load_model!(dst::Tuple{Vararg{Chain}}, src::Tuple{Vararg{Chain}})
+    for i in eachindex(dst)
+        Flux.loadmodel!(dst[i], src[i])
+    end
+end
+
+function load_model!(dst::Tuple{Vararg{Dense}}, src::Tuple{Vararg{Dense}})
+    for i in eachindex(dst)
+        Flux.loadmodel!(dst[i], src[i])
+    end
 end
 
 function Base.display(protocol::GenerativeModelProtocol)

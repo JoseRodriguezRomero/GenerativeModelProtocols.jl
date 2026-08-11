@@ -25,7 +25,7 @@ protocol = GenerativeModelProtocol(model, train_data;
     optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
     device = cpu_device()
 )
-train!(protocol; β = 0.05)
+train!(protocol; β = 0.1)
 
 synthetic_data = protocol(num_samples)
 

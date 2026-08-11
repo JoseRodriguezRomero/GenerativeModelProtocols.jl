@@ -48,10 +48,8 @@
 
         model_2 = GenerativeModelProtocols.VariationalAutoencoder(model_1.encoders, model_1.decoders)
         model_3 = GenerativeModelProtocols.VariationalAutoencoder(;
-            latent_dim      = latent_dim,
-            latent_layers   = length(model_1.encoders),
-            encoders        = model_1.encoders,
-            decoders        = model_1.decoders
+            encoders = model_1.encoders,
+            decoders = model_1.decoders
         )
 
         @test isa(model_1, GenerativeModelProtocols.VariationalAutoencoder)
