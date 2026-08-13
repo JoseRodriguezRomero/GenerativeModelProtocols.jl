@@ -127,8 +127,8 @@ function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, o
     grad_penalty::Bool, grad_finite_diff::Bool, λ::Float64, a::Float64, 
     weight_clipping::Bool, clip_value::Float64)
     
-    fake_data = Zygote.dropgrad(_decode(model.vae_model, _gan_make_latent_variables(model, real_data)))
-    recon_data = Zygote.dropgrad(_decode(model.vae_model, _encode(model.vae_model, real_data)))
+    fake_data = Zygote.ignore_derivatives(_decode(model.vae_model, _gan_make_latent_variables(model, real_data)))
+    recon_data = Zygote.ignore_derivatives(_decode(model.vae_model, _encode(model.vae_model, real_data)))
 
     loss_c, grads_crit = Flux.withgradient(model.discriminator) do discriminator_net
         disc_real = discriminator_net(real_data)
