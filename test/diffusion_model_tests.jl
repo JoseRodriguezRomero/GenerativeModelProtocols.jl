@@ -1,7 +1,6 @@
 function test_compare_tabular_denoiser(denoiser_a::GenerativeModelProtocols.TabularDenoiser, denoiser_b::GenerativeModelProtocols.TabularDenoiser)
     ϵ = 1.0E-9
 
-    @test denoiser_a.T == denoiser_b.T
     @test compare_chains(denoiser_a.time_embedding_mlp,denoiser_b.time_embedding_mlp)
     @test compare_layers(denoiser_a.input_projection, denoiser_b.input_projection)
     @test compare_layers(denoiser_a.residual_layers, denoiser_b.residual_layers)
@@ -13,7 +12,6 @@ end
 function test_compare_models(model_a::GenerativeModelProtocols.DiffusionModel, model_b::GenerativeModelProtocols.DiffusionModel)
     ϵ = 1.0E-9
 
-    @test model_a.T == model_b.T
     @test maximum(collect(model_a.α) - collect(model_b.α)) < ϵ
     @test maximum(collect(model_a.ᾱ) - collect(model_b.ᾱ)) < ϵ
     @test maximum(collect(model_a.β) - collect(model_b.β)) < ϵ
@@ -36,10 +34,6 @@ function example_diffusion_model(;
 
     default_model = GenerativeModelProtocols.DiffusionModel(2, 30)
 
-    if isnothing(T)
-        T = default_model.T
-    end
-
     if isnothing(α)
         α = default_model.α
     end
@@ -52,8 +46,11 @@ function example_diffusion_model(;
         β = default_model.β
     end
 
+    if !isnothing(T)
+        default_model = GenerativeModelProtocols.DiffusionModel(2, T)
+    end
+
     return GenerativeModelProtocols.DiffusionModel(;
-        T              = T,
         α              = α,
         ᾱ              = ᾱ,
         β              = β,
@@ -87,18 +84,19 @@ end
 
     @testset "Incompatible VariationalAutoencoder Architecture Test" begin
         default_dm = example_diffusion_model()
+        # default_T = default_dm.denoiser_model.T
 
         # Test incompatible T
-        @test_throws Exception example_diffusion_model(; T = default_dm.T + 1)
+        @test_throws Exception example_diffusion_model(; T = default_T + 1)
 
         # Test incompatible vector lengths
-        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_dm.T + 1)))
-        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_dm.T + 1)))
-        @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float64, default_dm.T + 1)))
+        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_T + 1)))
+        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_T + 1)))
+        @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float64, default_T + 1)))
 
         # Test incompatible α
-        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_dm.T)))
-        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_dm.T)))
+        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_T)))
+        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_T)))
     end
 
     @testset "Make Synthetic Data Test" begin

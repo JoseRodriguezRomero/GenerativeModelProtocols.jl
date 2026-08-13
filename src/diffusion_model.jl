@@ -10,20 +10,16 @@ function default_denoiser_network(num_inputs::Int, T::Int, hidden_layer_size::In
     ) |> f64
 end
 
-function compatible_dm_model(T::Int, α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
-    if T != denoiser_model.T
+function compatible_dm_model(α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
+    if length(α) != denoiser_model.T
         return false
     end
 
-    if length(α) != T
+    if length(ᾱ) != denoiser_model.T
         return false
     end
 
-    if length(ᾱ) != T
-        return false
-    end
-
-    if length(β) != T
+    if length(β) != denoiser_model.T
         return false
     end
 
@@ -50,8 +46,6 @@ generative model.
 $TYPEDFIELDS
 """
 @kwdef struct DiffusionModel <: AbstractGenerativeModel
-    """Number of diffusion steps (number of steps in the Markov chain)."""
-    T::Int
     """1.0 .- β"""
     α::Tuple{Vararg{Float64}}
     """cumprod(α)"""
@@ -62,13 +56,13 @@ $TYPEDFIELDS
     denoiser_model::TabularDenoiser
     """Number of training epochs for the VAE."""
 
-    function DiffusionModel(T::Int, α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
-        if !compatible_dm_model(T, α, ᾱ, β, denoiser_model)
+    function DiffusionModel(α::Tuple{Vararg{Float64}}, ᾱ::Tuple{Vararg{Float64}}, β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoiser)
+        if !compatible_dm_model(α, ᾱ, β, denoiser_model)
             @error "Incompatible DiffusionModel architecture!"
-            throw(MethodError(DiffusionModel, (T, α, ᾱ, β, denoiser_model)))
+            throw(MethodError(DiffusionModel, (α, ᾱ, β, denoiser_model)))
         end
 
-        return new(T, α, ᾱ, β, denoiser_model)
+        return new(α, ᾱ, β, denoiser_model)
     end
 end
 
@@ -85,7 +79,6 @@ function DiffusionModel(β::Tuple{Vararg{Float64}}, denoiser_model::TabularDenoi
     α = 1.0 .- β
     ᾱ = cumprod(α)
     return DiffusionModel(
-        T = length(β),
         α = α,
         ᾱ = ᾱ,
         β = β,
@@ -155,7 +148,6 @@ end
 
 function Base.display(model::DiffusionModel)
     println("$(summary(model)):")
-    println("T              = $(model.T)")
     println("α              = $(summary(model.α))")
     println("ᾱ              = $(summary(model.ᾱ))")
     println("β              = $(summary(model.β))")
@@ -214,7 +206,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
         for x₀ in loader
             b_size = size(x₀, 2)
 
-            t_raw = rand(1:model.T, b_size) |> protocol.device
+            t_raw = rand(1:model.denoiser_model.T, b_size) |> protocol.device
             xₜ, ϵ_true = forward_diffusion(model_train_device, x₀, t_raw)
 
             loss, grads = Flux.withgradient(model_train_device) do m
@@ -247,7 +239,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
 end
 
 function _encode(model::DiffusionModel, x::Matrix)::Matrix
-    z, _ = forward_diffusion(model, x, model.T)
+    z, _ = forward_diffusion(model, x, model.denoiser_model.T)
     return z
 end
 
@@ -261,7 +253,7 @@ function _decode(model::DiffusionModel, z::Matrix)::Matrix
     β = model.β
 
     x = z
-    for t in model.T:-1:1
+    for t in model.denoiser_model.T:-1:1
         t_batch = fill(t, size(z, 2))
         ϵ_pred = model.denoiser_model(x, t_batch)
         x_mean = (x .- (β[t] / sqrt(1.0 - ᾱ[t])) .* ϵ_pred) ./ sqrt(α[t]) 

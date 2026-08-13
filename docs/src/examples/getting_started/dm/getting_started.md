@@ -90,7 +90,6 @@ inputting
 ```julia-repl
 julia> model
 GenerativeModelProtocols.DiffusionModel:
-T              = 250
 α              = NTuple{250, Float64}
 ᾱ              = NTuple{250, Float64}
 β              = NTuple{250, Float64}

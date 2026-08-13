@@ -76,9 +76,9 @@ structures that users can need. We can easily read the configuration of
 ```julia-repl
 julia> protocol
 GenerativeModelProtocol:
-training_data = 2×2000 Matrix{Float64}
+training_data = 2×5000 Matrix{Float64}
 epochs        = 1500
-batchsize     = 128
+batchsize     = 256
 shuffle       = true
 optimiser     = Adam(eta=0.001, beta=(0.95, 0.999), epsilon=1.0e-8)
 device        = CPUDevice
@@ -89,9 +89,6 @@ inputting
 ```julia-repl
 julia> model
 GenerativeModelProtocols.VariationalAutoencoder:
-latent_dim    = 2
-latent_layers = 1
-
 encoders: 
    Chain(
       Dense(2 => 32, relu)
