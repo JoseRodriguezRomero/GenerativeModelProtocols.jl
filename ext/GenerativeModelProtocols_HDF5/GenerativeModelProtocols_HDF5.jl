@@ -112,6 +112,7 @@ include("tabular_denoiser_HDF5.jl")
 include("diffusion_model_HDF5.jl")
 include("gaussian_mixture_model_HDF5.jl")
 include("variational_autoencoder_HDF5.jl")
+include("generative_adversarial_network_HDF5.jl")
 
 end
 

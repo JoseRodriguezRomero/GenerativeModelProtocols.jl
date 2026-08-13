@@ -55,10 +55,9 @@
 		% --- OUTPUT AND LOSS NODES POSITIONED FOR ZERO OVERLAP ---
 		\node[image, right=1.2cm of D] (D_out) {Discriminator\\Output\\$D(\cdot)$};
 		
-		% Loss Nodes
-		\node[loss_node, above=1.0cm of E] (L_E) {$\mathcal{L}_E$};
+		% Loss Nodes (L_E and L_G are removed. L_D remains. L_VAE is north-centered)
 		\node[loss_node, right=1.4cm of D_out] (L_D) {$\mathcal{L}_D$};
-		\node[loss_node, below=2.2cm of x_fake] (L_G) {$\mathcal{L}_G$};
+		\node[loss_node, above=1.0cm of x_real, xshift=2.0cm] (L_vae) {$\mathcal{L}_\mathrm{VAE}$};
 		
 		
 		% --- FORWARD CONNECTIONS AND FLOW (Solid Black Lines) ---
@@ -73,25 +72,29 @@
 		% 3. Discriminator Symmetric Inflow
 		\draw[->, line width=1.2pt] (x_real.east) -- ([yshift=0.5cm]D.west);
 		\draw[->, line width=1.2pt] (x_fake.east) -- ([yshift=-0.4cm]D.west);
-		
-		% 4. Discriminator to Prediction Block (Solid Forward Path)
 		\draw[->, line width=1.2pt] (D.east) -- (D_out.west);
-		
-		
-		% --- BACKPROPAGATION TRACKS  ---
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.east) -- (L_D.west);
-		
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_D.north) |- ([yshift=1.4cm]D.north) -- (D.north);
 		
-		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.south) |- (L_G.east);
+		% --- NEW L_VAE INFLOWS ---
+		% 1. Real Sample up to L_VAE (Restored to clean standard anchor)
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_real.north) |- (L_vae.west);
 		
-		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_G.west) -| (G.south);
+		% 2. Discriminator Output up to L_VAE
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.north) |- (L_vae.east);
 		
-		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_E.south) -- (E.north);
+		% 3. Fake Sample up to L_VAE
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_fake.north) -- ++(0,1.25) -| ($(L_vae.south)+(0.0,0)$);
 		
-		\draw[->, dashed, line width=1.2pt, draw=black!40] (z.west) -- ++(-1.8,0) |- (L_E.west);
+		% --- CLEAN BRANCHED L_VAE BACKPROPAGATION FEEDBACK TRACKS ---
+		% Define the branching coordinate at a standard clearance height above L_vae, perfectly aligned with Generator (G)
+		\coordinate (branch_pt) at (G.north |- {$(L_vae.north)+(0,0.6)$});
 		
-		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_real.north) -- ++(0,1.0) |- (L_E.east);
+		% Main line leaving L_vae from the NORTH anchor, turning left into the branch point, then straight down to G
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_vae.north) |- (branch_pt) -- (G.north);
+		
+		% Branch line shooting off from that exact corner point continuing left, then straight down into Encoder (E)
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (branch_pt) -| (E.north);
 		
 	\end{tikzpicture}
 \end{document}

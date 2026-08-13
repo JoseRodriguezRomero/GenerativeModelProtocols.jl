@@ -139,6 +139,19 @@
     end
 
     @testset "Save and Load Test" begin
+        input_size = 3
+        latent_dim = 2
+        latent_layers = 2
+        model = GenerativeModelProtocols.GenerativeAdversarialNetwork(input_size, latent_dim, latent_layers)
+        randomize_generative_adversarial_network!(model)
+
+        save_path = joinpath(@__DIR__(), "test_gan_model.h5")
+        test_model_save(save_path, model, input_size)
+        
+        loaded_model = GenerativeModelProtocols.GenerativeAdversarialNetwork(save_path)
+        test_compare_models(model, loaded_model)
+
+        remove_file(save_path)
     end
 end
 
