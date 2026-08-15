@@ -112,10 +112,10 @@ single forward-pass through the neural network immediately returns cluster
 assignment probabilities.
 
 Furthermore, the mathematical routines use 3D tensor broadcasting across data 
-dimensions, cluster configurations, and data samples, aligning the workload 
-perfectly with standard accelerated hardware computing architectures via 
-`protocol.device`. This computational scalability is paired with numerical 
-resilience, as the integration of log-space transformations, stability pads, 
-and variance constraints safeguards the software environment against runtime 
-arithmetic exceptions during intensive training iterations.
+dimensions, cluster configurations, and data samples, compatible with 
+accelerated hardware computing architectures via `protocol.device`. Moreover, 
+this implementation is paired with numerical resilience, as the integration of 
+log-space transformations, using stability pads and variance constraints 
+safeguarding the software environment against runtime arithmetic exceptions 
+during intensive training iterations.
 

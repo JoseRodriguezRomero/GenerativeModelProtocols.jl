@@ -213,7 +213,7 @@ function load_model!(dst::GenerativeAdversarialNetwork, src::GenerativeAdversari
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork; 
-    print_log::Bool = true, β::Float64 = 1.0,
+    print_log::Bool = true, critic_subepochs::Int = 5, β::Float64 = 1.0,
     grad_penalty::Bool = false, grad_finite_diff::Bool = true, λ::Float64 = 10.0, a::Float64 = 1.0,
     weight_clipping::Bool = false, clip_value::Float64 = 1.0)
 
@@ -241,7 +241,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
 
         for real_data in loader
             loss_critic = 0.0
-            for _ in 1:5
+            for _ in 1:maximum((1,critic_subepochs))
                 loss_critic = _train_discriminator!(model_device, real_data, opt_state_discriminator; 
                     grad_penalty     = grad_penalty,
                     grad_finite_diff = grad_finite_diff,

@@ -27,24 +27,27 @@
 		loss_node/.style={circle, draw=black, fill=black!5, minimum size=0.9cm, font=\sffamily\bfseries, align=center}
 		]
 		
-		% --- CORE VERTICAL AXIS (Latent Variables & Encoder) ---
-		% 1. Central Latent Variable Repository
-		\node[image] (z) {Latent\\Variables\\$z \sim \mathcal{N}(0,1)$};
+		% --- SYMMETRICAL INPUT BLOCKS (Left Base Anchor) ---
+		% Noise is placed at the baseline (0,0)
+		\node[image] (noise) {Gaussian\\Noise\\$\epsilon \sim \mathcal{N}(0,I)$};
 		
-		% 2. Encoder Wedge (Bound tightly by explicit text width constraints)
-		\node[encoder_wedge, above=2.2cm of z] (E) {Encoder\\$E$};
+		% Latent Variables placed exactly 2.2cm above noise to balance G at 1.1cm
+		\node[image, above=0.6cm of noise] (z) {Latent\\Variables\\$z \sim \mathcal{N}(0,1)$};
+		
+		% --- GENERATOR TRACK CENTER LINE ---
+		% Generator is positioned exactly midway between z and noise vertically
+		\node[generator_wedge, right=1.3cm of noise, yshift=1.1cm] (G) {Generator\\$G$};
+		
+		% Generated Fake Data
+		\node[image, right=3.1cm of G] (x_fake) {Fake\\Sample\\$G(z)$};
 		
 		
-		% --- GENERATOR TRACK ---
-		% 3. Generator
-		\node[generator_wedge, right=of z] (G) {Generator\\$G$};
+		% --- ENCODER & REAL DATA TRACK ---
+		% Encoder Wedge positioned directly above z
+		\node[encoder_wedge, above=1.3cm of z] (E) {Encoder\\$E$};
 		
-		% 4. Generated Fake Data
-		\node[image, right=of G] (x_fake) {Fake\\Sample\\$G(z)$};
-		
-		
-		% --- REAL DATA TRACK ---
-		\node[image, right=3.6cm of E] (x_real) {Real\\Sample\\$x$};
+		% Real Sample placed to match the wide horizontal alignment clearance
+		\node[image, right=2.1cm of E] (x_real) {Real\\Sample\\$x$};
 		
 		
 		% --- DISCRIMINATOR TRACK ---
@@ -55,45 +58,46 @@
 		% --- OUTPUT AND LOSS NODES POSITIONED FOR ZERO OVERLAP ---
 		\node[image, right=1.2cm of D] (D_out) {Discriminator\\Output\\$D(\cdot)$};
 		
-		% Loss Nodes (L_E and L_G are removed. L_D remains. L_VAE is north-centered)
+		% Loss Nodes
 		\node[loss_node, right=1.4cm of D_out] (L_D) {$\mathcal{L}_D$};
-		\node[loss_node, above=1.0cm of x_real, xshift=2.0cm] (L_vae) {$\mathcal{L}_\mathrm{VAE}$};
+		
+		% L_vae is placed directly above x_fake to ensure a perfectly straight line
+		\node[loss_node, above=4.5cm of x_fake] (L_vae) {$\mathcal{L}_\mathrm{VAE}$};
 		
 		
 		% --- FORWARD CONNECTIONS AND FLOW (Solid Black Lines) ---
-		% 1. Reconstruction Loop (Real Sample enters Encoder, Encoder points straight down to Latent)
+		% 1. Symmetrical diagonal lines straight into the west face of G
+		\draw[->, line width=1.2pt] (z.east) -- ([yshift=0.35cm]G.west);
+		\draw[->, line width=1.2pt] (noise.east) -- ([yshift=-0.35cm]G.west);
+		
+		% 2. Reconstruction Loop
 		\draw[->, line width=1.2pt] (x_real.west) -- (E.east);
 		\draw[->, line width=1.2pt] (E.south) -- (z.north);
 		
-		% 2. Generator Path (Left to Right)
-		\draw[->, line width=1.2pt] (z.east) -- (G.west);
+		% 3. Generator Output Path
 		\draw[->, line width=1.2pt] (G.east) -- (x_fake.west);
 		
-		% 3. Discriminator Symmetric Inflow
+		% 4. Discriminator Inflow
 		\draw[->, line width=1.2pt] (x_real.east) -- ([yshift=0.5cm]D.west);
-		\draw[->, line width=1.2pt] (x_fake.east) -- ([yshift=-0.4cm]D.west);
+		\draw[->, line width=1.2pt] (x_fake.north east) -- ([yshift=-0.4cm]D.west);
 		\draw[->, line width=1.2pt] (D.east) -- (D_out.west);
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.east) -- (L_D.west);
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_D.north) |- ([yshift=1.4cm]D.north) -- (D.north);
 		
-		% --- NEW L_VAE INFLOWS ---
-		% 1. Real Sample up to L_VAE (Restored to clean standard anchor)
+		% --- L_VAE INFLOWS ---
+		% 1. Real Sample up to L_VAE
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_real.north) |- (L_vae.west);
 		
 		% 2. Discriminator Output up to L_VAE
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.north) |- (L_vae.east);
 		
-		% 3. Fake Sample up to L_VAE
-		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_fake.north) -- ++(0,1.25) -| ($(L_vae.south)+(0.0,0)$);
+		% 3. Fake Sample straight up to L_VAE
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_fake.north) -- (L_vae.south);
 		
 		% --- CLEAN BRANCHED L_VAE BACKPROPAGATION FEEDBACK TRACKS ---
-		% Define the branching coordinate at a standard clearance height above L_vae, perfectly aligned with Generator (G)
 		\coordinate (branch_pt) at (G.north |- {$(L_vae.north)+(0,0.6)$});
 		
-		% Main line leaving L_vae from the NORTH anchor, turning left into the branch point, then straight down to G
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_vae.north) |- (branch_pt) -- (G.north);
-		
-		% Branch line shooting off from that exact corner point continuing left, then straight down into Encoder (E)
 		\draw[->, dashed, line width=1.2pt, draw=black!40] (branch_pt) -| (E.north);
 		
 	\end{tikzpicture}
