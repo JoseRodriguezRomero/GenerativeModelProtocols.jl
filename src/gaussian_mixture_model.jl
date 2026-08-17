@@ -123,7 +123,7 @@ function _generative_model(::GaussianMixtureModel)::GenerativeModel
     return gaussian_mixture_model
 end
 
-function log_gaussian_pdf_matrix(X::AbstractMatrix{Float64}, μ::AbstractMatrix{Float64}, log_σ²::AbstractMatrix{Float64})
+function log_gaussian_pdf_matrix(X::Matrix, μ::Matrix, log_σ²::Matrix)
     D = size(X, 1)
     K = size(μ, 1)
     

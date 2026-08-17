@@ -163,7 +163,10 @@ function GenerativeModelProtocol(saved_protocol::String;
             generative_model_group_name = generative_model_group_name
         )
     elseif generative_model == generative_adversarial_network
-        model = nothing # Temporary dummy line
+            model = GenerativeAdversarialNetwork(saved_protocol;
+            main_group_name             = main_group_name,
+            generative_model_group_name = generative_model_group_name
+        )
     elseif generative_model == normalizing_flow
         model = nothing # Temporary dummy line
     elseif generative_model == gaussian_mixture_model
