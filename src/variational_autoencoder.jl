@@ -180,50 +180,52 @@ end
 
 function _encode_vae(encoders::Tuple{Vararg{Chain}}, x, latent_dim, num_latent_layers)
     batch_size = size(x, 2)
+    T = eltype(x)
     
-    μ_buf = Zygote.Buffer(x, eltype(x), latent_dim, num_latent_layers, batch_size)
-    σ_buf = Zygote.Buffer(x, eltype(x), latent_dim, num_latent_layers, batch_size)
-    logσ²_buf = Zygote.Buffer(x, eltype(x), latent_dim, num_latent_layers, batch_size)
-    z_buf = Zygote.Buffer(x, eltype(x), latent_dim, num_latent_layers, batch_size)
+    μ = similar(x, T, latent_dim, num_latent_layers, batch_size)
+    σ = similar(x, T, latent_dim, num_latent_layers, batch_size)
+    logσ² = similar(x, T, latent_dim, num_latent_layers, batch_size)
+    z = similar(x, T, latent_dim, num_latent_layers, batch_size)
 
     enc_out = encoders[1](x)
-    μ_buf[:, 1, :] = enc_out[1:latent_dim, :]
-    logσ²_buf[:, 1, :] = enc_out[(latent_dim+1):end, :]
-    σ_buf[:, 1, :] = exp.(logσ²_buf[:, 1, :] .*  0.5)
-    z_buf[:, 1, :] = sample_latent(μ_buf[:, 1, :], σ_buf[:, 1, :])
+    μ[:, 1, :] .= enc_out[1:latent_dim, :]
+    logσ²[:, 1, :] .= enc_out[(latent_dim+1):end, :]
+    σ[:, 1, :] .= exp.(logσ²[:, 1, :] .* T(0.5))
+    z[:, 1, :] .= sample_latent(μ[:, 1, :], σ[:, 1, :])
 
     for i in 2:num_latent_layers
-        enc_out = encoders[i](z_buf[:, i-1, :])
-        μ_buf[:, i, :] = enc_out[1:latent_dim, :]
-        logσ²_buf[:, i, :] = enc_out[(latent_dim+1):end, :]
-        σ_buf[:, i, :] = exp.(logσ²_buf[:, i, :] .*  0.5)
-        z_buf[:, i, :] = sample_latent(μ_buf[:, i, :], σ_buf[:, i, :])
+        enc_out = encoders[i](z[:, i-1, :])
+        μ[:, i, :] .= enc_out[1:latent_dim, :]
+        logσ²[:, i, :] .= enc_out[(latent_dim+1):end, :]
+        σ[:, i, :] .= exp.(logσ²[:, i, :] .* T(0.5))
+        z[:, i, :] .= sample_latent(μ[:, i, :], σ[:, i, :])
     end
 
-    return copy(μ_buf), copy(σ_buf), copy(logσ²_buf), copy(z_buf)
+    return μ, σ, logσ², z
 end
 
 function _decode_vae(decoders::Tuple{Vararg{Chain}}, z, latent_dim, num_latent_layers)
     batch_size = size(z, 3)
+    T = eltype(z)
     
-    μ_buf = Zygote.Buffer(z, eltype(z), latent_dim, num_latent_layers, batch_size)
-    σ_buf = Zygote.Buffer(z, eltype(z), latent_dim, num_latent_layers, batch_size)
-    logσ²_buf = Zygote.Buffer(z, eltype(z), latent_dim, num_latent_layers, batch_size)
+    μ = similar(z, T, latent_dim, num_latent_layers, batch_size)
+    σ = similar(z, T, latent_dim, num_latent_layers, batch_size)
+    logσ² = similar(z, T, latent_dim, num_latent_layers, batch_size)
 
-    μ_buf[:, num_latent_layers, :] = Flux.zeros_like(z, (latent_dim, batch_size))
-    σ_buf[:, num_latent_layers, :] = Flux.ones_like(z, (latent_dim, batch_size))
-    logσ²_buf[:, num_latent_layers, :] = Flux.zeros_like(z, (latent_dim, batch_size))
+    μ[:, num_latent_layers, :] .= zero(T)
+    σ[:, num_latent_layers, :] .= one(T)
+    logσ²[:, num_latent_layers, :] .= zero(T)
 
     for i in 2:num_latent_layers
         idx = num_latent_layers - i + 1
         dec_out = decoders[idx+1](z[:, idx+1, :])
-        μ_buf[:, idx, :] = dec_out[1:latent_dim, :]
-        logσ²_buf[:, idx, :] = dec_out[(latent_dim+1):end, :]
-        σ_buf[:, idx, :] = exp.(logσ²_buf[:, idx, :] .*  0.5)
+        μ[:, idx, :] .= dec_out[1:latent_dim, :]
+        logσ²[:, idx, :] .= dec_out[(latent_dim+1):end, :]
+        σ[:, idx, :] .= exp.(logσ²[:, idx, :] .* T(0.5))
     end
 
     x̂ = decoders[1](z[:, 1, :])
-    return copy(μ_buf), copy(σ_buf), copy(logσ²_buf), x̂
+    return μ, σ, logσ², x̂
 end
 
 function _vae_elbo(model::VariationalAutoencoder, β::Float64, x)
@@ -263,7 +265,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         end
 
         for x_batch in loader
-            loss, grads = Flux.withgradient(model_train_device) do m
+            loss, grads = Flux.withgradient(AutoEnzyme(), model_train_device) do m
                 _vae_elbo(m, β, x_batch)
             end
 

@@ -123,51 +123,52 @@ function _gan_make_latent_variables(model::GenerativeAdversarialNetwork, real_da
     return Flux.randn_like(real_data, (_latent_size(model.vae_model), size(real_data, 2)))
 end
 
-function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, opt_state_discriminator; 
-    grad_penalty::Bool, grad_finite_diff::Bool, λ::Float64, a::Float64, 
-    weight_clipping::Bool, clip_value::Float64)
-    
-    fake_data = Zygote.ignore_derivatives(_decode(model.vae_model, _gan_make_latent_variables(model, real_data)))
-    recon_data = Zygote.ignore_derivatives(_decode(model.vae_model, _encode(model.vae_model, real_data)))
+function _gan_grad_penalty(discriminator_net, real_data, fake_data, λ::Float64, a::Float64)
+    ϵ = Flux.rand_like(real_data, size(real_data))
+    interpolates = ϵ .* real_data .+ (1.0 .- ϵ) .* fake_data
 
-    loss_c, grads_crit = Flux.withgradient(model.discriminator) do discriminator_net
+    features, _ = size(interpolates)
+    net_tangents = ntuple(_ -> Enzyme.make_zero(discriminator_net), Val(features))
+
+    seed_tangents = ntuple(features) do i
+        t = zero(interpolates)
+        t[i, :] .= 1.0
+        return t
+    end
+
+    d_out = Enzyme.autodiff(
+        Enzyme.Forward,
+        Enzyme.BatchDuplicated(discriminator_net, net_tangents),
+        Enzyme.BatchDuplicated(interpolates, seed_tangents)
+    )
+
+    grads_interp = similar(interpolates)
+    for i in 1:features
+        grads_interp[i, :] .= vec(d_out[1][i])
+    end
+
+    grad_norms = sqrt.(sum(abs2, grads_interp, dims=1) .+ 1.0E-8)
+    gp = mean(abs2.(grad_norms .- a))
+
+    return λ * gp
+end
+
+function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, opt_state_discriminator; 
+    grad_penalty::Bool, λ::Float64, a::Float64, weight_clipping::Bool, clip_value::Float64)
+    
+    fake_data = _decode(model.vae_model, _gan_make_latent_variables(model, real_data))
+    recon_data = _decode(model.vae_model, _encode(model.vae_model, real_data))
+
+    loss_c, grads_crit = Flux.withgradient(AutoEnzyme(), model.discriminator) do discriminator_net
         disc_real = discriminator_net(real_data)
         disc_fake = discriminator_net(fake_data)
         disc_recon = discriminator_net(recon_data)
         w_loss =  0.5 .* (mean(disc_fake) + mean(disc_recon)) - mean(disc_real)
 
         if grad_penalty
-            ϵ = Flux.rand_like(real_data, size(real_data))
-            interpolates = ϵ .* real_data .+ (1.0 .- ϵ) .* fake_data
-            disc_base = discriminator_net(interpolates)
-
-            if grad_finite_diff
-                h = 1.0E-8
-                N_features = size(real_data, 1)
-                
-                approx_grad_squared_elements = map(1:N_features) do i
-                    mask = (1:N_features .== i)
-                    interpolates_perturbed = interpolates .+ (mask .* h)
-                    disc_perturbed = discriminator_net(interpolates_perturbed)
-                    approx_grad = (disc_perturbed - disc_base) ./ h
-                    
-                    return approx_grad .^ 2
-                end
-
-                gp_sq_norm = sum(approx_grad_squared_elements)
-                grad_norms = sqrt.(gp_sq_norm .+ 1.0E-8)
-                gp = mean((grad_norms .- a) .^ 2)
-                
-                return w_loss + λ * gp
-            else
-                (grads_interp,) = Zygote.gradient(interpolates) do x
-                    sum(discriminator_net(x))
-                end
-
-                grad_norms = sqrt.(sum(abs2, grads_interp, dims=1) .+ 1.0E-8)
-                gp = mean(abs2.(grad_norms .- a))
-                return w_loss + λ * gp
-            end
+            fake_data_grad_penalty = _gan_grad_penalty(discriminator_net, real_data, fake_data, λ, a)
+            recon_data_grad_penalty = _gan_grad_penalty(discriminator_net, real_data, recon_data, λ, a)
+            return w_loss + 0.5 * (fake_data_grad_penalty + recon_data_grad_penalty)
         else
             return w_loss
         end
@@ -191,7 +192,7 @@ end
 function _train_vae!(model::GenerativeAdversarialNetwork, real_data, β, opt_state_vae_model)
     discriminator = model.discriminator
 
-    loss_vae, grads_model = Flux.withgradient(model.vae_model) do vae_model
+    loss_vae, grads_model = Flux.withgradient(AutoEnzyme(), model.vae_model) do vae_model
         fake_data = _decode(vae_model, _gan_make_latent_variables(model, real_data))
         recon_data = _decode(vae_model, _encode(vae_model, real_data))
 
@@ -202,6 +203,7 @@ function _train_vae!(model::GenerativeAdversarialNetwork, real_data, β, opt_sta
         wgan_loss = - 0.5 .* (mean(disc_fake_data) + mean(disc_recon_data))
         return vae_elbo + wgan_loss
     end
+    
     Flux.update!(opt_state_vae_model, model.vae_model, grads_model[1])
 
     return loss_vae
@@ -212,10 +214,9 @@ function load_model!(dst::GenerativeAdversarialNetwork, src::GenerativeAdversari
     load_model!(dst.vae_model, src.vae_model)
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork; 
-    print_log::Bool = true, critic_subepochs::Int = 5, β::Float64 = 1.0,
-    grad_penalty::Bool = false, grad_finite_diff::Bool = true, λ::Float64 = 10.0, a::Float64 = 1.0,
-    weight_clipping::Bool = false, clip_value::Float64 = 1.0)
+function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork, β::Float64; 
+    print_log::Bool, critic_subepochs::Int, grad_penalty::Bool, λ::Float64, a::Float64,
+    weight_clipping::Bool, clip_value::Float64)
 
     dev = protocol.device
     model_device = model |> dev
@@ -244,7 +245,6 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
             for _ in 1:maximum((1,critic_subepochs))
                 loss_critic = _train_discriminator!(model_device, real_data, opt_state_discriminator; 
                     grad_penalty     = grad_penalty,
-                    grad_finite_diff = grad_finite_diff,
                     λ                = λ, 
                     a                = a,
                     weight_clipping  = weight_clipping,
@@ -257,6 +257,9 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
             running_loss_critic += loss_critic
             running_loss_vae += loss_vae
         end
+
+        protocol._log.loss[epoch] = running_loss_critic / length(loader)
+        protocol._log.loss_grad_norm[epoch] = running_loss_vae / length(loader)
         
         if print_log && (epoch % 5 == 0 || epoch == 1)
             avg_loss_critic = running_loss_critic / length(loader)
@@ -269,6 +272,22 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     end
 
     load_model!(protocol.model, model_device)
+
+    return protocol._log
+end
+
+function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork; 
+    print_log::Bool = true, critic_subepochs::Int = 5, β::Union{Float64, Vector{Float64}} = 1.0,
+    grad_penalty::Bool = false, λ::Float64 = 10.0, a::Float64 = 1.0,
+    weight_clipping::Bool = false, clip_value::Float64 = 1.0)
+
+    for i in eachindex(β)
+        _train!(protocol, model, β[i]; 
+            print_log = print_log, critic_subepochs = critic_subepochs,
+            grad_penalty = grad_penalty, λ = λ, a = a, 
+            weight_clipping = weight_clipping, clip_value = clip_value
+        )
+    end
 
     return protocol._log
 end

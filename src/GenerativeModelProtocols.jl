@@ -2,7 +2,7 @@ module GenerativeModelProtocols
 
 using Flux
 using Printf
-using Zygote
+using Enzyme
 using MLUtils
 using StatsBase
 using LinearAlgebra

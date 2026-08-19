@@ -209,7 +209,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
             t_raw = rand(1:model.denoiser_model.T, b_size) |> protocol.device
             xₜ, ϵ_true = forward_diffusion(model_train_device, x₀, t_raw)
 
-            loss, grads = Flux.withgradient(model_train_device) do m
+            loss, grads = Flux.withgradient(AutoEnzyme(), model_train_device) do m
                 ϵ_pred = m.denoiser_model(xₜ, t_raw)
                 return Flux.Losses.mse(ϵ_pred, ϵ_true) / loader_length_device
             end

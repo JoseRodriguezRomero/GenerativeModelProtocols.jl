@@ -180,10 +180,12 @@ function Base.display(denoiser_model::TabularDenoiser)
 end
 
 function compute_sinusoidal_frequencies(t, T::Int, max_period::Float64)
-    frequencies = Zygote.ignore_derivatives() do
-        half_dim = ceil(Int, T / 2.0)
-        scale = log(max_period) / (half_dim - 1)
-        frequencies = exp.(-collect(0:half_dim-1) * scale)
+    half_dim = ceil(Int, T / 2.0)
+    scale = log(max_period) / (half_dim - 1)
+    
+    frequencies = similar(t, typeof(max_period), half_dim)
+    for i in 1:half_dim
+        frequencies[i] = exp(-(i-1) * scale)
     end
     
     scaled_time = t' .* frequencies

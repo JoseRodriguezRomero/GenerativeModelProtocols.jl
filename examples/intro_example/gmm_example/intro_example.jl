@@ -53,7 +53,7 @@ function plot_model_density(protocol)
     fig = histogram2d(data[1,:], data[2,:],
         bins=(200,200),
         show_empty_bins=true,
-        title="GMM PDF (k = $latent_size(protocol))\n2D Histogram",
+        title="GMM PDF (k = $(latent_size(protocol)))\n2D Histogram",
         xlims=(-1.1,1.1),
         ylims=(-1.1,1.1),
         fillcolor=:viridis,

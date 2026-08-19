@@ -166,7 +166,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         log_total = max_log .+ log.(sum_exp)          
         
         γ_all = exp.(log_joint_all .- log_total)
-        epoch_loss = -sum(log_total)
+        epoch_loss = -mean(log_total)
 
         N_k = sum(γ_all, dims=2) 
         N_k_stable = N_k .+ 1.0E-8
@@ -188,13 +188,13 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         end
 
         for (x_batch, γ_batch) in loader
-            _, grads = Flux.withgradient(model_train_device.predictor_network) do net
+            _, grads = Flux.withgradient(AutoEnzyme(), model_train_device.predictor_network) do net
                 pred = net(x_batch)
                 Flux.Losses.logitcrossentropy(pred, γ_batch)
             end
 
             raw_gradient_arrays = Optimisers.trainables(grads)
-            batch_grad_norm = sqrt(sum(sum(abs2, g) for g in raw_gradient_arrays if g isa AbstractArray))
+            batch_grad_norm = sqrt(mean(sum(abs2, g) for g in raw_gradient_arrays if g isa AbstractArray))
 
             Flux.update!(opt_state, model_train_device.predictor_network, grads[1])
             total_grad_norm += batch_grad_norm
