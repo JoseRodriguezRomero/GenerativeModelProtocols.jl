@@ -177,7 +177,7 @@ ELBO often used to train VAEs. Strictly speaking:
 ```math
     \mathcal{L}_\text{VAE} \left( \phi, \varphi, \theta \right) :=
     \gamma_\text{VAE} \left( \mathcal{L}_\text{KL} \left( \varphi \right) -
-    \mathcal{L}_\text{recon} \left( \varphi, \theta \right) \right) -
+    \mathcal{L}_\text{recon} \left( \varphi, \theta \right) \right) +
     \gamma_\text{WGAN} \ \mathcal{L}_\text{W} \left( \phi, \varphi, \theta 
     \right)
 ```
