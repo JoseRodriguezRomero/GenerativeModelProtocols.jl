@@ -40,10 +40,10 @@ thus, our trainable generative model protocol is defined, and trained, as
 protocol = GenerativeModelProtocol(model, train_data;
     batchsize   = 256,
     epochs      = 1500,
-    optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+    optimiser   = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
     device      = cpu_device()
 )
-train!(protocol; β = 0.05)
+train!(protocol; β = 0.2)
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia
@@ -80,7 +80,7 @@ training_data = 2×5000 Matrix{Float64}
 epochs        = 1500
 batchsize     = 256
 shuffle       = true
-optimiser     = Adam(eta=0.001, beta=(0.95, 0.999), epsilon=1.0e-8)
+optimiser     = Adam(eta=1.0E-4, beta=(0.95, 0.999), epsilon=1.0e-8)
 device        = CPUDevice
 model         = GenerativeModelProtocols.VariationalAutoencoder
 ```

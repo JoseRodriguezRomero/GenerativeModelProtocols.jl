@@ -54,7 +54,6 @@ macro default_generative_model_group_name()
     return "generative_model"
 end
 
-
 """
 $TYPEDEF
 
@@ -65,7 +64,7 @@ changed by setting `device` to a GPU device of preference.
 
 $TYPEDFIELDS
 """
-@kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
+@kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel, O}
     """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
     training_data::Union{Matrix{Float64}, Nothing} = nothing
     """Mean of the raw (unshifted and unscaled) training data."""
@@ -79,7 +78,7 @@ $TYPEDFIELDS
     """Flag indicating whether to shuffle the training data during training."""
     shuffle::Bool = true
     """Optimizer used to train the generative model."""
-    optimiser::Union{Optimisers.AbstractRule, Flux.Optimise.AbstractOptimiser} = Adam(0.01f0)
+    optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01f0)
     """Hardware device (CPU or GPU) on which to perform training and inference."""
     device::Flux.MLDataDevices.AbstractDevice = Flux.cpu_device()
     """Generative model architecture to be used."""
@@ -94,18 +93,18 @@ $TYPEDFIELDS
         epochs::Int,
         batchsize::Int,
         shuffle::Bool,
-        optimiser::Union{Optimisers.AbstractRule, Flux.Optimise.AbstractOptimiser},
+        optimiser::Union{O, Tuple{Vararg{O}}},
         device::Flux.MLDataDevices.AbstractDevice,
         model::M,
         _log::TrainingLog
-        ) where {M<:AbstractGenerativeModel}
+        ) where {M<:AbstractGenerativeModel, O}
 
         if !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
             throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)))
         end
 
-        return new{M}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)
+        return new{M,O}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)
     end
 end
 

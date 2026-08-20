@@ -18,14 +18,17 @@ num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 
+critic_optimiser = Adam(; eta = 1.0E-4, beta = (0.0,0.9))
+vae_optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999))
+
 model = GenerativeModelProtocols.GenerativeAdversarialNetwork(2, 2)
 protocol = GenerativeModelProtocol(model,train_data;
     batchsize   = 256,
     epochs      = 1500,
-    optimiser   = Adam(; eta = 1.0E-4, beta = (0.0,0.9)),
+    optimiser   = (critic_optimiser, vae_optimiser),
     device      = cpu_device()
 )
-train!(protocol; β = 1.0,
+train!(protocol; β = 0.2, γ_vae = 1.0, γ_wgan = 0.1,
     grad_penalty = true, λ = 10.0, a = 1.0,
     weight_clipping = false, clip_value = 0.01
 )

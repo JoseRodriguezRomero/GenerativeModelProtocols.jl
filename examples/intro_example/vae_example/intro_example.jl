@@ -22,10 +22,10 @@ model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
 protocol = GenerativeModelProtocol(model, train_data;
     batchsize = 256,
     epochs = 1500,
-    optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+    optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
     device = cpu_device()
 )
-train!(protocol; β = 0.1)
+train!(protocol; β = 0.2)
 
 synthetic_data = protocol(num_samples)
 

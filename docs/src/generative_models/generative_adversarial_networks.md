@@ -176,11 +176,13 @@ implemented in this module, is the addition of a loss component identical to the
 ELBO often used to train VAEs. Strictly speaking:
 ```math
     \mathcal{L}_\text{VAE} \left( \phi, \varphi, \theta \right) :=
-    \mathcal{L}_\text{KL} \left( \varphi \right) -
-    \mathcal{L}_\text{recon} \left( \varphi, \theta \right) -
-    \mathcal{L}_\text{W} \left( \phi, \varphi, \theta \right)
+    \gamma_\text{VAE} \left( \mathcal{L}_\text{KL} \left( \varphi \right) -
+    \mathcal{L}_\text{recon} \left( \varphi, \theta \right) \right) -
+    \gamma_\text{WGAN} \ \mathcal{L}_\text{W} \left( \phi, \varphi, \theta 
+    \right)
 ```
-where
+where $\gamma_\text{VAE}$ and $\gamma_\text{WGAN}$ are user-adjustable constants 
+and
 ```math
     \mathcal{L}_\text{KL} \left( \varphi \right) := 
     \beta \ D_\text{KL} \left( q_\varphi (z | x) \ \rVert \ p(z) \right) = \beta
@@ -190,4 +192,4 @@ where
     \mathbb{E}_{q_\varphi (z | x)} \left[ \log \left( p_\theta (x | z) \right) 
     \right] ,
 ```
-in which $\beta$ is a user-adjustable constant to avoid KL vanishing.
+in which $\beta$ is also a user-adjustable constant to avoid KL vanishing.
