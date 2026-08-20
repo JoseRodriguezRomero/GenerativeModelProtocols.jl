@@ -29,15 +29,14 @@ protocol = GenerativeModelProtocol(model,train_data;
     device      = cpu_device()
 )
 train!(protocol; β = 0.2, γ_vae = 1.0, γ_wgan = 0.1,
-    grad_penalty = true, λ = 10.0, a = 1.0,
-    weight_clipping = false, clip_value = 0.01
+    grad_penalty = true, λ = 10.0, a = 1.0
 )
 
 # ## Compare Distributions
 synthetic_data = protocol(num_samples)
 
-p11 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
-p22 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false,frame=:box)
+p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
+p2 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false,frame=:box)
 
 function plot_model_density(protocol)
     data = protocol(50000)
@@ -75,8 +74,8 @@ function plot_real_density()
     return fig
 end
 
-p1 = plot_real_density()
-p2 = plot_model_density(protocol)
+p11 = plot_real_density()
+p22 = plot_model_density(protocol)
 
 p = plot(p1,p11,p2,p22; layout=(2,2), size = (900, 800), link = :both)
 savefig(p, "intro_example.svg")

@@ -98,12 +98,12 @@ function Base.display(model::GenerativeAdversarialNetwork)
 
     println("")
 
-    println("encoder: ")
+    println("encoders: ")
     _print_chains(model.vae_model.encoders, print_padding)
 
     println("")
 
-    println("decoder: ")
+    println("decoders: ")
     _print_chains(model.vae_model.decoders, print_padding)
 end
 
@@ -222,6 +222,12 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     β::Float64, γ_vae::Float64, γ_wgan::Float64; 
     print_log::Bool, n_critic::Int, grad_penalty::Bool, λ::Float64, a::Float64,
     weight_clipping::Bool, clip_value::Float64)
+
+    if !grad_penalty && !weight_clipping
+        @warn "Training a WGAN with neither gradient penalty nor weight clipping active is not recommended."
+    elseif grad_penalty && weight_clipping
+        @warn "Training a WGAN with both gradient penalty and weight clipping active is not recommended."
+    end
 
     dev = protocol.device
     model_device = model |> dev

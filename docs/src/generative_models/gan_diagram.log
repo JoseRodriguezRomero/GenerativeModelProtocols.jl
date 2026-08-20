@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.12.26)  14 AUG 2026 16:27
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023/Debian) (preloaded format=pdflatex 2025.12.26)  20 AUG 2026 16:36
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -461,7 +461,7 @@ r/share/texlive/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi7.pfb></usr/share
 /texmf-dist/fonts/type1/public/amsfonts/cm/cmssbx10.pfb></usr/share/texlive/tex
 mf-dist/fonts/type1/public/amsfonts/cm/cmsy10.pfb></usr/share/texlive/texmf-dis
 t/fonts/type1/public/amsfonts/cm/cmsy7.pfb>
-Output written on gan_diagram.pdf (1 page, 58490 bytes).
+Output written on gan_diagram.pdf (1 page, 58623 bytes).
 PDF statistics:
  41 PDF objects out of 1000 (max. 8388607)
  25 compressed objects within 1 object stream

@@ -1,13 +1,13 @@
 # Variational Autoencoders
 
-Variational Autoencoders (VAEs) are among the simplest generative models capable 
-of learning an unknown probability density distribution from a data collection. 
-Generally, a VAE consists of two primary components: an *encoder* and a 
-*decoder*. The goal of the encoder is to map a recorded observation to a 
-lower-dimensional *latent variable*. This latent variable follows a well-known 
-probability distribution that is easy to sample from. Conversely, the decoder 
-transforms these sampled latent variables back into the original 
-higher-dimensional data space.
+Variational Autoencoders (VAEs) [Diederik2013](@cite) are among the simplest 
+generative models capable of learning an unknown probability density 
+distribution from a data collection. Generally, a VAE consists of two primary 
+components: an *encoder* and a *decoder*. The goal of the encoder is to map a 
+recorded observation to a lower-dimensional *latent variable*. This latent 
+variable follows a well-known probability distribution that is easy to sample 
+from. Conversely, the decoder transforms these sampled latent variables back 
+into the original higher-dimensional data space.
 
 Once a VAE is trained, its decoder can be used as a generative model. Because 
 the latent space is designed to be simple, generating new random observations 
@@ -123,15 +123,15 @@ optimization challenges must be addressed:
   VAEs often suffer from "KL vanishing," an optimization trap where the encoder 
   collapses to the prior $\left( D_\text{KL} \to 0 \right)$ and the decoder 
   ignores the latent space entirely. To prevent this, a scaling hyperparameter 
-  $\beta$ is introduced to weight the KL term. While $\beta = 1$ satisfies the 
-  strict mathematical derivation of the ELBO, $\beta$ is often dynamically 
-  scheduled (KL annealing) or tuned arbitrarily: $\beta < 1$ prioritizes sharp 
-  reconstructions, whereas $\beta > 1$ enforces stricter latent independence at 
-  the expense of output detail.
+  $\beta$ is introduced to weight the KL term [Higgins2017](@cite). While 
+  $\beta = 1$ satisfies the strict mathematical derivation of the ELBO, $\beta$ 
+  is often dynamically scheduled (KL annealing) or tuned arbitrarily: $\beta < 
+  1$ prioritizes sharp reconstructions, whereas $\beta > 1$ enforces stricter 
+  latent independence at the expense of output detail.
 * __Hierarchical Latents__: A single layer of latent variables assumes a simple 
   flat distribution, which often lacks the mathematical flexibility to model 
   complex data distributions. To increase model capacity, Hierarchical VAEs 
-  (HVAEs) stack latent variables into sequential layers. This structural change 
-  allows the network to partition the representation task, tracking large-scale 
-  structural patterns in the top layers and smaller, detailed variations in the 
-  lower layers.
+  (HVAEs) stack latent variables into sequential layers [Sonderby2016, 
+  Havtorn2021](@cite). This structural change allows the network to partition 
+  the representation task, tracking large-scale structural patterns in the top 
+  layers and smaller, detailed variations in the lower layers.

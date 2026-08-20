@@ -43,8 +43,12 @@ makedocs(;
                 "Diffusion Model" => "examples/getting_started/dm/getting_started.md",
                 "Generative Adversarial Network" => "examples/getting_started/gan/getting_started.md"
             ],
+            "β Annealing" => "examples/beta_annealing/beta_annealing.md",
+            "Hierarchical VAEs" => "examples/hierarchical_vaes/hierarchical_vaes.md",
+            "Customizing Models" => "examples/customizing_models/customizing_models.md",
             "Saving and Loading Models" => "examples/save_load/save_load.md"
         ],
+        "References" => "references.md"
     ],
 )
 

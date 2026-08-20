@@ -200,7 +200,3 @@ cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/dm_example
 julia intro_example.jl
 ```
 
-## References
-```@bibliography
-Pages = [@__FILE__]
-```

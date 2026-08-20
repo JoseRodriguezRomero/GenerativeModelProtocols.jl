@@ -80,7 +80,7 @@ training_data = 2×5000 Matrix{Float64}
 epochs        = 1500
 batchsize     = 256
 shuffle       = true
-optimiser     = Adam(eta=1.0E-4, beta=(0.95, 0.999), epsilon=1.0e-8)
+optimiser     = Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8)
 device        = CPUDevice
 model         = GenerativeModelProtocols.VariationalAutoencoder
 ```
@@ -221,7 +221,3 @@ cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/vae_example
 julia intro_example.jl
 ```
 
-## References
-```@bibliography
-Pages = [@__FILE__]
-```

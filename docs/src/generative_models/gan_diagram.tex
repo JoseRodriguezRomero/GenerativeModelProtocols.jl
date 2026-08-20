@@ -59,7 +59,7 @@
 		\node[image, right=1.2cm of D] (D_out) {Discriminator\\Output\\$D(\cdot)$};
 		
 		% Loss Nodes
-		\node[loss_node, right=1.4cm of D_out] (L_D) {$\mathcal{L}_D$};
+		\node[loss_node, right=1.4cm of D_out] (L_D) {$\mathcal{L}_\mathrm{D}$};
 		
 		% L_vae is placed directly above x_fake to ensure a perfectly straight line
 		\node[loss_node, above=4.5cm of x_fake] (L_vae) {$\mathcal{L}_\mathrm{VAE}$};

@@ -1,15 +1,15 @@
 # Gaussian Mixture Models
 
-Gaussian Mixture Models (GMMs) are among the simplest generative models capable 
-of learning an unknown probability density distribution from a data collection. 
-Generally, a GMM consists of two primary operational steps: component assignment 
-and conditional emission. The goal of the component assignment step is to map a 
-recorded observation to a lower-dimensional discrete latent variable 
-representing cluster membership. This latent variable follows a categorical 
-probability distribution based on mixture weights that is easy to sample from. 
-Conversely, the conditional emission step transforms these sampled latent 
-components back into the original data space by generating values from the 
-selected component's specific Gaussian distribution.
+Gaussian Mixture Models (GMMs) [reynolds2009](@cite) are among the simplest 
+generative models capable of learning an unknown probability density 
+distribution from a data collection. Generally, a GMM consists of two primary 
+operational steps: component assignment and conditional emission. The goal of 
+the component assignment step is to map a recorded observation to a 
+lower-dimensional discrete latent variable representing cluster membership. This 
+latent variable follows a categorical probability distribution based on mixture 
+weights that is easy to sample from. Conversely, the conditional emission step 
+transforms these sampled latent components back into the original data space by 
+generating values from the selected component's specific Gaussian distribution.
 
 Once a GMM is trained, it can be used as a generative model. Because the latent 
 space consists of a discrete set of sub-populations, generating new random 
