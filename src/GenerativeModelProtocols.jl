@@ -78,7 +78,7 @@ $TYPEDFIELDS
     """Flag indicating whether to shuffle the training data during training."""
     shuffle::Bool = true
     """Optimizer used to train the generative model."""
-    optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01f0)
+    optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01)
     """Hardware device (CPU or GPU) on which to perform training and inference."""
     device::Flux.MLDataDevices.AbstractDevice = Flux.cpu_device()
     """Generative model architecture to be used."""

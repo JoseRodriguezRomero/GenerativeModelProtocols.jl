@@ -75,7 +75,7 @@ structures that users can need. We can easily read the configuration of
 `protocol` from the REPL by inputting
 ```julia-repl
 julia> protocol
-GenerativeModelProtocol{GenerativeModelProtocols.DiffusionModel}:
+GenerativeModelProtocol{GenerativeModelProtocols.DiffusionModel, Adam{Float64, Tuple{Float64, Float64}, Float64}}:
 training_data = 2×5000 Matrix{Float64}
 epochs        = 1500
 batchsize     = 256
