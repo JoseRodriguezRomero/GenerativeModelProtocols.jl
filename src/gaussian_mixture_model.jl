@@ -13,7 +13,7 @@ function _gmm_default_predictor_network(input_size::Int, k::Int, hidden_layer_si
     ) |> f64
 end
 
-function compatible_gmm_model(log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
+function compatible_gmm_model(log_σ²::Matrix{F}, μ::Matrix{F}, predictor_network::Chain, p::Vector{F}) where {F<:AbstractFloat}
     if size(μ, 1) != size(log_σ², 1)
         return false
     end
@@ -47,23 +47,23 @@ Gaussian Mixture Model (GMM). Once trained, it can be used a generative model.
 
 $TYPEDFIELDS
 """
-@kwdef struct GaussianMixtureModel <: AbstractCategoricalGenerativeModel
+@kwdef struct GaussianMixtureModel{F<:AbstractFloat} <: AbstractCategoricalGenerativeModel
     """Logarithm of the square of the variance of the Gaussian clusters of the model."""
-    log_σ²::Matrix{Float64}
+    log_σ²::Matrix{F}
     """Mean values of the Gaussian clusters of the model."""
-    μ::Matrix{Float64}
+    μ::Matrix{F}
     """Neural network parametrizing the likelihood of some input stemming from a given cluster."""
     predictor_network::Chain
     """Vector containing the categorical probabilities of each cluster."""
-    p::Vector{Float64}
+    p::Vector{F}
 
-    function GaussianMixtureModel(log_σ²::Matrix{Float64}, μ::Matrix{Float64}, predictor_network::Chain, p::Vector{Float64})
+    function GaussianMixtureModel(log_σ²::Matrix{F}, μ::Matrix{F}, predictor_network::Chain, p::Vector{F}) where {F<:AbstractFloat}
         if !compatible_gmm_model(log_σ², μ, predictor_network, p)
             @error "Incompatible GaussianMixtureModel architecture!"
             throw(MethodError(GaussianMixtureModel, (log_σ², μ, predictor_network, p)))
         end
 
-        return new(log_σ², μ, predictor_network, p)
+        return new{F}(log_σ², μ, predictor_network, p)
     end
 end
 
@@ -124,6 +124,7 @@ function _generative_model(::GaussianMixtureModel)::GenerativeModel
 end
 
 function log_gaussian_pdf_matrix(X::Matrix, μ::Matrix, log_σ²::Matrix)
+    T = eltype(μ)
     D = size(X, 1)
     K = size(μ, 1)
     
@@ -135,7 +136,7 @@ function log_gaussian_pdf_matrix(X::Matrix, μ::Matrix, log_σ²::Matrix)
     diff = X_3d .- μ_3d                                
     mahalanobis = sum((diff .^ 2) .* inv_σ²_3d, dims=1) 
     
-    log_P = dropdims(-0.5 .* (D * log(2π) .+ log_det_3d .+ mahalanobis), dims=1)
+    log_P = dropdims(-T(0.5) .* (D * T(log(2π)) .+ log_det_3d .+ mahalanobis), dims=1)
     
     return log_P
 end
@@ -144,9 +145,10 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     model_train_device = model |> protocol.device
     opt_state = Flux.setup(protocol.optimiser, model_train_device.predictor_network)
     batchsize_device = protocol.batchsize |> protocol.device
-    training_data_device = Float64.(protocol.training_data) |> protocol.device
+    training_data_device = protocol.training_data |> protocol.device
     shuffle_device = protocol.shuffle |> protocol.device
     
+    T = eltype(model.μ)
     K = _latent_size(model_train_device)
 
     loader = load_data(training_data_device, batchsize_device, shuffle_device)
@@ -157,9 +159,9 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         total_grad_norm = 0.0
 
         π_network_all = softmax(model_train_device.predictor_network(training_data_device), dims=1) 
-        log_P_all = log_gaussian_pdf_matrix(training_data_device, model_train_device.μ, model_train_device.log_σ²) 
+        log_P_all = log_gaussian_pdf_matrix(training_data_device, model_train_device.μ, model_train_device.log_σ²)
         
-        log_joint_all = log.(π_network_all .+ 1.0E-8) .+ log_P_all 
+        log_joint_all = log.(π_network_all .+ T(1.0E-8)) .+ log_P_all 
         
         max_log = maximum(log_joint_all, dims=1)          
         sum_exp = sum(exp.(log_joint_all .- max_log), dims=1) 
@@ -169,7 +171,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         epoch_loss = -mean(log_total)
 
         N_k = sum(γ_all, dims=2) 
-        N_k_stable = N_k .+ 1.0E-8
+        N_k_stable = N_k .+ T(1.0E-8)
         
         model_train_device.μ .= (γ_all * transpose(training_data_device)) ./ N_k_stable
         
@@ -180,7 +182,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         diff_sq = (X_3d .- μ_3d) .^ 2 
         variance_matrix = dropdims(sum(γ_3d .* diff_sq, dims=3), dims=3) ./ transpose(N_k_stable)
         
-        variance_matrix .= max.(variance_matrix, 0.0025)
+        variance_matrix .= max.(variance_matrix, T(0.0025))
         model_train_device.log_σ² .= transpose(log.(variance_matrix))
 
         if epoch == 1 || (epoch % 100 == 0 && protocol.shuffle)
@@ -225,9 +227,10 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
 end
 
 function _eval(model::GaussianMixtureModel, category::Int, n_samples::Int)
+    T = eltype(model.μ)
     D = size(model.μ, 2)
     synthetic_X = randn(Float64, D, n_samples)
-    σ = exp.(0.5 .* model.log_σ²)
+    σ = exp.(T(0.5) .* model.log_σ²)
     
     for i in 1:n_samples
         for d in 1:D
@@ -255,6 +258,7 @@ function _eval(model::GaussianMixtureModel, n_samples::Int)
     ends = cumsum(counts)
     starts = [1; ends[1:end-1] .+ 1]
     final_X = Matrix{Float64}(undef, D, n_samples)
+    final_X = similar(model.μ, eltype(model.μ), D, n_samples)
     
     for k in 1:k
         counts[k] == 0 && continue
@@ -266,14 +270,14 @@ function _eval(model::GaussianMixtureModel, n_samples::Int)
 end
 
 function _eval(model::GaussianMixtureModel)
-    return _eval(model,1)[:]
+    return _eval(model, 1)[:]
 end
 
-function _categorize(model::GaussianMixtureModel, x::Matrix)::Matrix
+function _categorize(model::GaussianMixtureModel, x::Matrix)::Matrix 
     return model.predictor_network(x)
 end
 
-function _categorize(model::GaussianMixtureModel, x::Vector)::Vector
+function _categorize(model::GaussianMixtureModel, x::Vector)::Vector 
     return model.predictor_network(x)
 end
 

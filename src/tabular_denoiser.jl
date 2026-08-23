@@ -1,4 +1,17 @@
-function compatible_tabular_denoiser(T::Int, time_embedding_mlp::Chain, input_projection::Dense, residual_layers::Tuple{Vararg{Dense}}, time_projection_layers::Tuple{Vararg{Dense}}, output_projection::Dense, max_period::Float64)
+macro tabular_denoiser_default_max_period()
+    return 10000.0
+end
+
+function compatible_tabular_denoiser(
+    T::Int, 
+    time_embedding_mlp::Chain, 
+    input_projection::Dense, 
+    residual_layers::Tuple{Vararg{<:Dense}},
+    time_projection_layers::Tuple{Vararg{<:Dense}}, 
+    output_projection::Dense, 
+    max_period::F
+    ) where {F<:AbstractFloat}
+
     if max_period ≤ 0
         return false
     end
@@ -21,7 +34,7 @@ function compatible_tabular_denoiser(T::Int, time_embedding_mlp::Chain, input_pr
 
     hidden_layer_size = _output_size(input_projection)
 
-    function check_hidden_layers(layers::Tuple{Vararg{Dense}})
+    function check_hidden_layers(layers::Tuple{Vararg{<:Dense}})
         for layer in layers
             if _input_size(layer) != hidden_layer_size
                 return false
@@ -56,7 +69,7 @@ models.latent_dim, latent_layers, encoders, decoders
 
 $TYPEDFIELDS
 """
-@kwdef struct TabularDenoiser
+@kwdef struct TabularDenoiser{F<:AbstractFloat}
     """Total number of discrete time steps in the forward noising process and reverse denoising timeline."""
     T::Int
     """Multi-layer perceptron that maps static sinusoidal time frequencies into a globally shared learned temporal context vector."""
@@ -64,21 +77,29 @@ $TYPEDFIELDS
     """Entry layer that projects the raw noisy input data vector into the initial hidden feature state."""
     input_projection::Dense
     """Tuple of sequential dense layers that transform hidden features inside the recurrent residual block loop."""
-    residual_layers::Tuple{Vararg{Dense}}
+    residual_layers::Tuple{Vararg{<:Dense}}
     """Tuple of dense layers that map the shared temporal context into a dynamic additive bias shift inside the recurrent residual block loop."""
-    time_projection_layers::Tuple{Vararg{Dense}}
+    time_projection_layers::Tuple{Vararg{<:Dense}}
     """Exit layer that projects final hidden features out of the residual block loop back to the original data dimensions to output the noise prediction."""
     output_projection::Dense
     """Constant that sets the maximum periodic scale for the base sinusoidal time step calculation."""
-    max_period::Float64
+    max_period::F = F(@tabular_denoiser_default_max_period)
 
-    function TabularDenoiser(T::Int, time_embedding_mlp::Chain, input_projection::Dense, residual_layers::Tuple{Vararg{Dense}}, time_projection_layers::Tuple{Vararg{Dense}}, output_projection::Dense, max_period::Float64)
+    function TabularDenoiser(
+    T::Int, time_embedding_mlp::Chain, 
+    input_projection::Dense, 
+    residual_layers::Tuple{Vararg{<:Dense}}, 
+    time_projection_layers::Tuple{Vararg{<:Dense}}, 
+    output_projection::Dense, 
+    max_period::F
+    ) where {F<:AbstractFloat}
+
         if !compatible_tabular_denoiser(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)
             @error "Incompatible TabularDenoiser architecture!"
             throw(MethodError(TabularDenoiser, (T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)))
         end
 
-        return new(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)
+        return new{F}(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)
     end
 end
 
@@ -93,32 +114,38 @@ number of inputs specified by `num_inputs`.
 function TabularDenoiser(num_inputs::Int; 
     hidden_layer_size::Int = 64, 
     T::Int = 32, 
-    activation_function::Function = relu,
-    max_period::Float64 = 10000.0)
+    activation_function::Function = swish,
+    max_period::FP = @tabular_denoiser_default_max_period
+    ) where {FP<:AbstractFloat}
+
+    function dense(in_size::Int, out_size::Int, activation::Function = identity)
+        return Dense(in_size => out_size, activation; bias = zeros(FP, out_size))
+    end
 
     time_embedding_mlp = Chain(
-        Dense(T => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size)
+        dense(T, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size),
     )
-    
-    input_projection = Dense(num_inputs => hidden_layer_size, activation_function)
-    
+
+    input_projection = dense(num_inputs, hidden_layer_size, activation_function)
+
     residual_layers = (
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function)
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
     )
-    
+
     time_projection_layers = (
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function)
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
+        dense(hidden_layer_size, hidden_layer_size, activation_function),
     )
-    
-    output_projection = Dense(hidden_layer_size => num_inputs)
+
+    output_projection = dense(hidden_layer_size, num_inputs)
+
     
     return TabularDenoiser(
         T,
@@ -179,13 +206,13 @@ function Base.display(denoiser_model::TabularDenoiser)
     println("")
 end
 
-function compute_sinusoidal_frequencies(t, T::Int, max_period::Float64)
+function compute_sinusoidal_frequencies(t, T::Int, max_period::FP) where{FP<:AbstractFloat}
     half_dim = ceil(Int, T / 2.0)
     scale = log(max_period) / (half_dim - 1)
     
-    frequencies = similar(t, typeof(max_period), half_dim)
+    frequencies = similar(t, FP, half_dim)
     for i in 1:half_dim
-        frequencies[i] = exp(-(i-1) * scale)
+        frequencies[i] = exp(-(i - 1) * scale)
     end
     
     scaled_time = t' .* frequencies

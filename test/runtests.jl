@@ -6,10 +6,10 @@ using Flux
 using Test
 
 function make_test_train_data(num_samples)
-    t = (2.0*π) .* rand(Float64,num_samples)
+    t = (2.0*π) .* rand(Float32,num_samples)
 
-    x_noise = 0.05 .* randn(Float64,num_samples)
-    y_noise = 0.05 .* randn(Float64,num_samples)
+    x_noise = 0.05 .* randn(Float32,num_samples)
+    y_noise = 0.05 .* randn(Float32,num_samples)
 
     x = cos.(1.0.*t) .+ x_noise
     y = sin.(2.0.*t) .+ y_noise
@@ -19,8 +19,8 @@ end
 
 function randomize_layers!(layers::Tuple{Vararg{Dense}})
     for i in eachindex(layers)
-        layers[i].bias .= rand(Float64, size(layers[i].bias))
-        layers[i].weight .= rand(Float64, size(layers[i].weight))
+        layers[i].bias .= rand(Float32, size(layers[i].bias))
+        layers[i].weight .= rand(Float32, size(layers[i].weight))
     end
 end
 
@@ -108,8 +108,8 @@ end
 function make_empty_data_prot(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
     return GenerativeModelProtocol(; 
         model              = model,
-        mean_training_data = Tuple(zeros(Float64, input_size)), 
-        var_training_data  = Tuple(ones(Float64, input_size))
+        mean_training_data = Tuple(zeros(Float32, input_size)), 
+        var_training_data  = Tuple(ones(Float32, input_size))
     )
 end
 
@@ -122,7 +122,7 @@ function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenera
     end
 end
 
-function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix{Float64}; kwargs...)
+function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix; kwargs...)
     protocol = GenerativeModelProtocol(model, train_data; epochs = 20)
     train_log = train!(protocol; kwargs...)
     @test isa(train_log, typeof(protocol._log))
@@ -184,7 +184,7 @@ function test_model_display_no_data(model::GenerativeModelProtocols.AbstractGene
 end
 
 function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
-    train_data = rand(Float64, input_size, 100)
+    train_data = rand(Float32, input_size, 100)
     protocol = GenerativeModelProtocol(;
         model              = model, 
         mean_training_data = Tuple(mean(train_data, dims = 2)), 

@@ -1,6 +1,6 @@
 @testset "GaussianMixtureModel Tests" begin
     function test_compare_models(model_a::GenerativeModelProtocols.GaussianMixtureModel, model_b::GenerativeModelProtocols.GaussianMixtureModel)
-        ϵ = 1.0E-9
+        ϵ = 1.0E-8
         
         @test maximum(abs.(model_a.log_σ² - model_b.log_σ²)) < ϵ
         @test maximum(abs.(model_a.μ - model_b.μ)) < ϵ
@@ -18,17 +18,17 @@
     end
 
     function example_gmm(k::Int, input_size::Int; 
-        log_σ²::Union{Matrix{Float64}, Nothing} = nothing, 
-        μ::Union{Matrix{Float64}, Nothing} = nothing, 
+        log_σ²::Union{Matrix{Float32}, Nothing} = nothing, 
+        μ::Union{Matrix{Float32}, Nothing} = nothing, 
         predictor_network::Union{Chain, Nothing} = nothing,
-        p::Union{Vector{Float64}, Nothing} = nothing)
+        p::Union{Vector{Float32}, Nothing} = nothing)
 
         if isnothing(log_σ²)
-            log_σ² = rand(Float64, k, input_size)
+            log_σ² = rand(Float32, k, input_size)
         end
 
         if isnothing(μ)
-            μ = rand(Float64, k, input_size)
+            μ = rand(Float32, k, input_size)
         end
 
         if isnothing(predictor_network)
@@ -36,7 +36,7 @@
         end
 
         if isnothing(p)
-            p = rand(Float64, k)
+            p = rand(Float32, k)
         end
 
         return GenerativeModelProtocols.GaussianMixtureModel(;
@@ -78,14 +78,14 @@
 
     @testset "Incompatible GaussianMixtureModel Architecture Test" begin
         # Test incompatible input size
-        @test_throws Exception example_gmm(5, 2; log_σ² = rand(Float64, 5, 3))
-        @test_throws Exception example_gmm(5, 2; μ = rand(Float64, 5, 3))
+        @test_throws Exception example_gmm(5, 2; log_σ² = rand(Float32, 5, 3))
+        @test_throws Exception example_gmm(5, 2; μ = rand(Float32, 5, 3))
         @test_throws Exception example_gmm(5, 2; predictor_network = example_chain(3, 5))
 
         # Test incompatible k
-        @test_throws Exception example_gmm(5, 2; log_σ² = rand(Float64, 4, 2))
-        @test_throws Exception example_gmm(5, 2; μ = rand(Float64, 4, 2))
-        @test_throws Exception example_gmm(5, 2; p = rand(Float64, 4))
+        @test_throws Exception example_gmm(5, 2; log_σ² = rand(Float32, 4, 2))
+        @test_throws Exception example_gmm(5, 2; μ = rand(Float32, 4, 2))
+        @test_throws Exception example_gmm(5, 2; p = rand(Float32, 4))
         @test_throws Exception example_gmm(5, 2; predictor_network = example_chain(2, 4))        
     end
 

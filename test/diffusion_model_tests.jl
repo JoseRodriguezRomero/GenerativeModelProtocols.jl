@@ -12,8 +12,6 @@ end
 function test_compare_models(model_a::GenerativeModelProtocols.DiffusionModel, model_b::GenerativeModelProtocols.DiffusionModel)
     ϵ = 1.0E-9
 
-    @test maximum(collect(model_a.α) - collect(model_b.α)) < ϵ
-    @test maximum(collect(model_a.ᾱ) - collect(model_b.ᾱ)) < ϵ
     @test maximum(collect(model_a.β) - collect(model_b.β)) < ϵ
     test_compare_tabular_denoiser(model_a.denoiser_model, model_b.denoiser_model)
 end
@@ -27,20 +25,10 @@ function randomize_tabular_denoiser!(denoiser::GenerativeModelProtocols.TabularD
 end
 
 function example_diffusion_model(; 
-    T::Union{Int64, Nothing} = nothing, 
-    α::Union{Tuple{Vararg{Float64}}, Nothing} = nothing,
-    ᾱ::Union{Tuple{Vararg{Float64}}, Nothing} = nothing,
-    β::Union{Tuple{Vararg{Float64}}, Nothing} = nothing)
+    T::Union{Int64, Nothing} = nothing,
+    β::Union{Tuple{Vararg{Float32}}, Nothing} = nothing)
 
     default_model = GenerativeModelProtocols.DiffusionModel(2, 30)
-
-    if isnothing(α)
-        α = default_model.α
-    end
-
-    if isnothing(ᾱ)
-        ᾱ = default_model.ᾱ
-    end
 
     if isnothing(β)
         β = default_model.β
@@ -51,8 +39,6 @@ function example_diffusion_model(;
     end
 
     return GenerativeModelProtocols.DiffusionModel(;
-        α              = α,
-        ᾱ              = ᾱ,
         β              = β,
         denoiser_model = default_model.denoiser_model
     )
@@ -90,13 +76,7 @@ end
         @test_throws Exception example_diffusion_model(; T = default_T + 1)
 
         # Test incompatible vector lengths
-        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_T + 1)))
-        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_T + 1)))
-        @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float64, default_T + 1)))
-
-        # Test incompatible α
-        @test_throws Exception example_diffusion_model(; α = Tuple(rand(Float64, default_T)))
-        @test_throws Exception example_diffusion_model(; ᾱ = Tuple(rand(Float64, default_T)))
+        @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float32, default_T + 1)))
     end
 
     @testset "Make Synthetic Data Test" begin

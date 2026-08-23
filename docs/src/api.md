@@ -36,14 +36,14 @@ latent_size(::GenerativeModelProtocol)
 
 # Convenience Constructors
 ```@docs
-GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{Float64})
+GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{<:AbstractFloat})
 GenerativeModelProtocols.VariationalAutoencoder(::Int, ::Int, ::Int)
 GenerativeModelProtocols.GaussianMixtureModel(::Int, ::Int)
-GenerativeModelProtocols.DiffusionModel(::Tuple{Float64}, ::GenerativeModelProtocols.TabularDenoiser)
-GenerativeModelProtocols.DiffusionModel(::Int, ::Tuple{Float64})
-GenerativeModelProtocols.DiffusionModel(::Int, ::Float64, ::Float64, ::GenerativeModelProtocols.TabularDenoiser)
-GenerativeModelProtocols.DiffusionModel(::Int, ::Int, ::Float64, ::Float64)
-GenerativeModelProtocols.TabularDenoiser(::Int; ::Int, ::Int, ::Function, ::Float64)
+GenerativeModelProtocols.DiffusionModel(::Vector{<:AbstractFloat}, ::GenerativeModelProtocols.TabularDenoiser)
+GenerativeModelProtocols.DiffusionModel(::Int, ::Vector{<:AbstractFloat})
+GenerativeModelProtocols.DiffusionModel(::Int, ::F, ::F, ::GenerativeModelProtocols.TabularDenoiser{F}) where {F<:AbstractFloat}
+GenerativeModelProtocols.DiffusionModel(::Int, ::Int, ::F, ::F) where {F<:AbstractFloat}
+GenerativeModelProtocols.TabularDenoiser(::Int; ::Int, ::Int, ::Function, <:AbstractFloat)
 GenerativeModelProtocols.GenerativeAdversarialNetwork(::Int, ::Int)
 ```
 

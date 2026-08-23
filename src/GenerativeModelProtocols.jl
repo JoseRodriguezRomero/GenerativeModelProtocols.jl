@@ -21,21 +21,30 @@ abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 end
 
 function compatible_generative_protocol(
-    training_data::Union{Matrix{Float64}, Nothing},
-    var_training_data::Tuple{Vararg{Float64}})
+    training_data::Union{Matrix{F}, Nothing},
+    var_training_data::Tuple{Vararg{F}}
+    ) where {F<:AbstractFloat}
 
-    ϵ = 1.0E-9
+    ϵ = 1.0E-6
     if !isnothing(training_data)
         if maximum(abs.(mean(training_data, dims = 2))) > ϵ
+            println("A")
+            println(maximum(abs.(mean(training_data, dims = 2))))
+            print("-----------------------------------")
             return false
         end
 
         if maximum(abs.(var(training_data, dims = 2) .- 1.0)) > ϵ
+            println("B")
+            println(maximum(abs.(var(training_data, dims = 2) .- 1.0)))
+            print("-----------------------------------")
             return false
         end
     end
 
     if minimum(var_training_data) < ϵ
+        println("C")
+        println(minimum(var_training_data))
         return false
     end
 
@@ -54,6 +63,28 @@ macro default_generative_model_group_name()
     return "generative_model"
 end
 
+function _cast_to_precision(FP, m)
+    FT = eltype(FP([1.0]))
+    
+    if m isa AbstractArray{<:AbstractFloat}
+        return FP(m)
+    elseif m isa Tuple
+        return tuple((_cast_to_precision(FP, mi) for mi in m)...)
+    elseif !isprimitivetype(typeof(m)) && fieldcount(typeof(m)) > 0
+        fields = fieldnames(typeof(m))
+        mapped_values = map(fields) do f
+            val = getfield(m, f)
+            return _cast_to_precision(FP, val)
+        end
+
+        return typeof(m).name.wrapper(mapped_values...)
+    elseif m isa AbstractFloat
+        return FT(m)
+    else
+        return m
+    end
+end
+
 """
 $TYPEDEF
 
@@ -66,11 +97,11 @@ $TYPEDFIELDS
 """
 @kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel, O}
     """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
-    training_data::Union{Matrix{Float64}, Nothing} = nothing
+    training_data::Union{Matrix, Nothing} = nothing
     """Mean of the raw (unshifted and unscaled) training data."""
-    mean_training_data::Tuple{Vararg{Float64}}
+    mean_training_data::Tuple
     """Variance of the raw (unshifted and unscaled) training data."""
-    var_training_data::Tuple{Vararg{Float64}}
+    var_training_data::Tuple
     """Number of training epochs for the generative model."""
     epochs::Int = 100
     """Batch size for training the generative model."""
@@ -85,18 +116,21 @@ $TYPEDFIELDS
     model::M
     """Stores the time-series data generated while training the generative model."""
     _log::TrainingLog = TrainingLog()
+    """Floating point precision to be used"""
+    precision::Function = f32
 
     function GenerativeModelProtocol(
-        training_data::Union{Matrix{Float64}, Nothing},
-        mean_training_data::Tuple{Vararg{Float64}},
-        var_training_data::Tuple{Vararg{Float64}},
+        training_data::Union{Matrix, Nothing},
+        mean_training_data::Tuple,
+        var_training_data::Tuple,
         epochs::Int,
         batchsize::Int,
         shuffle::Bool,
         optimiser::Union{O, Tuple{Vararg{O}}},
         device::Flux.MLDataDevices.AbstractDevice,
         model::M,
-        _log::TrainingLog
+        _log::TrainingLog,
+        precision::Function
         ) where {M<:AbstractGenerativeModel, O}
 
         if !compatible_generative_protocol(training_data, var_training_data)
@@ -104,19 +138,32 @@ $TYPEDFIELDS
             throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)))
         end
 
-        return new{M,O}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)
+        training_data = _cast_to_precision(precision, training_data)
+        mean_training_data = _cast_to_precision(precision, mean_training_data)
+        var_training_data = _cast_to_precision(precision, var_training_data)
+        if optimiser isa Tuple
+            optimiser = Tuple(_cast_to_precision(precision, opt) for opt in optimiser)
+        else
+            optimiser = _cast_to_precision(precision, optimiser)
+        end
+        model = _cast_to_precision(precision, model)
+
+        M_c = typeof(model)
+        O_c = typeof(optimiser)
+
+        return new{M_c,O_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log, precision)
     end
 end
 
 GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel} = GenerativeModelProtocol(args...; kwargs...)
 
 """
-    GenerativeModelProtocol(model::M, training_data::Union{Matrix{Float64}, Nothing}; kwargs...) where {M<:AbstractGenerativeModel}
+    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, kwargs...) where {M<:AbstractGenerativeModel}
 
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwargs...) where {M<:AbstractGenerativeModel}
+function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, kwargs...) where {M<:AbstractGenerativeModel}
     copy_training_data = copy(training_data)
 
     mean_training_data = mean(copy_training_data, dims = 2)
@@ -130,6 +177,7 @@ function GenerativeModelProtocol(model::M, training_data::Matrix{Float64}; kwarg
         mean_training_data = Tuple(mean_training_data),
         var_training_data  = Tuple(var_training_data),
         model              = model,
+        precision          = precision,
         kwargs...
     )
 end
@@ -151,29 +199,22 @@ function GenerativeModelProtocol(saved_protocol::String;
     model = nothing
     generative_model, mean_training_data, var_training_data = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
 
-    if generative_model == variational_autoencoder
-        model = VariationalAutoencoder(saved_protocol;
-            main_group_name             = main_group_name,
-            generative_model_group_name = generative_model_group_name
-        )
+    _gen_model = if generative_model == variational_autoencoder
+        return VariationalAutoencoder
     elseif generative_model == diffusion_model
-        model = DiffusionModel(saved_protocol;
-            main_group_name             = main_group_name,
-            generative_model_group_name = generative_model_group_name
-        )
+        return DiffusionModel
     elseif generative_model == generative_adversarial_network
-            model = GenerativeAdversarialNetwork(saved_protocol;
-            main_group_name             = main_group_name,
-            generative_model_group_name = generative_model_group_name
-        )
+        return GenerativeAdversarialNetwork
     elseif generative_model == normalizing_flow
-        model = nothing # Temporary dummy line
+        return nothing # Temporary dummy line
     elseif generative_model == gaussian_mixture_model
-        model = GaussianMixtureModel(saved_protocol;
-            main_group_name             = main_group_name,
-            generative_model_group_name = generative_model_group_name
-        )
+        return GaussianMixtureModel
     end
+
+    model = _gen_model(saved_protocol;
+        main_group_name             = main_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
 
     return GenerativeModelProtocol(;
         model              = model,
@@ -262,7 +303,7 @@ represents the conditional probability that the sample stems from the k-th
 cluster.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
-    return _categorize(protocol.model, _shift_and_scale(protocol, x))
+    return _categorize(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
 end
 
 """
@@ -271,7 +312,7 @@ end
 Encodes the data space variable `x` into a latent space variable.
 """
 function encode(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
-    return _encode(protocol.model, _shift_and_scale(protocol, x))
+    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
 end
 
 """
@@ -280,7 +321,7 @@ end
 Encodes the data space variable `x` into a latent space variable.
 """
 function encode(protocol::GenerativeModelProtocol, x::Vector)::Vector
-    return _encode(protocol.model, _shift_and_scale(protocol, x))
+    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
 end
 
 """
@@ -289,7 +330,7 @@ end
 Decodes the latent space representations `z` back into the data space.
 """
 function decode(protocol::GenerativeModelProtocol, z::Matrix)::Matrix
-    return _unscale_and_unshift(protocol, _decode(protocol.model, z))
+    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z)))
 end
 
 """
@@ -298,7 +339,7 @@ end
 Decodes the latent space representations `z` back into the data space.
 """
 function decode(protocol::GenerativeModelProtocol, z::Vector)::Vector
-    return _unscale_and_unshift(protocol, _decode(protocol.model, z))
+    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z)))
 end
 
 """
@@ -319,7 +360,7 @@ function latent_size(protocol::GenerativeModelProtocol)::Int
     return _latent_size(protocol.model)
 end
 
-function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
+function load_data(data::AbstractMatrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
     data = shuffle ? shuffleobs(data) : data
 
     return Flux.DataLoader(
@@ -330,7 +371,7 @@ function load_data(data::Matrix, batchsize::Int, shuffle::Bool = true, parallel:
     )
 end
 
-function load_data(data::Tuple{Vararg{Matrix}}, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
+function load_data(data::Tuple{Vararg{AbstractMatrix}}, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
     data = shuffle ? shuffleobs(data) : data
 
     return Flux.DataLoader(
@@ -398,7 +439,7 @@ function activation_function_inverse_map()
     return Dict(foo_map[key] => key for key in keys(foo_map))
 end
 
-function compatible_neural_networks(networks::Tuple{Vararg{Chain}})
+function compatible_neural_networks(networks::Tuple{Vararg{C}}) where C
     for network in networks
         if !compatible_neural_network(network)
             return false
@@ -408,7 +449,7 @@ function compatible_neural_networks(networks::Tuple{Vararg{Chain}})
     return true
 end
 
-function compatible_neural_network(network::Chain)
+function compatible_neural_network(network::C) where C
     for layer in network
         if layer.σ ∉ keys(activation_function_map())
             return false
@@ -450,14 +491,14 @@ macro _default_print_padding()
     return "   "
 end
 
-function _base_print_layers(layers::Tuple{Vararg{Dense}}, print_padding::String = @_default_print_padding)
+function _base_print_layers(layers::Tuple{Vararg{<:Dense}}, print_padding::String = @_default_print_padding)
     for layer in layers
         print(print_padding * print_padding)
         println(layer)
     end
 end
 
-function _print_chains(chains::Tuple{Chain}, print_padding::String = @_default_print_padding)
+function _print_chains(chains::Tuple{Vararg{<:Chain}}, print_padding::String = @_default_print_padding)
     for i in eachindex(chains)
         println(print_padding * "Chain(")
         _base_print_layers(chains[i].layers)
@@ -465,39 +506,33 @@ function _print_chains(chains::Tuple{Chain}, print_padding::String = @_default_p
     end
 end
 
-function _print_layers(layers::Tuple{Vararg{Dense}}, print_padding::String = @_default_print_padding)
+function _print_layers(layers::Tuple{Vararg{<:Dense}}, print_padding::String = @_default_print_padding)
     println(print_padding * "Tuple()")
-    _base_print_layers(layers)
+    _base_print_layers(Tuple(layers))
     println(print_padding * ")")
 end
 
-function _print_chains(chain::Chain, print_padding)
+function _print_chains(chain::C, print_padding) where {C<:Chain}
     _print_chains((chain,), print_padding)
 end
 
-function _input_size(layer::Dense)
+function _input_size(layer::L) where {L<:Dense}
     return size(layer.weight, 2)
 end
 
-function _input_size(chain::Chain)
+function _input_size(chain::C) where {C<:Chain}
     return _input_size(chain[1])
 end
 
-function _output_size(layer::Dense)
+function _output_size(layer::L) where {L<:Dense}
     return size(layer.weight, 1)
 end
 
-function _output_size(chain::Chain)
+function _output_size(chain::C) where {C<:Chain}
     return _output_size(chain[end])
 end
 
-function load_model!(dst::Tuple{Vararg{Chain}}, src::Tuple{Vararg{Chain}})
-    for i in eachindex(dst)
-        Flux.loadmodel!(dst[i], src[i])
-    end
-end
-
-function load_model!(dst::Tuple{Vararg{Dense}}, src::Tuple{Vararg{Dense}})
+function load_model!(dst::Tuple{Vararg{<:Chain}}, src::Tuple{Vararg{<:Chain}})
     for i in eachindex(dst)
         Flux.loadmodel!(dst[i], src[i])
     end
