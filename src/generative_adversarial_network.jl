@@ -228,7 +228,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     if !grad_penalty && !weight_clipping
         @warn "Training a WGAN with neither gradient penalty nor weight clipping active is not recommended."
     elseif grad_penalty && weight_clipping
-        @warn "Training a WGAN with both gradient penalty and weight clipping active is not recommended."
+        @warn "Training a WGAN with gradient penalty and weight clipping simultaneously active is not recommended."
     end
 
     model_device = model |> protocol.device

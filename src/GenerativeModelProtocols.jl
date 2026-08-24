@@ -25,19 +25,13 @@ function compatible_generative_protocol(
     var_training_data::Tuple{Vararg{F}}
     ) where {F<:AbstractFloat}
 
-    ϵ = 1.0E-6
+    ϵ = 1.0E-9
     if !isnothing(training_data)
         if maximum(abs.(mean(training_data, dims = 2))) > ϵ
-            println("A")
-            println(maximum(abs.(mean(training_data, dims = 2))))
-            print("-----------------------------------")
             return false
         end
 
         if maximum(abs.(var(training_data, dims = 2) .- 1.0)) > ϵ
-            println("B")
-            println(maximum(abs.(var(training_data, dims = 2) .- 1.0)))
-            print("-----------------------------------")
             return false
         end
     end
@@ -384,83 +378,6 @@ function load_data(data::Tuple{Vararg{AbstractMatrix}}, batchsize::Int, shuffle:
     )
 end
 
-@enum GenerativeModel::UInt8 begin
-    variational_autoencoder         = 0
-    diffusion_model                 = 1
-    generative_adversarial_network  = 2
-    normalizing_flow                = 3
-    gaussian_mixture_model          = 4
-end
-
-function generative_model_map()
-    return Dict(
-        UInt8(variational_autoencoder)        => variational_autoencoder,
-        UInt8(diffusion_model)                => diffusion_model,
-        UInt8(generative_adversarial_network) => generative_adversarial_network,
-        UInt8(normalizing_flow)               => normalizing_flow,
-        UInt8(gaussian_mixture_model)         => gaussian_mixture_model
-    )
-end
-
-macro _generative_model(model)
-    return :(_generative_model($(esc(model))))
-end
-
-function _generative_model(protocol::GenerativeModelProtocol)::GenerativeModel
-    return @_generative_model(protocol.model)
-end
-
-@enum ActivationFunction::UInt8 begin
-    _relu       = 0
-    _gelu       = 1
-    _tanh       = 2
-    _sigmoid    = 3
-    _softmax    = 4
-    _leakyrelu  = 5
-    _elu        = 6
-    _swish      = 7
-    _identity   = 8
-end
-
-function activation_function_map()
-    return Dict(
-        relu        => UInt8(_relu),
-        gelu        => UInt8(_gelu),
-        tanh        => UInt8(_tanh),
-        sigmoid     => UInt8(_sigmoid),
-        softmax     => UInt8(_softmax),
-        leakyrelu   => UInt8(_leakyrelu),
-        elu         => UInt8(_elu),
-        swish       => UInt8(_swish),
-        identity    => UInt8(_identity)
-    )
-end
-
-function activation_function_inverse_map()
-    foo_map = activation_function_map()
-    return Dict(foo_map[key] => key for key in keys(foo_map))
-end
-
-function compatible_neural_networks(networks::Tuple{Vararg{C}}) where C
-    for network in networks
-        if !compatible_neural_network(network)
-            return false
-        end
-    end
-
-    return true
-end
-
-function compatible_neural_network(network::C) where C
-    for layer in network
-        if layer.σ ∉ keys(activation_function_map())
-            return false
-        end
-    end
-
-    return true
-end
-
 function _save_metadata end
 
 macro _save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
@@ -489,51 +406,6 @@ function _save(file::String, protocol::GenerativeModelProtocol;
     @_save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
 end
 
-macro _default_print_padding()
-    return "   "
-end
-
-function _base_print_layers(layers::Tuple{Vararg{<:Dense}}, print_padding::String = @_default_print_padding)
-    for layer in layers
-        print(print_padding * print_padding)
-        println(layer)
-    end
-end
-
-function _print_chains(chains::Tuple{Vararg{<:Chain}}, print_padding::String = @_default_print_padding)
-    for i in eachindex(chains)
-        println(print_padding * "Chain(")
-        _base_print_layers(chains[i].layers)
-        println(print_padding * ")")
-    end
-end
-
-function _print_layers(layers::Tuple{Vararg{<:Dense}}, print_padding::String = @_default_print_padding)
-    println(print_padding * "Tuple()")
-    _base_print_layers(Tuple(layers))
-    println(print_padding * ")")
-end
-
-function _print_chains(chain::C, print_padding) where {C<:Chain}
-    _print_chains((chain,), print_padding)
-end
-
-function _input_size(layer::L) where {L<:Dense}
-    return size(layer.weight, 2)
-end
-
-function _input_size(chain::C) where {C<:Chain}
-    return _input_size(chain[1])
-end
-
-function _output_size(layer::L) where {L<:Dense}
-    return size(layer.weight, 1)
-end
-
-function _output_size(chain::C) where {C<:Chain}
-    return _output_size(chain[end])
-end
-
 function load_model!(dst::Tuple{Vararg{<:Chain}}, src::Tuple{Vararg{<:Chain}})
     for i in eachindex(dst)
         Flux.loadmodel!(dst[i], src[i])
@@ -552,10 +424,14 @@ function Base.display(protocol::GenerativeModelProtocol)
 end
 
 # Auxiliary scripts
-include("tabular_denoiser.jl")
+include("auxiliary/activation_functions.jl")
+include("auxiliary/input_output_sizes.jl")
+include("auxiliary/printing.jl")
+include("auxiliary/tabular_denoiser.jl")
 
 # Generative models
 include("diffusion_model.jl")
+include("normalizing_flow.jl")
 include("gaussian_mixture_model.jl")
 include("variational_autoencoder.jl")
 include("generative_adversarial_network.jl")

@@ -54,24 +54,6 @@ $TYPEDFIELDS
     end
 end
 
-function _base_cast_diffusion_model(model::DiffusionModel, FP::Function)
-    new_β = map(eltype(FP([1.0])), model.β) 
-    new_denoiser_model = FP(model.denoiser_model)
-    return DiffusionModel(new_β, new_denoiser_model)
-end
-
-function Flux.f16(model::DiffusionModel)
-    return _base_cast_diffusion_model(model, Flux.f16)
-end
-
-function Flux.f32(model::DiffusionModel)
-    return _base_cast_diffusion_model(model, Flux.f32)
-end
-
-function Flux.f64(model::DiffusionModel)
-    return _base_cast_diffusion_model(model, Flux.f64)
-end
-
 """
     GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{<:AbstractFloat}})
 

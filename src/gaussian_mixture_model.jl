@@ -10,7 +10,7 @@ function _gmm_default_predictor_network(input_size::Int, k::Int, hidden_layer_si
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => k)
-    ) |> f64
+    )
 end
 
 function compatible_gmm_model(log_σ²::Matrix{F}, μ::Matrix{F}, predictor_network::Chain, p::Vector{F}) where {F<:AbstractFloat}
