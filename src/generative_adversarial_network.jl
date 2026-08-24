@@ -320,7 +320,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
 end
 
 function _eval(model::GenerativeAdversarialNetwork, n_samples::Int)
-    _eval(model.vae_model, n_samples)
+    return _eval(model.vae_model, n_samples)
 end
 
 function _eval(model::GenerativeAdversarialNetwork)

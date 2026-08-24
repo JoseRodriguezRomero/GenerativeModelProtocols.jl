@@ -199,19 +199,21 @@ function GenerativeModelProtocol(saved_protocol::String;
     model = nothing
     generative_model, mean_training_data, var_training_data = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
 
-    _gen_model = if generative_model == variational_autoencoder
-        return VariationalAutoencoder
-    elseif generative_model == diffusion_model
-        return DiffusionModel
-    elseif generative_model == generative_adversarial_network
-        return GenerativeAdversarialNetwork
-    elseif generative_model == normalizing_flow
-        return nothing # Temporary dummy line
-    elseif generative_model == gaussian_mixture_model
-        return GaussianMixtureModel
+    function _gen_model(generative_model)
+        if generative_model == variational_autoencoder
+            return VariationalAutoencoder
+        elseif generative_model == diffusion_model
+            return DiffusionModel
+        elseif generative_model == generative_adversarial_network
+            return GenerativeAdversarialNetwork
+        elseif generative_model == normalizing_flow
+            return nothing # Temporary dummy line
+        elseif generative_model == gaussian_mixture_model
+            return GaussianMixtureModel
+        end
     end
 
-    model = _gen_model(saved_protocol;
+    model = _gen_model(generative_model)(saved_protocol;
         main_group_name             = main_group_name,
         generative_model_group_name = generative_model_group_name
     )
