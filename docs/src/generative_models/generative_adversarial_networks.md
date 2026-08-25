@@ -48,7 +48,7 @@ Such kind of model can be trained with the optimization problem
     \begin{matrix} \text{argmin} \\ \theta \end{matrix} \
     \begin{matrix} \text{max} \\ \phi \end{matrix}
     \left( \mathbb{E}_{x \sim \mu_\text{real} } \left[ \log \left( D_\phi (x) 
-    \right) \right]  - \mathbb{E}_{z \sim \mu_\text{latent}} \left[ \log \left( 
+    \right) \right]  + \mathbb{E}_{z \sim \mu_\text{latent}} \left[ \log \left( 
     1 - D_\phi \left( G_\theta (z) \right) \right) \right] \right),
 ```
 where $\mu_\text{real}$ and $\mu_\text{latent}$ are the real data and latent 
