@@ -113,17 +113,17 @@ $TYPEDFIELDS
 """
 @kwdef struct VariationalAutoencoder{EncLayerNames, DecLayerNames} <: AbstractGenerativeModel
     """Encoder chain of the VAE, responsible for encoding time-series data into a latent representation."""
-    encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{<:Chain}}}
+    encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{Chain}}}
     """Decoder chain of the VAE, responsible for generating time-series data from the latent representation."""
-    decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{<:Chain}}}
+    decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{Chain}}}
     """Trained parameters of the model. Users should not use this directly."""
     _ps::Union{Ref{<:NamedTuple}, Nothing} = nothing
     """Trained state of the model. Users should not use this directly."""
     _st::Union{Ref{<:NamedTuple}, Nothing} = nothing
 
     function VariationalAutoencoder(
-        encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{<:Chain}}}, 
-        decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{<:Chain}}},
+        encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{Chain}}}, 
+        decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{Chain}}},
         _ps::Union{Ref{<:NamedTuple}, Nothing},
         _st::Union{Ref{<:NamedTuple}, Nothing}
         ) where {EncLayerNames, DecLayerNames}
@@ -143,12 +143,12 @@ $TYPEDFIELDS
 end
 
 """
-    GenerativeModelProtocols.VariationalAutoencoder(encoders::Tuple{Vararg{<:Chain}}, decoders::Tuple{Vararg{<:Chain}})
+    GenerativeModelProtocols.VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})
 
 Convenience constructor that generates a 
 `GenerativeModelProtocols.VariationalAutoencoder` from plain `Tuple` containers.
 """
-function VariationalAutoencoder(encoders::Tuple{Vararg{<:Chain}}, decoders::Tuple{Vararg{<:Chain}})
+function VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})
     return VariationalAutoencoder(;
         encoders = _named_tuples_from_tuple(encoders, "encoder"), 
         decoders = _named_tuples_from_tuple(decoders, "decoder")
@@ -156,14 +156,14 @@ function VariationalAutoencoder(encoders::Tuple{Vararg{<:Chain}}, decoders::Tupl
 end
 
 """
-    GenerativeModelProtocols.VariationalAutoencoder(encoders::NamedTuple{EncLayerNames, Tuple{Vararg{<:Chain}}}, decoders::NamedTuple{DecLayerNames, Tuple{Vararg{<:Chain}}}) where {EncLayerNames, DecLayerNames}
+    GenerativeModelProtocols.VariationalAutoencoder(encoders::NamedTuple{EncLayerNames, Tuple{Vararg{Chain}}}, decoders::NamedTuple{DecLayerNames, Tuple{Vararg{Chain}}}) where {EncLayerNames, DecLayerNames}
 
 Convenience constructor that generates a 
 `GenerativeModelProtocols.VariationalAutoencoder` from plain `Tuple` containers.
 """
 function VariationalAutoencoder(
-    encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{<:Chain}}}, 
-    decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{<:Chain}}}) where {EncLayerNames, DecLayerNames}
+    encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{Chain}}}, 
+    decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{Chain}}}) where {EncLayerNames, DecLayerNames}
 
     return VariationalAutoencoder(Tuple(encoders), Tuple(decoders))
 end
@@ -233,7 +233,7 @@ function sample_latent(μ, σ)
     return out
 end
 
-function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{<:Chain}}}, x, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}
+function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}
     T = eltype(x)
     
     μ = similar(x, T, latent_dim, num_latent_layers, batch_size)
@@ -266,7 +266,7 @@ function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{<:Chain}}},
     return μ, σ, logσ², z
 end
 
-function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{<:Chain}}}, z, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}
+function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, z, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}
     T = eltype(z)
 
     μ = zeros(T, latent_dim, num_latent_layers, batch_size)

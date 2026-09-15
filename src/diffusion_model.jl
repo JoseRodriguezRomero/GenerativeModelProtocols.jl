@@ -55,14 +55,14 @@ $TYPEDFIELDS
 end
 
 """
-    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{<:AbstractFloat}}})
+    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}}})
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
 Sets the values of `α` and `ᾱ` automatically for the user. A default 
 `denoiser_model` is created based on `num_inputs`.
 """
-function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{<:AbstractFloat}})
+function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}})
     T = length(β)
     denoiser_model = default_denoiser_network(num_inputs, T, eltype(β))
     return DiffusionModel(β, denoiser_model)
@@ -131,7 +131,7 @@ function _latent_size(model::DiffusionModel)::Int
     return _input_size(model)
 end 
 
-function forward_diffusion(ᾱ::Tuple{Vararg{<:AbstractFloat}}, x₀, t)
+function forward_diffusion(ᾱ::Tuple{Vararg{AbstractFloat}}, x₀, t)
     FP = eltype(ᾱ)
     ϵ = randn_like(x₀, FP, size(x₀))
     

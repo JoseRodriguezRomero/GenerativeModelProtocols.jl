@@ -40,7 +40,7 @@ latent_size(::GenerativeModelProtocol)
 GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{<:AbstractFloat})
 GenerativeModelProtocols.VariationalAutoencoder(::Int, ::Int, ::Int)
 GenerativeModelProtocols.GaussianMixtureModel(::Int, ::Int)
-GenerativeModelProtocols.DiffusionModel(::Int, ::Tuple{Vararg{<:AbstractFloat}})
+GenerativeModelProtocols.DiffusionModel(::Int, ::Tuple{Vararg{AbstractFloat}})
 GenerativeModelProtocols.DiffusionModel(::Int, ::F, ::F, ::GenerativeModelProtocols.TabularDenoiser{LayerNames, F}) where {LayerNames, F<:AbstractFloat}
 GenerativeModelProtocols.DiffusionModel(::Int, ::Int, ::F, ::F) where {F<:AbstractFloat}
 GenerativeModelProtocols.TabularDenoiser(::Int; ::Int, ::Int, ::Function, <:AbstractFloat)

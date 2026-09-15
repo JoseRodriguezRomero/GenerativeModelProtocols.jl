@@ -6,8 +6,8 @@ function compatible_tabular_denoiser(
     T::Int, 
     time_embedding_mlp::Chain, 
     input_projection::Dense, 
-    residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{<:Dense}}},
-    time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{<:Dense}}}, 
+    residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}},
+    time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}, 
     output_projection::Dense,
     max_period::F
     ) where {LayerNames, F<:AbstractFloat}
@@ -77,9 +77,9 @@ $TYPEDFIELDS
     """Entry layer that projects the raw noisy input data vector into the initial hidden feature state."""
     input_projection::Dense
     """Tuple of sequential dense layers that transform hidden features inside the recurrent residual block loop."""
-    residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{<:Dense}}}
+    residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}
     """Tuple of dense layers that map the shared temporal context into a dynamic additive bias shift inside the recurrent residual block loop."""
-    time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{<:Dense}}}
+    time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}
     """Exit layer that projects final hidden features out of the residual block loop back to the original data dimensions to output the noise prediction."""
     output_projection::Dense
     """Constant that sets the maximum periodic scale for the base sinusoidal time step calculation."""
@@ -93,8 +93,8 @@ $TYPEDFIELDS
     T::Int, 
     time_embedding_mlp::Chain, 
     input_projection::Dense, 
-    residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{<:Dense}}},
-    time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{<:Dense}}}, 
+    residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}},
+    time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}, 
     output_projection::Dense,
     max_period::F,
     _ps::Union{Ref{<:NamedTuple}, Nothing},
