@@ -2,6 +2,8 @@ using GenerativeModelProtocols
 using Lux, Optimisers, Plots
 using LaTeXStrings
 
+using Reactant
+
 function make_data(num_samples)
     t = (2.0*π) .* rand(Float64,num_samples)
 
@@ -23,7 +25,7 @@ protocol = GenerativeModelProtocol(model, train_data;
     batchsize = 256,
     epochs = 3500,
     optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-    device = cpu_device()
+    device = reactant_device()
 )
 train!(protocol; β = 0.1)
 

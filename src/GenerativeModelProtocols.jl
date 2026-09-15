@@ -5,7 +5,6 @@ using Printf
 using Enzyme
 using Random
 using MLUtils
-using Reactant
 using StatsBase
 using Optimisers
 using LinearAlgebra
