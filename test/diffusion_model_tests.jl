@@ -1,11 +1,11 @@
 function test_compare_tabular_denoiser(denoiser_a::GenerativeModelProtocols.TabularDenoiser, denoiser_b::GenerativeModelProtocols.TabularDenoiser)
     ϵ = 1.0E-9
 
-    @test compare_chains(denoiser_a.time_embedding_mlp,denoiser_b.time_embedding_mlp)
-    @test compare_layers(denoiser_a.input_projection, denoiser_b.input_projection)
-    @test compare_layers(denoiser_a.residual_layers, denoiser_b.residual_layers)
-    @test compare_layers(denoiser_a.time_projection_layers, denoiser_b.time_projection_layers)
-    @test compare_layers(denoiser_a.output_projection, denoiser_b.output_projection)
+    @test compare_chains(denoiser_a._ps[].time_embedding_mlp, denoiser_b._ps[].time_embedding_mlp)
+    @test compare_layers(denoiser_a._ps[].input_projection, denoiser_b._ps[].input_projection)
+    @test compare_tuple_layers(denoiser_a._ps[].residual_layers, denoiser_b._ps[].residual_layers)
+    @test compare_tuple_layers(denoiser_a._ps[].time_projection_layers, denoiser_b._ps[].time_projection_layers)
+    @test compare_layers(denoiser_a._ps[].output_projection, denoiser_b._ps[].output_projection)
     @test abs(denoiser_a.max_period - denoiser_b.max_period) < ϵ
 end
 
@@ -17,11 +17,11 @@ function test_compare_models(model_a::GenerativeModelProtocols.DiffusionModel, m
 end
 
 function randomize_tabular_denoiser!(denoiser::GenerativeModelProtocols.TabularDenoiser)
-    randomize_chains!(denoiser.time_embedding_mlp)
-    randomize_layers!(denoiser.input_projection)
-    randomize_layers!(denoiser.residual_layers)
-    randomize_layers!(denoiser.time_projection_layers)
-    randomize_layers!(denoiser.output_projection)
+    randomize_chain!(denoiser._ps[].time_embedding_mlp)
+    randomize_layer!(denoiser._ps[].input_projection)
+    randomize_layers!(denoiser._ps[].residual_layers)
+    randomize_layers!(denoiser._ps[].time_projection_layers)
+    randomize_layer!(denoiser._ps[].output_projection)
 end
 
 function example_diffusion_model(; 
@@ -68,12 +68,9 @@ end
         test_train_model_no_data(model, input_size)
     end
 
-    @testset "Incompatible VariationalAutoencoder Architecture Test" begin
+    @testset "Incompatible DiffusionModel Architecture Test" begin
         default_dm = example_diffusion_model()
-        # default_T = default_dm.denoiser_model.T
-
-        # Test incompatible T
-        @test_throws Exception example_diffusion_model(; T = default_T + 1)
+        default_T = default_dm.denoiser_model.T
 
         # Test incompatible vector lengths
         @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float32, default_T + 1)))

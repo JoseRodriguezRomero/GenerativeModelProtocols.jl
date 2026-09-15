@@ -1,4 +1,4 @@
-using Flux
+using Lux
 using GenerativeModelProtocols
 using Documenter
 using DocumenterCitations

@@ -13,14 +13,14 @@ function GenerativeModelProtocols.load_tabular_denoiser_parameters(file::FileIO.
         output_projection_group = tabular_denoiser_group["output_projection"]
 
         T = HDF5.attrs(tabular_denoiser_group)["T"]
-        time_embedding_mlp = read_group_chain_parameters(time_embedding_mlp_group)
-        input_projection = read_group_layer_parameters(input_projection_group)
-        residual_layers = read_group_layers_parameters(residual_layers_group)
-        time_projection_layers = read_group_layers_parameters(time_projection_layers_group)
-        output_projection = read_group_layer_parameters(output_projection_group)
+        time_embedding_mlp, time_embedding_mlp_ps = read_group_chain_parameters(time_embedding_mlp_group)
+        input_projection, input_projection_ps = read_group_layer_parameters(input_projection_group)
+        residual_layers, residual_layers_ps = read_group_layers_parameters(residual_layers_group)
+        time_projection_layers, time_projection_layers_ps = read_group_layers_parameters(time_projection_layers_group)
+        output_projection, output_projection_ps = read_group_layer_parameters(output_projection_group)
         max_period = HDF5.attrs(tabular_denoiser_group)["max_period"]
 
-        return GenerativeModelProtocols.TabularDenoiser(;
+        denoiser_model = GenerativeModelProtocols.TabularDenoiser(;
             T                       = T,
             time_embedding_mlp      = time_embedding_mlp,
             input_projection        = input_projection,
@@ -29,6 +29,16 @@ function GenerativeModelProtocols.load_tabular_denoiser_parameters(file::FileIO.
             output_projection       = output_projection,
             max_period              = max_period
         )
+
+        denoiser_model._ps[] = merge(denoiser_model._ps[], (
+            time_embedding_mlp     = time_embedding_mlp_ps,
+            input_projection       = input_projection_ps,
+            residual_layers        = residual_layers_ps,
+            time_projection_layers = time_projection_layers_ps,
+            output_projection      = output_projection_ps
+        ))
+
+        return denoiser_model
     end
 end
 
@@ -50,11 +60,11 @@ function GenerativeModelProtocols._save_model(file::FileIO.File{FileIO.DataForma
         output_projection_group = HDF5.create_group(tabular_denoiser_group, "output_projection")
 
         HDF5.write_attribute(tabular_denoiser_group, "T", model.T)
-        write_chain_to_file(model.time_embedding_mlp, time_embedding_mlp_group)
-        write_layer_to_file(model.input_projection, input_projection_group)
-        write_layers_to_file(model.residual_layers, residual_layers_group)
-        write_layers_to_file(model.time_projection_layers, time_projection_layers_group)
-        write_layer_to_file(model.output_projection, output_projection_group)
+        write_chain_to_file(model.time_embedding_mlp, model._ps[].time_embedding_mlp, time_embedding_mlp_group)
+        write_layer_to_file(model.input_projection, model._ps[].input_projection, input_projection_group)
+        write_layers_to_file(model.residual_layers, model._ps[].residual_layers, residual_layers_group)
+        write_layers_to_file(model.time_projection_layers, model._ps[].time_projection_layers, time_projection_layers_group)
+        write_layer_to_file(model.output_projection, model._ps[].output_projection, output_projection_group)
         HDF5.write_attribute(tabular_denoiser_group, "max_period", model.max_period)
     end
 end

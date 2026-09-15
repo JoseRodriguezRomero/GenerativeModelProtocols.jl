@@ -63,7 +63,7 @@ the denoiser model is a time-conditioned residual neural network (ResNet)
 [Kaiming2015](@cite), which efficiently tracks and processes lower-dimensional 
 topologies without spatial bottlenecking.
 
-The underlying model is implemented as a `TabularDenoiser`, a custom Flux layer 
+The underlying model is implemented as a `TabularDenoiser`, a custom Lux layer 
 designed specifically for vector-based tabular inputs. Mathematically, it 
 computes the function $\epsilon_\theta(x, t)$ to output a noise state vector 
 matching the dimensions of the input data.

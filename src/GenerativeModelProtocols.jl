@@ -1,14 +1,19 @@
 module GenerativeModelProtocols
 
-using Flux
+using Lux
 using Printf
 using Enzyme
+using Random
 using MLUtils
+using Reactant
 using StatsBase
+using Optimisers
 using LinearAlgebra
+using ComponentArrays
 using DocStringExtensions
 
 using Compat: @compat
+using EnzymeCore
 
 export GenerativeModelProtocol, train!, categorize, encode, decode, input_size, latent_size
 
@@ -37,7 +42,6 @@ function compatible_generative_protocol(
     end
 
     if minimum(var_training_data) < ϵ
-        println("C")
         println(minimum(var_training_data))
         return false
     end
@@ -64,6 +68,15 @@ function _cast_to_precision(FP, m)
         return FP(m)
     elseif m isa Tuple
         return tuple((_cast_to_precision(FP, mi) for mi in m)...)
+    elseif m isa Array{Any,0}
+        return Array{Any,0}(fill(FP(m[1])))
+    elseif m isa NamedTuple
+        fields = keys(m)
+        mapped_values = map(fields) do f
+            return _cast_to_precision(FP, getfield(m, f))
+        end
+        
+        return NamedTuple{fields}(Tuple(mapped_values))
     elseif !isprimitivetype(typeof(m)) && fieldcount(typeof(m)) > 0
         fields = fieldnames(typeof(m))
         mapped_values = map(fields) do f
@@ -105,31 +118,31 @@ $TYPEDFIELDS
     """Optimizer used to train the generative model."""
     optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01)
     """Hardware device (CPU or GPU) on which to perform training and inference."""
-    device::Flux.MLDataDevices.AbstractDevice = Flux.cpu_device()
+    device::Lux.MLDataDevices.AbstractDevice = cpu_device()
     """Generative model architecture to be used."""
     model::M
-    """Stores the time-series data generated while training the generative model."""
-    _log::TrainingLog = TrainingLog()
     """Floating point precision to be used"""
     precision::Function = f32
+    """Stores the time-series data generated while training the generative model."""
+    _log::TrainingLog = TrainingLog()
 
     function GenerativeModelProtocol(
-        training_data::Union{Matrix, Nothing},
-        mean_training_data::Tuple,
-        var_training_data::Tuple,
-        epochs::Int,
-        batchsize::Int,
-        shuffle::Bool,
-        optimiser::Union{O, Tuple{Vararg{O}}},
-        device::Flux.MLDataDevices.AbstractDevice,
-        model::M,
-        _log::TrainingLog,
-        precision::Function
-        ) where {M<:AbstractGenerativeModel, O}
+    training_data::Union{Matrix, Nothing},
+    mean_training_data::Tuple,
+    var_training_data::Tuple,
+    epochs::Int,
+    batchsize::Int,
+    shuffle::Bool,
+    optimiser::Union{O, Tuple{Vararg{O}}},
+    device::Lux.MLDataDevices.AbstractDevice,
+    model::M,
+    precision::Function,
+    _log::TrainingLog,
+    ) where {M<:AbstractGenerativeModel, O}
 
         if !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
-            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log)))
+            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, precision, _log)))
         end
 
         training_data = _cast_to_precision(precision, training_data)
@@ -145,11 +158,11 @@ $TYPEDFIELDS
         M_c = typeof(model)
         O_c = typeof(optimiser)
 
-        return new{M_c,O_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, _log, precision)
+        return new{M_c,O_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, precision, _log)
     end
 end
 
-GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel} = GenerativeModelProtocol(args...; kwargs...)
+GenerativeModelProtocol{M,O}(args...; kwargs...) where {M<:AbstractGenerativeModel, O} = GenerativeModelProtocol(args...; kwargs...)
 
 """
     GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, kwargs...) where {M<:AbstractGenerativeModel}
@@ -157,7 +170,7 @@ GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, kwargs...) where {M<:AbstractGenerativeModel}
+function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01), kwargs...) where {M<:AbstractGenerativeModel, O}
     copy_training_data = copy(training_data)
 
     mean_training_data = mean(copy_training_data, dims = 2)
@@ -166,10 +179,11 @@ function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat
     copy_training_data .-= mean_training_data
     copy_training_data ./= sqrt.(var_training_data)
 
-    return GenerativeModelProtocol{M}(;
+    return GenerativeModelProtocol(;
         training_data      = copy_training_data,
         mean_training_data = Tuple(mean_training_data),
         var_training_data  = Tuple(var_training_data),
+        optimiser          = optimiser,
         model              = model,
         precision          = precision,
         kwargs...
@@ -246,7 +260,12 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwarg
         throw(ArgumentError("No training data was loaded!"))
     end
 
-    @_train!(protocol, protocol.model, print_log, kwargs...)
+    # Loop unrolling is disabled until #3568 of Enzyme.jl is fixed.
+    Enzyme.Compiler.LLVM.clopts("-unroll-runtime=false")
+    train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
+    Enzyme.Compiler.LLVM.clopts("-unroll-runtime=true")
+
+    return train_log
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Matrix)
@@ -265,12 +284,12 @@ function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Vector)
     return _unscale_and_unshift(protocol, reshape(x, :, 1))[:]
 end
 
-function (protocol::GenerativeModelProtocol)(n_samples::Int)
-    return _unscale_and_unshift(protocol, _eval(protocol.model, n_samples))
+function (protocol::GenerativeModelProtocol)(n_samples::Int; kwargs...)
+    return _unscale_and_unshift(protocol, _eval(protocol.model, n_samples; kwargs...))
 end
 
-function (protocol::GenerativeModelProtocol)()
-    return _unscale_and_unshift(protocol, _eval(protocol.model))
+function (protocol::GenerativeModelProtocol)(; kwargs...)
+    return _unscale_and_unshift(protocol, _eval(protocol.model, kwargs...))
 end
 
 function (protocol::GenerativeModelProtocol)(category_index::Int, n_samples::Int)
@@ -359,7 +378,7 @@ end
 function load_data(data::AbstractMatrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
     data = shuffle ? shuffleobs(data) : data
 
-    return Flux.DataLoader(
+    return MLUtils.DataLoader(
         data, 
         batchsize = batchsize, 
         shuffle = false,
@@ -370,7 +389,7 @@ end
 function load_data(data::Tuple{Vararg{AbstractMatrix}}, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
     data = shuffle ? shuffleobs(data) : data
 
-    return Flux.DataLoader(
+    return DataLoader(
         data, 
         batchsize = batchsize, 
         shuffle = false,
@@ -406,27 +425,23 @@ function _save(file::String, protocol::GenerativeModelProtocol;
     @_save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
 end
 
-function load_model!(dst::Tuple{Vararg{<:Chain}}, src::Tuple{Vararg{<:Chain}})
-    for i in eachindex(dst)
-        Flux.loadmodel!(dst[i], src[i])
-    end
-end
-
 function Base.display(protocol::GenerativeModelProtocol)
-    println("$(summary(protocol)):")
+    println("$(Base.typename(typeof(protocol)).wrapper):")
     println("training_data = $(summary(protocol.training_data))")
     println("epochs        = $(protocol.epochs)")
     println("batchsize     = $(protocol.batchsize)")
     println("shuffle       = $(protocol.shuffle)")
     println("optimiser     = $(protocol.optimiser)")
     println("device        = $(nameof(protocol.device))")
-    println("model         = $(summary(protocol.model))")
+    println("model         = $(Base.typename(typeof(protocol.model)).wrapper)")
 end
 
 # Auxiliary scripts
 include("auxiliary/activation_functions.jl")
 include("auxiliary/input_output_sizes.jl")
 include("auxiliary/printing.jl")
+include("auxiliary/optimisation.jl")
+include("auxiliary/named_tuples.jl")
 include("auxiliary/tabular_denoiser.jl")
 
 # Generative models

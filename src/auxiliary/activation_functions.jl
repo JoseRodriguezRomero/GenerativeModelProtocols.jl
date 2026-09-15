@@ -55,23 +55,37 @@ function activation_function_inverse_map()
     return Dict(foo_map[key] => key for key in keys(foo_map))
 end
 
-function compatible_neural_networks(networks::Tuple{Vararg{C}}) where C
+function compatible_neural_networks(networks::NamedTuple{Names, <:NTuple{N, Any}}) where {Names, N}
     for network in networks
         if !compatible_neural_network(network)
             return false
         end
     end
-
     return true
 end
 
-function compatible_neural_network(network::C) where C
-    for layer in network
-        if layer.σ ∉ keys(activation_function_map())
+function compatible_neural_network(network::C) where {C<:Chain}
+    for layer in network.layers
+        if layer.activation ∉ keys(activation_function_map())
             return false
         end
     end
-
     return true
+end
+
+function compatible_neural_network(network::NamedTuple)
+    if !haskey(network, :weight) && !isempty(network)
+        for layer_key in keys(network)
+            layer = getfield(network, layer_key)
+            if !compatible_neural_network(layer)
+                return false
+            end
+        end
+        return true
+    end
+
+    if haskey(network, :weight) && haskey(network, :bias)
+        return network.weight isa AbstractMatrix && network.bias isa AbstractVector
+    end
 end
 

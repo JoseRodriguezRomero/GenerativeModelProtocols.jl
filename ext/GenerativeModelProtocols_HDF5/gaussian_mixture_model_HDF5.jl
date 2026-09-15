@@ -6,17 +6,23 @@ function GenerativeModelProtocols.load_gaussian_mixture_parameters(file::FileIO.
         gaussian_mixture_model_parameters_group = file[main_group_name][generative_model_group_name]
         predictor_network_group = gaussian_mixture_model_parameters_group["predictor_network"]
 
-        predictor_network = read_group_chain_parameters(predictor_network_group)
+        predictor_network, predictor_network_ps = read_group_chain_parameters(predictor_network_group)
         log_σ² = read(gaussian_mixture_model_parameters_group["log_sigma_squared"])
         μ = read(gaussian_mixture_model_parameters_group["mu"])
         p = read(gaussian_mixture_model_parameters_group["p"])
 
-        return GenerativeModelProtocols.GaussianMixtureModel(;
+        gmm_model = GenerativeModelProtocols.GaussianMixtureModel(;
             log_σ²              = log_σ², 
             μ                   = μ, 
             predictor_network   = predictor_network, 
             p                   = p
         )
+
+        gmm_model._ps[] = merge(gmm_model._ps[], (
+            predictor_network = predictor_network_ps,
+        ))
+
+        return gmm_model
     end
 end
 
@@ -32,7 +38,8 @@ function GenerativeModelProtocols._save_model(file::FileIO.File{FileIO.DataForma
 
         HDF5.write(generative_model_group, "log_sigma_squared", model.log_σ²)
         HDF5.write(generative_model_group, "mu", model.μ)
-        write_chain_to_file(model.predictor_network, predictor_network_group)
+        write_chain_to_file(model.predictor_network, model._ps[].predictor_network, predictor_network_group)
+
         HDF5.write(generative_model_group, "p", model.p)
     end
 end

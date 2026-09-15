@@ -1,12 +1,12 @@
 @testset "VariationalAutoencoder Tests" begin
     function test_compare_models(model_a::GenerativeModelProtocols.VariationalAutoencoder, model_b::GenerativeModelProtocols.VariationalAutoencoder)
-        @test compare_chains(model_a.encoders, model_b.encoders)
-        @test compare_chains(model_a.decoders, model_b.decoders)
+        @test compare_tuple_chains(model_a._ps[].encoders, model_b._ps[].encoders)
+        @test compare_tuple_chains(model_a._ps[].decoders, model_b._ps[].decoders)
     end
 
     function randomize_variational_autoencoder!(model::GenerativeModelProtocols.VariationalAutoencoder)
-        randomize_chains!(model.encoders)
-        randomize_chains!(model.decoders)
+        randomize_chains!(model._ps[].encoders)
+        randomize_chains!(model._ps[].decoders)
     end
 
     function example_encoder(num_inputs::Int, latent_dim::Int, latent_layers::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
@@ -52,6 +52,9 @@
             decoders = model_1.decoders
         )
 
+        model_2._ps[] = merge(model_2._ps[], model_1._ps[])
+        model_3._ps[] = merge(model_3._ps[], model_1._ps[])
+
         @test isa(model_1, GenerativeModelProtocols.VariationalAutoencoder)
         @test isa(model_2, GenerativeModelProtocols.VariationalAutoencoder)
         @test isa(model_3, GenerativeModelProtocols.VariationalAutoencoder)
@@ -64,7 +67,7 @@
     @testset "Train Test" begin
         train_data = make_test_train_data(500)
 
-        input_size = size(train_data,1)
+        input_size = size(train_data, 1)
         latent_dim = 2
         latent_layers = 2
 

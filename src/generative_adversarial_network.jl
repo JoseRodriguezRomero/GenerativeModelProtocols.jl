@@ -1,5 +1,5 @@
 macro _gan_default_activation_function()
-    return leakyrelu
+    return elu
 end
 
 function _gan_default_discriminator_network(input_size::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
@@ -20,7 +20,7 @@ function _gan_default_vae_model(input_size::Int, latent_dim::Int, latent_layers:
     return VariationalAutoencoder(default_encoders, default_decoders)
 end
 
-function compatible_gan_model(discriminator::C, vae_model::VariationalAutoencoder{C})::Bool where {C<:Chain}
+function compatible_gan_model(discriminator::C, vae_model::VariationalAutoencoder)::Bool where {C<:Chain}
     if _input_size(vae_model) != _input_size(discriminator)
         return false
     end
@@ -43,19 +43,35 @@ model.
 
 $TYPEDFIELDS
 """
-@kwdef struct GenerativeAdversarialNetwork{C<:Chain} <: AbstractCategoricalGenerativeModel
+@kwdef struct GenerativeAdversarialNetwork <: AbstractCategoricalGenerativeModel
     """Neural network discriminating between real and synthetic data."""
-    discriminator::C
+    discriminator::Chain
     """Variational Autoencoder for encoding and decoding."""
-    vae_model::VariationalAutoencoder{C}
-    
-    function GenerativeAdversarialNetwork(discriminator::C, vae_model::VariationalAutoencoder{C}) where {C<:Chain}
+    vae_model::VariationalAutoencoder
+    """Trained parameters of the discriminator model. Users should not use directly use this."""
+    _ps_discriminator::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    """Trained state of the discriminator model. Users should not use directly use this."""
+    _st_discriminator::Union{Ref{<:NamedTuple}, Nothing} = nothing
+
+    function GenerativeAdversarialNetwork(
+    discriminator::Chain, 
+    vae_model::VariationalAutoencoder,
+    _ps_discriminator::Union{Ref{<:NamedTuple}, Nothing},
+    _st_discriminator::Union{Ref{<:NamedTuple}, Nothing}
+    )
+
         if !compatible_gan_model(discriminator, vae_model)
             @error "Incompatible GenerativeAdversarialNetwork architecture!"
             throw(MethodError(GenerativeAdversarialNetwork, (discriminator, vae_model)))
         end
 
-        return new{C}(discriminator, vae_model)
+        if isnothing(_ps_discriminator) && isnothing(_st_discriminator)
+            _ps_discriminator_val, _st_discriminator_val = Lux.setup(Random.default_rng(), (discriminator = discriminator,))
+            _ps_discriminator = Ref{NamedTuple}(_ps_discriminator_val)
+            _st_discriminator = Ref{NamedTuple}(_st_discriminator_val)
+        end
+
+        return new(discriminator, vae_model, _ps_discriminator, _st_discriminator)
     end
 end
 
@@ -94,7 +110,7 @@ function Base.display(model::GenerativeAdversarialNetwork)
     println("$(summary(model)):")
 
     println("discriminator: ")
-    _print_chains(model.discriminator, print_padding)
+    _print_chains((discriminator = model.discriminator,), print_padding)
 
     println("")
 
@@ -119,105 +135,77 @@ function _generative_model(::GenerativeAdversarialNetwork)::GenerativeModel
     return generative_adversarial_network
 end
 
-function _gan_make_latent_variables(model::GenerativeAdversarialNetwork, real_data)
-    return Flux.randn_like(real_data, (_latent_size(model.vae_model), size(real_data, 2)))
+function _gan_discriminate(discriminator, x, ps, st)
+    return first(discriminator(x, ps.discriminator, st.discriminator))
 end
 
-function _gan_grad_penalty(discriminator_net, real_data, fake_data, λ::AbstractFloat, a::AbstractFloat)
+function _gan_grad_penalty(discriminator, real_data, fake_data, a::AbstractFloat, ps, st)
     T = eltype(real_data)
-    ϵ = Flux.rand_like(real_data, size(real_data))
+    ϵ = rand_like(real_data, size(real_data))
     interpolates = ϵ .* real_data .+ (T(1.0) .- ϵ) .* fake_data
 
-    features, _ = size(interpolates)
-    net_tangents = ntuple(_ -> Enzyme.make_zero(discriminator_net), Val(features))
+    stateful_discriminator = Lux.StatefulLuxLayer(discriminator, ps.discriminator, st.discriminator)
 
-    seed_tangents = ntuple(features) do i
-        t = zero(interpolates)
-        t[i, :] .= T(1.0)
-        return t
-    end
-
-    d_out = Enzyme.autodiff(
-        Enzyme.Forward,
-        Enzyme.BatchDuplicated(discriminator_net, net_tangents),
-        Enzyme.BatchDuplicated(interpolates, seed_tangents)
+    grads, = Enzyme.gradient(
+        Enzyme.set_runtime_activity(Enzyme.Reverse),
+        (x, sd) -> sum(sd(x)),
+        interpolates,
+        Enzyme.Const(stateful_discriminator)
     )
-
-    grads_interp = similar(interpolates)
-    for i in 1:features
-        grads_interp[i, :] .= vec(d_out[1][i])
-    end
-
-    grad_norms = sqrt.(sum(abs2, grads_interp, dims=1) .+ T(1.0E-8))
-    gp = mean(abs2.(grad_norms .- a))
-
-    return λ * gp
+    
+    grad_norms = sqrt.(sum(abs2, grads, dims=1) .+ T(1.0E-8))
+    return mean(abs2.(grad_norms .- a))
 end
 
-function _train_discriminator!(model::GenerativeAdversarialNetwork, real_data, opt_state_discriminator, n_critic; 
-    grad_penalty::Bool, λ::AbstractFloat, a::AbstractFloat, weight_clipping::Bool, clip_value::AbstractFloat)
+function _gan_make_fake_recon_data(encoders, decoders, latent_size, ps_vae, st_vae, real_data)
+    ẑ = randn_like(real_data, (latent_size, size(real_data, 2)))
+    z = _vae_encode(encoders, ps_vae, st_vae, real_data)
+    
+    fake_data = _vae_decode(decoders, ps_vae, st_vae, ẑ)
+    recon_data = _vae_decode(decoders, ps_vae, st_vae, z)
+
+    return fake_data, recon_data
+end
+
+function _gan_disc_loss(
+    discriminator, ps_disc, st_disc, 
+    real_data, fake_data, recon_data,
+    grad_penalty::Bool, λ::AbstractFloat, a::AbstractFloat)
+    
     T = eltype(real_data)
-    fake_data = _decode(model.vae_model, _gan_make_latent_variables(model, real_data))
-    recon_data = _decode(model.vae_model, _encode(model.vae_model, real_data))
 
-    running_loss_c = T(0.0)
-    for _ in 1:maximum([1, n_critic])
-        loss_c, grads_crit = Flux.withgradient(AutoEnzyme(), model.discriminator) do discriminator_net
-            disc_real = discriminator_net(real_data)
-            disc_fake = discriminator_net(fake_data)
-            disc_recon = discriminator_net(recon_data)
-            w_loss =  T(0.5) .* (mean(disc_fake) + mean(disc_recon)) - mean(disc_real)
+    disc_real_data = _gan_discriminate(discriminator, real_data, ps_disc, st_disc)
+    disc_fake_data = _gan_discriminate(discriminator, fake_data, ps_disc, st_disc)
+    disc_recon_data = _gan_discriminate(discriminator, recon_data, ps_disc, st_disc)
+    
+    w_loss = T(0.5) .* (mean(disc_fake_data) + mean(disc_recon_data)) - mean(disc_real_data)
 
-            if grad_penalty
-                fake_data_grad_penalty = _gan_grad_penalty(discriminator_net, real_data, fake_data, λ, a)
-                recon_data_grad_penalty = _gan_grad_penalty(discriminator_net, real_data, recon_data, λ, a)
-                return w_loss + T(0.5) * (fake_data_grad_penalty + recon_data_grad_penalty)
-            else
-                return w_loss
-            end
-        end
+    if grad_penalty
+        fake_data_grad_penalty = _gan_grad_penalty(discriminator, real_data, fake_data, a, ps_disc, st_disc)
+        recon_data_grad_penalty = _gan_grad_penalty(discriminator, real_data, recon_data, a, ps_disc, st_disc)
 
-        Flux.update!(opt_state_discriminator, model.discriminator, grads_crit[1])
-        running_loss_c = loss_c
-
-        if weight_clipping
-            foreach(Flux.trainable(model.discriminator)) do layer_params
-                foreach(layer_params) do p
-                    if p isa AbstractArray
-                        p .= clamp.(p, -clip_value, clip_value)
-                    end
-                end
-            end
-        end
+        return w_loss + T(0.5) * λ * (fake_data_grad_penalty + recon_data_grad_penalty)
     end
 
-    return running_loss_c
+    return w_loss
 end
 
-function _train_vae!(model::GenerativeAdversarialNetwork, real_data, β, γ_vae, γ_wgan, opt_state_vae_model)
+function _gan_vae_loss(
+    encoders, decoders, discriminator, 
+    ps_disc, st_disc, ps_vae, st_vae, 
+    latent_size, num_latent_layers, batch_size, 
+    real_data, fake_data, recon_data,
+    β::AbstractFloat, γ_vae::AbstractFloat, γ_wgan::AbstractFloat)
+
     T = eltype(real_data)
-    discriminator = model.discriminator
 
-    loss_vae, grads_model = Flux.withgradient(AutoEnzyme(), model.vae_model) do vae_model
-        fake_data = _decode(vae_model, _gan_make_latent_variables(model, real_data))
-        recon_data = _decode(vae_model, _encode(vae_model, real_data))
+    disc_fake_data = _gan_discriminate(discriminator, fake_data, ps_disc, st_disc)
+    disc_recon_data = _gan_discriminate(discriminator, recon_data, ps_disc, st_disc)
 
-        disc_fake_data = discriminator(fake_data)
-        disc_recon_data = discriminator(recon_data)
+    vae_elbo = _vae_elbo(encoders, decoders, β, latent_size, num_latent_layers, batch_size, real_data, ps_vae, st_vae)
+    wgan_loss = T(-0.5) .* (mean(disc_fake_data) + mean(disc_recon_data))
 
-        vae_elbo = _vae_elbo(vae_model, β, real_data)
-        wgan_loss = - T(0.5) .* (mean(disc_fake_data) + mean(disc_recon_data))
-        return γ_vae * vae_elbo + γ_wgan * wgan_loss
-    end
-
-    Flux.update!(opt_state_vae_model, model.vae_model, grads_model[1])
-
-    return loss_vae
-end
-
-function load_model!(dst::GenerativeAdversarialNetwork, src::GenerativeAdversarialNetwork)
-    Flux.loadmodel!(dst.discriminator, src.discriminator)
-    load_model!(dst.vae_model, src.vae_model)
+    return γ_vae * vae_elbo + γ_wgan * wgan_loss
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork, 
@@ -231,53 +219,128 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         @warn "Training a WGAN with gradient penalty and weight clipping simultaneously active is not recommended."
     end
 
-    model_device = model |> protocol.device
+    ps_vae = protocol.precision(model.vae_model._ps[]) |> protocol.device
+    st_vae = protocol.precision(model.vae_model._st[]) |> protocol.device
+
+    ps_disc = protocol.precision(model._ps_discriminator[]) |> protocol.device
+    st_disc = protocol.precision(model._st_discriminator[]) |> protocol.device
+
     training_data_device = protocol.training_data |> protocol.device
-    batchsize_device = protocol.batchsize
     shuffle_device = protocol.shuffle
 
     T = eltype(protocol.training_data)
     β_device = T(β) |> protocol.device
     λ_device = T(λ) |> protocol.device
     a_device = T(a) |> protocol.device
+    clip_value_device = T(clip_value) |> protocol.device
     γ_vae_device = T(γ_vae) |> protocol.device
     γ_wgan_device = T(γ_wgan) |> protocol.device
-    clip_value_device = T(clip_value) |> protocol.device
+    grad_penalty_device = grad_penalty |> protocol.device
+    weight_clipping_device = weight_clipping |> protocol.device
+    n_critic_device = n_critic |> protocol.device
+    latent_size_device = _latent_size(model) |> protocol.device
+    num_latent_layers_device = length(model.vae_model.encoders) |> protocol.device
 
-    opt_discriminator = nothing
+    encoders = model.vae_model.encoders
+    decoders = model.vae_model.decoders
+    discriminator = model.discriminator
+
+    opt_disc = nothing
     opt_vae_model = nothing
 
     if isa(protocol.optimiser, Tuple)
-        opt_discriminator = deepcopy(protocol.optimiser[1])
+        opt_disc = deepcopy(protocol.optimiser[1])
         opt_vae_model = deepcopy(protocol.optimiser[2])
     else
-        opt_discriminator = deepcopy(protocol.optimiser)
+        opt_disc = deepcopy(protocol.optimiser)
         opt_vae_model = deepcopy(protocol.optimiser)
     end
 
-    loader = load_data(training_data_device, batchsize_device, shuffle_device)
+    loader = load_data(training_data_device, protocol.batchsize, shuffle_device)
 
-    opt_state_vae_model = Flux.setup(opt_vae_model, model_device.vae_model)
-    opt_state_discriminator = Flux.setup(opt_discriminator, model_device.discriminator)
+    function _disc_train_step!(real_data, p_current, s_current, o_current)
+        local loss_val, p_updated, o_updated = T(0.0), p_current, o_current
+        fake_data, recon_data = _gan_make_fake_recon_data(encoders, decoders, latent_size_device, ps_vae, st_vae, real_data)
+
+        for i in 1:n_critic_device
+            _objective = (p) -> begin
+                return _gan_disc_loss(
+                    discriminator, p, s_current, 
+                    real_data, fake_data, recon_data, 
+                    (i == n_critic_device) ? grad_penalty_device : false, λ_device, a_device
+                )
+            end
+
+            loss_val = _objective(p_updated)
+            loss_grads = Enzyme.make_zero(p_updated)
+
+            Enzyme.autodiff(
+                Enzyme.set_runtime_activity(Enzyme.Reverse),
+                Enzyme.Const(_objective),
+                Enzyme.Active,
+                Enzyme.Duplicated(p_updated, loss_grads)
+            )
+
+            o_updated, p_updated = Optimisers.update(o_updated, p_updated, loss_grads)
+
+            if weight_clipping_device
+                c_val = T(clip_value_device)
+                p_inner = p_updated.discriminator
+                p_clamped_inner = NamedTuple{keys(p_inner)}(
+                    ntuple(i -> (
+                        weight = clamp.(p_inner[i].weight, -c_val, c_val),
+                        bias = clamp.(p_inner[i].bias, -c_val, c_val)
+                    ), Val(length(p_inner)))
+                )
+                p_updated = (discriminator = p_clamped_inner,)
+            end
+        end
+
+        return loss_val, p_updated, o_updated
+    end
+
+    function _vae_train_step!(real_data, p_current, s_current, o_current)
+        fake_data, recon_data = _gan_make_fake_recon_data(encoders, decoders, latent_size_device, ps_vae, st_vae, real_data)
+
+        _objective = (p) -> _gan_vae_loss(
+            encoders, decoders, discriminator, 
+            ps_disc, st_disc, p, s_current, 
+            latent_size_device, num_latent_layers_device, size(real_data,2), 
+            real_data, fake_data, recon_data, 
+            β_device, γ_vae_device, γ_wgan_device
+        )
+        
+        loss_val = _objective(p_current)
+        loss_grads = Enzyme.make_zero(p_current)
+
+        Enzyme.autodiff(
+            Enzyme.set_runtime_activity(Enzyme.Reverse),
+            Enzyme.Const(_objective),
+            Enzyme.Active,
+            Enzyme.Duplicated(p_current, loss_grads)
+        )
+
+        o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
+        return loss_val, p_updated, o_updated
+    end
+
+    opt_state_disc = _initial_step(model.discriminator, ps_disc, st_disc, opt_disc)
+    opt_state_vae = _initial_step(model.vae_model, ps_vae, st_vae, opt_vae_model)
+
+    _train_step_disc!, opt_state_disc = _train_step_device_dispatch(protocol.device, _disc_train_step!, loader, opt_state_disc)
+    _train_step_vae!, opt_state_vae = _train_step_device_dispatch(protocol.device, _vae_train_step!, loader, opt_state_vae)
 
     for epoch in 1:protocol.epochs
         if epoch % 100 == 0 && protocol.shuffle
-            loader = load_data(training_data_device, batchsize_device, shuffle_device)
+            loader = load_data(training_data_device, protocol.batchsize, shuffle_device)
         end
 
-        running_loss_critic = 0.0
-        running_loss_vae = 0.0
+        running_loss_critic = T(0.0)
+        running_loss_vae = T(0.0)
 
         for real_data in loader
-            loss_critic = _train_discriminator!(model_device, real_data, opt_state_discriminator, n_critic; 
-                grad_penalty     = grad_penalty,
-                λ                = λ_device, 
-                a                = a_device,
-                weight_clipping  = weight_clipping,
-                clip_value       = clip_value_device
-            )
-
-            loss_vae = _train_vae!(model_device, real_data, β_device, γ_vae_device, γ_wgan_device, opt_state_vae_model)
+            loss_critic, opt_state_disc = _train_step_disc!(real_data, opt_state_disc)
+            loss_vae, opt_state_vae = _train_step_vae!(real_data, opt_state_vae)
             
             running_loss_critic += loss_critic
             running_loss_vae += loss_vae
@@ -296,7 +359,11 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         end
     end
 
-    load_model!(protocol.model, model_device)
+    model.vae_model._ps[] = opt_state_vae.parameters
+    model.vae_model._st[] = opt_state_vae.states
+
+    model._ps_discriminator[] = opt_state_disc.parameters
+    model._st_discriminator[] = opt_state_disc.states
 
     return protocol._log
 end

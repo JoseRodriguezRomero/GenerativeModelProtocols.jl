@@ -1,5 +1,5 @@
 using GenerativeModelProtocols
-using Flux, Plots
+using Lux, Optimisers, Plots
 using LaTeXStrings
 
 function make_data(num_samples)
@@ -21,11 +21,11 @@ train_data = collect(transpose(hcat(x_train,y_train)))
 model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
 protocol = GenerativeModelProtocol(model, train_data;
     batchsize = 256,
-    epochs = 1500,
+    epochs = 3500,
     optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
     device = cpu_device()
 )
-train!(protocol; β = 0.2)
+train!(protocol; β = 0.1)
 
 synthetic_data = protocol(num_samples)
 

@@ -8,7 +8,7 @@ function default_denoiser_network(
     precision::Type{FP}, 
     hidden_layer_size::Int = 32, 
     activation_function = @_dm_default_activation_function
-    )::TabularDenoiser{FP} where {FP<:AbstractFloat}
+    )::TabularDenoiser where {FP<:AbstractFloat}
 
     return TabularDenoiser(num_inputs; 
         T                   = T,
@@ -18,7 +18,7 @@ function default_denoiser_network(
     )
 end
 
-function compatible_dm_model(β::Tuple{Vararg{F}}, denoiser_model::TabularDenoiser{F}) where {F<:AbstractFloat}
+function compatible_dm_model(β::Tuple{Vararg{F}}, denoiser_model::TabularDenoiser{LayerNames, F}) where {LayerNames, F<:AbstractFloat}
     if length(β) != denoiser_model.T
         return false
     end
@@ -37,25 +37,25 @@ generative model.
 
 $TYPEDFIELDS
 """
-@kwdef struct DiffusionModel{F<:AbstractFloat} <: AbstractGenerativeModel
+@kwdef struct DiffusionModel{LayerNames, F<:AbstractFloat} <: AbstractGenerativeModel
     """Variance of the Gaussian noise added in each diffusion step."""
     β::Tuple{Vararg{F}}
     """Neural network parametrizing the denoising model, that is, a model that probabilisitically undoes the Gaussian noise."""
-    denoiser_model::TabularDenoiser{F}
+    denoiser_model::TabularDenoiser{LayerNames, F}
     """Number of training epochs for the VAE."""
 
-    function DiffusionModel(β::Tuple{Vararg{F}}, denoiser_model::TabularDenoiser{F}) where {F<:AbstractFloat}
+    function DiffusionModel(β::Tuple{Vararg{F}}, denoiser_model::TabularDenoiser{LayerNames, F}) where {LayerNames, F<:AbstractFloat}
         if !compatible_dm_model(β, denoiser_model)
             @error "Incompatible DiffusionModel architecture!"
             throw(MethodError(DiffusionModel, (β, denoiser_model)))
         end
 
-        return new{F}(β, denoiser_model)
+        return new{LayerNames, F}(β, denoiser_model)
     end
 end
 
 """
-    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{<:AbstractFloat}})
+    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{<:AbstractFloat}}})
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
@@ -73,15 +73,15 @@ function _generative_model(::DiffusionModel)::GenerativeModel
 end
 
 """
-    GenerativeModelProtocols.DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{FP}) where {FP<:AbstractFloat}
+    GenerativeModelProtocols.DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames, FP}) where {LayerNames, FP<:AbstractFloat}
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
-Sets the values of `α` and `ᾱ` automatically for the user, using user specified 
+Sets the values of `α` and `ᾱ` automatically for the user, using user specified 
 `denoiser_model`. This constructor initializes `β` with 
 `collect(range(β_start, β_end, length=T))`.
 """
-function DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{FP}) where {FP<:AbstractFloat}
+function DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames, FP}) where {LayerNames, FP<:AbstractFloat}
     return DiffusionModel(Tuple(collect(range(β_start, β_end, length=T))), denoiser_model)
 end
 
@@ -118,9 +118,9 @@ function DiffusionModel(saved_model::String;
 end
 
 function Base.display(model::DiffusionModel)
-    println("$(summary(model)):")
+    println("$(Base.typename(typeof(model)).wrapper):")
     println("β              = $(summary(model.β))")
-    println("denoiser_model = $(summary(model.denoiser_model))")
+    println("denoiser_model = $(Base.typename(typeof(model.denoiser_model)).wrapper)")
 end
 
 function _input_size(model::DiffusionModel)::Int
@@ -131,9 +131,9 @@ function _latent_size(model::DiffusionModel)::Int
     return _input_size(model)
 end 
 
-function forward_diffusion(ᾱ::Tuple{Vararg{<:AbstractFloat}}, x₀::Matrix, t::Vector{Int})
+function forward_diffusion(ᾱ::Tuple{Vararg{<:AbstractFloat}}, x₀, t)
     FP = eltype(ᾱ)
-    ϵ = Flux.randn_like(x₀, FP, size(x₀))
+    ϵ = randn_like(x₀, FP, size(x₀))
     
     ᾱₜ = reshape(view(collect(ᾱ), t), 1, :)
     xₜ = sqrt.(ᾱₜ) .* x₀ + sqrt.(FP(1.0) .- ᾱₜ) .* ϵ
@@ -141,7 +141,7 @@ function forward_diffusion(ᾱ::Tuple{Vararg{<:AbstractFloat}}, x₀::Matrix, t
     return xₜ, ϵ
 end
 
-function forward_diffusion(model::DiffusionModel, x₀::Matrix, t::Vector{Int})
+function forward_diffusion(model::DiffusionModel, x₀, t)
     FP = eltype(x₀)
 
     β = model.β
@@ -151,75 +151,82 @@ function forward_diffusion(model::DiffusionModel, x₀::Matrix, t::Vector{Int})
     return forward_diffusion(ᾱ, x₀, t)
 end
 
-function forward_diffusion(model::DiffusionModel, x₀::Matrix, t::Int)
+function forward_diffusion(model::DiffusionModel, x₀, t::Int)
     return forward_diffusion(model, x₀, [t])
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print_log::Bool = true)
-    model_train_device = model.denoiser_model |> protocol.device
-    opt_state = Flux.setup(protocol.optimiser, model_train_device)
-    
-    batchsize_device = protocol.batchsize |> protocol.device
+    denoiser_model = model.denoiser_model
     training_data_device = protocol.training_data |> protocol.device
 
-    loader = Flux.DataLoader(
-        training_data_device, 
-        batchsize = batchsize_device, 
-        shuffle = false,
-        parallel = true
-    )
-    loader_length = length(loader)
-    loader_length_device = loader_length |> protocol.device
-
-    FP = eltype(protocol.precision([1.0]))
+    loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
+    T = eltype(protocol.training_data)
 
     β = model.β
-    α = FP(1.0) .- β
+    α = T(1.0) .- β
     ᾱ = cumprod(α)
     ᾱ_device = ᾱ |> protocol.device
 
+    function _dm_train_step!(x, p_current, s_current, o_current)
+        num_steps = denoiser_model.T
+        batch_size = size(x, 2)
+
+        t_uniform = rand_like(x, eltype(x), (batch_size,))
+        t_raw = floor.(t_uniform .* num_steps) .+ 1
+        t_raw_int = Int.(t_raw)
+        xₜ, ϵ_true = forward_diffusion(ᾱ_device, x, t_raw_int)
+
+        _objective = (denoiser_model, p, s) -> begin
+            ϵ_pred, _ = _eval(denoiser_model, xₜ, t_raw, p, s)
+            return mean(abs2, ϵ_pred .- ϵ_true)
+        end
+
+        loss_val = _objective(denoiser_model, p_current, s_current)
+        loss_grads = Enzyme.make_zero(p_current)
+
+        Enzyme.autodiff(
+            Enzyme.set_runtime_activity(Enzyme.Reverse),
+            Enzyme.Const(_objective),
+            Enzyme.Active,
+            Enzyme.Const(denoiser_model),
+            Enzyme.Duplicated(p_current, loss_grads),
+            Enzyme.Const(s_current)
+        )
+
+        o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
+
+        return loss_val, p_updated, o_updated
+    end
+
+    ps = protocol.precision(model.denoiser_model._ps[]) |> protocol.device
+    st = protocol.precision(model.denoiser_model._st[]) |> protocol.device
+
+    opt_state = _initial_step(model.denoiser_model, ps, st, protocol.optimiser)
+    _train_step!, opt_state = _train_step_device_dispatch(protocol.device, _dm_train_step!, loader, opt_state)
+
     if print_log; println("Training Diffusion Model...") end
     for epoch in 1:protocol.epochs
-        epoch_loss = 0.0
-        total_grad_norm = 0.0
+        epoch_loss = T(0.0)
 
         if epoch % 100 == 0 && protocol.shuffle
-            loader = Flux.DataLoader(
-                shuffleobs(training_data_device), 
-                batchsize = batchsize_device, 
-                shuffle = false,
-                parallel = true
-            )
+            loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
         end
 
         for x₀ in loader
-            t_raw = rand(1:model.denoiser_model.T, size(x₀, 2))
-            xₜ, ϵ_true = forward_diffusion(ᾱ_device, x₀, t_raw)
-
-            loss, (grads,) = Flux.withgradient(AutoEnzyme(), model_train_device) do denoiser_model
-                ϵ_pred = denoiser_model(xₜ, t_raw)
-                return Flux.Losses.mse(ϵ_pred, ϵ_true)
-            end
-
-            raw_gradient_arrays = Optimisers.trainables(grads)
-            batch_grad_norm = sqrt(sum(sum(abs2, g) for g in raw_gradient_arrays if g isa AbstractArray))
-
-            Flux.update!(opt_state, model_train_device, grads)
-            
-            epoch_loss += loss / loader_length_device
-            total_grad_norm += batch_grad_norm / loader_length_device
+            loss, opt_state = _train_step!(x₀, opt_state)
+            epoch_loss += loss
         end
 
-        protocol._log.loss[epoch] = epoch_loss
-        protocol._log.loss_grad_norm[epoch] = total_grad_norm
+        protocol._log.loss[epoch] = epoch_loss / length(loader)
 
         if (epoch % 5 == 0 || epoch == 1) && print_log
-            @printf("Epoch: %8d | Mean MSE Loss: %-15.8f | Grad Norm: %-10.8f\n", epoch, protocol._log.loss[epoch], protocol._log.loss_grad_norm[epoch])
+            @printf("Epoch: %8d | Mean MSE Loss: %-15.8f \n", epoch, protocol._log.loss[epoch])
         end
     end
     if print_log; println("Training complete!") end
 
-    Flux.loadmodel!(model.denoiser_model, model_train_device)
+    model.denoiser_model._ps[] = opt_state.parameters
+    model.denoiser_model._st[] = opt_state.states
 
     return protocol._log
 end
@@ -242,13 +249,13 @@ function _decode(model::DiffusionModel, z::Matrix)::Matrix
 
     x = z
     for t in model.denoiser_model.T:-1:1
-        t_batch = fill(t, size(z, 2))
+        t_batch = FP.(fill(t, size(z, 2)))
         ϵ_pred = model.denoiser_model(x, t_batch)
         x_mean = (x .- (β[t] / sqrt(FP(1.0) - ᾱ[t])) .* ϵ_pred) ./ sqrt(α[t]) 
         
         if t > 1
             σ_t = sqrt(β[t] * (FP(1.0) - ᾱ[t-1]) / (FP(1.0) - ᾱ[t]))
-            x = x_mean .+ σ_t .* Flux.randn_like(x, size(x))
+            x = x_mean .+ σ_t .* randn_like(x, size(x))
         else
             x = x_mean
         end
@@ -263,7 +270,7 @@ end
 
 function _eval(model::DiffusionModel, n_samples::Int)
     num_features = _output_size(model.denoiser_model.output_projection)
-    z = Flux.randn_like([model.β[1]], (num_features, n_samples))
+    z = randn_like([model.β[1]], (num_features, n_samples))
     
     return _decode(model, z)
 end

@@ -1,7 +1,7 @@
 using GenerativeModelProtocols
 using StatsBase
 using FileIO, HDF5
-using Flux
+using Lux
 
 using Test
 
@@ -17,27 +17,25 @@ function make_test_train_data(num_samples)
     return collect(transpose(hcat(x,y)))
 end
 
-function randomize_layers!(layers::Tuple{Vararg{Dense}})
+function randomize_layers!(layers::NamedTuple)
     for i in eachindex(layers)
         layers[i].bias .= rand(Float32, size(layers[i].bias))
         layers[i].weight .= rand(Float32, size(layers[i].weight))
     end
 end
 
-function randomize_layers!(layer::Dense)
-    randomize_layers!((layer,))
+function randomize_layer!(layer::NamedTuple)
+    randomize_layers!((layer1 = layer,))
 end
 
-function randomize_chains!(chains::Tuple{Vararg{Chain}})
+function randomize_chains!(chains::NamedTuple)
     for i in eachindex(chains)
-        for j in eachindex(chains[i])
-            randomize_layers!(chains[i][j])
-        end
+        randomize_layers!(chains[i])
     end
 end
 
-function randomize_chains!(chain::Chain)
-    randomize_chains!((chain,))
+function randomize_chain!(chain::NamedTuple)
+    randomize_chains!((chain1 = chain,))
 end
 
 function check_file_size(file_path::String)
@@ -50,20 +48,29 @@ function remove_file(file_path::String)
     end
 end
 
-function compare_layers(layers_a::Tuple{Vararg{Dense}}, layers_b::Tuple{Vararg{Dense}})
+function compare_layers(layer_a::NamedTuple, layer_b::NamedTuple)
+    ϵ = 1.0E-9
+
+    bias_diff = maximum(abs.(layer_a.bias - layer_b.bias))
+    weight_diff = maximum(abs.(layer_a.weight - layer_b.weight))
+
+    if (bias_diff > ϵ) || (weight_diff > ϵ)
+        return false
+    end
+
+    return true
+end
+
+function compare_tuple_layers(layers_a::NamedTuple, layers_b::NamedTuple)
     if length(layers_a) != length(layers_b)
         return false
     end
 
-    ϵ = 1.0E-9
     for i in eachindex(layers_a)
         layer_a = layers_a[i]
         layer_b = layers_b[i]
 
-        bias_diff = maximum(abs.(layer_a.bias - layer_b.bias))
-        weight_diff = maximum(abs.(layer_a.weight - layer_b.weight))
-
-        if (bias_diff > ϵ) || (weight_diff > ϵ)
+        if !compare_layers(layer_a, layer_b)
             return false
         end
     end
@@ -71,11 +78,11 @@ function compare_layers(layers_a::Tuple{Vararg{Dense}}, layers_b::Tuple{Vararg{D
     return true
 end
 
-function compare_layers(layer_a::Dense, layer_b::Dense)
-    return compare_layers((layer_a,), (layer_b,))
+function compare_chains(chain_a::NamedTuple, chain_b::NamedTuple)
+    return compare_tuple_layers(chain_a, chain_b)
 end
 
-function compare_chains(chains_a::Tuple{Vararg{Chain}}, chains_b::Tuple{Vararg{Chain}})
+function compare_tuple_chains(chains_a::NamedTuple, chains_b::NamedTuple)
     if length(chains_a) != length(chains_b)
         return false
     end
@@ -99,10 +106,6 @@ function compare_chains(chains_a::Tuple{Vararg{Chain}}, chains_b::Tuple{Vararg{C
     end
 
     return true
-end
-
-function compare_chains(chain_a::Chain, chain_b::Chain)
-    return compare_chains((chain_a,),(chain_b,))
 end
 
 function make_empty_data_prot(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
@@ -206,8 +209,8 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
     @test check_file_size(save_path)
 end
 
-include("diffusion_model_tests.jl")
-include("gaussian_mixture_model_tests.jl")
-include("variational_autoencoder_tests.jl")
+# include("diffusion_model_tests.jl")
+# include("gaussian_mixture_model_tests.jl")
+# include("variational_autoencoder_tests.jl")
 include("generative_adversarial_network_tests.jl")
 

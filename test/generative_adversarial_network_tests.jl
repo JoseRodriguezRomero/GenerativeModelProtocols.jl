@@ -1,14 +1,14 @@
 @testset "GenerativeAdversarialNetwork Tests" begin
     function test_compare_models(model_a::GenerativeModelProtocols.GenerativeAdversarialNetwork, model_b::GenerativeModelProtocols.GenerativeAdversarialNetwork)
-        @test compare_chains(model_a.discriminator, model_b.discriminator)
-        @test compare_chains(model_a.vae_model.encoders, model_b.vae_model.encoders)
-        @test compare_chains(model_a.vae_model.decoders, model_b.vae_model.decoders)
+        @test compare_chains(model_a._ps_discriminator[].discriminator, model_b._ps_discriminator[].discriminator)
+        @test compare_tuple_chains(model_a.vae_model._ps[].encoders, model_b.vae_model._ps[].encoders)
+        @test compare_tuple_chains(model_a.vae_model._ps[].decoders, model_b.vae_model._ps[].decoders)
     end
 
     function randomize_generative_adversarial_network!(model::GenerativeModelProtocols.GenerativeAdversarialNetwork)
-        randomize_chains!(model.discriminator)
-        randomize_chains!(model.vae_model.encoders)
-        randomize_chains!(model.vae_model.decoders)
+        randomize_chain!(model._ps_discriminator[].discriminator)
+        randomize_chains!(model.vae_model._ps[].encoders)
+        randomize_chains!(model.vae_model._ps[].decoders)
     end
 
     function example_encoder(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
@@ -60,6 +60,9 @@
             discriminator = model_1.discriminator,
             vae_model     = model_1.vae_model
         )
+
+        model_2._ps_discriminator[] = merge(model_2._ps_discriminator[], model_1._ps_discriminator[])
+        model_2.vae_model._ps[] = merge(model_2.vae_model._ps[], model_1.vae_model._ps[])
 
         @test isa(model_1, GenerativeModelProtocols.GenerativeAdversarialNetwork)
         @test isa(model_2, GenerativeModelProtocols.GenerativeAdversarialNetwork)

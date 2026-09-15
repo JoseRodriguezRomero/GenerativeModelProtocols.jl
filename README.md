@@ -8,13 +8,13 @@ models.
 
 This library wraps diverse architectures into a consistent 
 `AbstractGenerativeModel` interface. Built on top of 
-[`Flux.jl`](https://github.com), it delivers a developer-friendly experience 
-with native GPU acceleration and maintainable code.
+[`Lux.jl`](https://lux.csail.mit.edu/stable/), it delivers a developer-friendly 
+experience with native GPU acceleration and maintainable code.
 
 ## Key Features
 
 * **Unified Interface**: Standardized protocol for all generative architectures.
-* **Flux Ecosystem**: Seamless integration with modern Flux.jl neural networks.
+* **Lux Ecosystem**: Seamless integration with modern Lux.jl neural networks.
 * **Hardware Accelerated**: Out-of-the-box support for execution on GPUs.
 * **Model Persistence**: Built-in serialization mechanisms to save and 
 resume workflows.

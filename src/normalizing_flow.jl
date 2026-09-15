@@ -2,7 +2,7 @@ macro _nf_default_activation_function()
     return swish
 end
 
-function default_velocity_field(input_size::Int, activation_function::Function = @_nf_default_activation_function)
+function default_velocity_field(input_size::Int, hidden_layer_size::Int = 32, activation_function::Function = @_nf_default_activation_function)
     return Chain(
         Dense(input_size => hidden_layer_size, activation_function),
         Dense(hidden_layer_size => hidden_layer_size, activation_function),
@@ -52,26 +52,28 @@ Convenience constructor that creates a
 architecture.
 """
 function NormalizingFlow(input_size::Int)
-    return NormalizingFlow(default_velocity_field(input_size))
+    return NormalizingFlow(;
+        velocity_field = default_velocity_field(input_size)
+    )
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; print_log::Bool = true)
     model_train_device = model |> protocol.device
-    opt_state = Flux.setup(protocol.optimiser, model_train_device)
+    opt_state = Lux.setup(protocol.optimiser, model_train_device)
     
     batchsize_device = protocol.batchsize |> protocol.device
     training_data_device = protocol.training_data |> protocol.device
 
-    loader = Flux.DataLoader(
+    loader = Lux.DataLoader(
         training_data_device, 
-        batchsize = batchsize_device, 
+        batchsize = batchsize_device,
         shuffle = false,
         parallel = true
     )
     loader_length = length(loader)
     loader_length_device = loader_length |> protocol.device
 
-    FP = eltype(protocol.precision([1.0]))
+    FP = eltype(protocol.training_data)
 
     if print_log; println("Training Diffusion Model...") end
     for epoch in 1:protocol.epochs
@@ -79,7 +81,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
         total_grad_norm = 0.0
 
         if epoch % 100 == 0 && protocol.shuffle
-            loader = Flux.DataLoader(
+            loader = Lux.DataLoader(
                 shuffleobs(training_data_device), 
                 batchsize = batchsize_device, 
                 shuffle = false,
@@ -88,21 +90,21 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
         end
 
         for x_batch in loader
-            loss, (grads,) = Flux.withgradient(AutoEnzyme(), model_train_device) do model
-                x₀ = Flux.randn_like(x_batch, size(x_batch))
+            loss, (grads,) = Lux.withgradient(AutoEnzyme(), model_train_device) do model
+                x₀ = Lux.randn_like(x_batch, size(x_batch))
                 x₁ = x_batch
-                t = Flux.rand_like(x₁, size(x₀,2))
+                t = Lux.rand_like(x₁, size(x₀,2))
                 xₜ = (FP(1.0) .- t) .* x₀ + t .* x₁
 
                 vₜ = x₁ - x₀
                 v̂ₜ = model.velocity_field(vcat(xₜ, t))
-                return Flux.Losses.mse(v̂ₜ, vₜ)
+                return Lux.Losses.mse(v̂ₜ, vₜ)
             end
             
             raw_gradient_arrays = Optimisers.trainables(grads)
             batch_grad_norm = sqrt(sum(sum(abs2, g) for g in raw_gradient_arrays if g isa AbstractArray))
 
-            Flux.update!(opt_state, model_train_device, grads)
+            Lux.update!(opt_state, model_train_device, grads)
 
             epoch_loss += loss / loader_length_device
             total_grad_norm += batch_grad_norm / loader_length_device
@@ -116,8 +118,19 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
         end
     end
 
-    Flux.loadmodel!(model.velocity_field, model_train_device.velocity_field)
+    Lux.loadmodel!(model.velocity_field, model_train_device.velocity_field)
 
     return protocol._log
+end
+
+function _normalizing_flow_ode_solve end
+
+function _eval(model::NormalizingFlow, n_samples::Int; ode_solver = nothing)
+    x₀ = Lux.randn_like([model.velocity_field[1].weight], (_latent_size(model), n_samples))
+    return _normalizing_flow_ode_solve(x₀, model.velocity_field, ode_solver)
+end
+
+function _eval(model::NormalizingFlow; ode_solver = nothing)
+    return _eval(model,1; ode_solver = ode_solver)[:]
 end
 

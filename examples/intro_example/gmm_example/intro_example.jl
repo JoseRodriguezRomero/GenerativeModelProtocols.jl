@@ -1,5 +1,5 @@
 using GenerativeModelProtocols
-using Flux, Plots, StatsBase
+using Lux, Plots, StatsBase, Optimisers
 using LaTeXStrings
 
 function make_data(num_samples)
@@ -25,7 +25,7 @@ protocols = [
         batchsize = 256,
         epochs = 1500,
         optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
-        device = cpu_device()
+        device = reactant_device()
     )
     for model in models
 ]

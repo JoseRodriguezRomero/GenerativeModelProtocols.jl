@@ -8,7 +8,7 @@ the true underlying distribution or the ability to sample additional data.
 
 For this example we will need to load the following modules
 ```julia
-using Flux
+using Lux
 using GenerativeModelProtocols
 ```
 let us consider the following function to generate our random two-dimensional 

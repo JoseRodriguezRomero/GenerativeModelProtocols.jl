@@ -4,7 +4,7 @@
         
         @test maximum(abs.(model_a.log_σ² - model_b.log_σ²)) < ϵ
         @test maximum(abs.(model_a.μ - model_b.μ)) < ϵ
-        @test compare_chains(model_a.predictor_network, model_b.predictor_network)
+        @test compare_chains(model_a._ps[].predictor_network, model_b._ps[].predictor_network)
         @test maximum(abs.(model_a.p - model_b.p)) < ϵ
     end
 
@@ -56,7 +56,9 @@
             log_σ²              = model_1.log_σ²,
             μ                   = model_1.μ,
             predictor_network   = model_1.predictor_network,
-            p                   = model_1.p
+            p                   = model_1.p,
+            _ps                 = model_1._ps,
+            _st                 = model_1._st
         )
 
         @test isa(model_1, GenerativeModelProtocols.GaussianMixtureModel)
@@ -120,7 +122,7 @@
         input_size = 3
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
 
-        randomize_chains!(model.predictor_network)
+        randomize_chain!(model._ps[].predictor_network)
 
         save_path = joinpath(@__DIR__(), "test_gmm_model.h5")
         test_model_save(save_path, model, input_size)

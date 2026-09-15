@@ -2,7 +2,7 @@ function GenerativeModelProtocols.load_generative_adversarial_network_parameters
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
-    discriminator = HDF5.h5open(file.filename, "r") do file
+    discriminator, discriminator_ps = HDF5.h5open(file.filename, "r") do file
         discriminator_group = file[main_group_name][generative_model_group_name]["discriminator"]
         return read_group_chain_parameters(discriminator_group)
     end
@@ -12,7 +12,15 @@ function GenerativeModelProtocols.load_generative_adversarial_network_parameters
         generative_model_group_name = generative_model_group_name * "/vae_model"
     )
 
-    return GenerativeModelProtocols.GenerativeAdversarialNetwork(discriminator, vae_model)
+    gan_model = GenerativeModelProtocols.GenerativeAdversarialNetwork(;
+        discriminator = discriminator, 
+        vae_model     = vae_model
+    )
+    gan_model._ps_discriminator[] = merge(gan_model._ps_discriminator[],(
+        discriminator = discriminator_ps,
+    ))
+
+    return gan_model
 end
 
 function GenerativeModelProtocols._save_model(file::FileIO.File{FileIO.DataFormat{:HDF5},String}, 
@@ -30,7 +38,7 @@ function GenerativeModelProtocols._save_model(file::FileIO.File{FileIO.DataForma
         generative_model_group = main_group[generative_model_group_name]
         discriminator_group = HDF5.create_group(generative_model_group, "discriminator")
 
-        write_chain_to_file(model.discriminator, discriminator_group)
+        write_chain_to_file(model.discriminator, model._ps_discriminator[].discriminator, discriminator_group)
     end
 end
 

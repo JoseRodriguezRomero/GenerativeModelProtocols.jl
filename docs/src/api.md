@@ -19,6 +19,7 @@ GenerativeModelProtocols.DiffusionModel
 GenerativeModelProtocols.GaussianMixtureModel
 GenerativeModelProtocols.TabularDenoiser
 GenerativeModelProtocols.GenerativeAdversarialNetwork
+GenerativeModelProtocols.NormalizingFlow
 ```
 
 # Methods
@@ -39,11 +40,11 @@ latent_size(::GenerativeModelProtocol)
 GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{<:AbstractFloat})
 GenerativeModelProtocols.VariationalAutoencoder(::Int, ::Int, ::Int)
 GenerativeModelProtocols.GaussianMixtureModel(::Int, ::Int)
-GenerativeModelProtocols.DiffusionModel(::Vector{<:AbstractFloat}, ::GenerativeModelProtocols.TabularDenoiser)
-GenerativeModelProtocols.DiffusionModel(::Int, ::Vector{<:AbstractFloat})
-GenerativeModelProtocols.DiffusionModel(::Int, ::F, ::F, ::GenerativeModelProtocols.TabularDenoiser{F}) where {F<:AbstractFloat}
+GenerativeModelProtocols.DiffusionModel(::Int, ::Tuple{Vararg{<:AbstractFloat}})
+GenerativeModelProtocols.DiffusionModel(::Int, ::F, ::F, ::GenerativeModelProtocols.TabularDenoiser{LayerNames, F}) where {LayerNames, F<:AbstractFloat}
 GenerativeModelProtocols.DiffusionModel(::Int, ::Int, ::F, ::F) where {F<:AbstractFloat}
 GenerativeModelProtocols.TabularDenoiser(::Int; ::Int, ::Int, ::Function, <:AbstractFloat)
 GenerativeModelProtocols.GenerativeAdversarialNetwork(::Int, ::Int)
+GenerativeModelProtocols.NormalizingFlow(::Int)
 ```
 

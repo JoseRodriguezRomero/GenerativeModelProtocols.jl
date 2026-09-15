@@ -1,6 +1,6 @@
 module GenerativeModelProtocols_HDF5
 
-using Flux
+using Lux
 
 import GenerativeModelProtocols
 import FileIO, HDF5
@@ -65,27 +65,27 @@ function GenerativeModelProtocols._read_metadata(file::FileIO.File{FileIO.DataFo
     end
 end
 
-function write_layer_to_file(layer::Dense, layer_group)
+function write_layer_to_file(layer::Dense, ps::NamedTuple, layer_group)
     activation_function_map = GenerativeModelProtocols.activation_function_map()
     lay_dt = make_enum_type(instances(GenerativeModelProtocols.ActivationFunction)[1])
     scalar_space = HDF5.Dataspace(HDF5.API.h5s_create(HDF5.API.H5S_SCALAR))
 
     attr_lay = HDF5.create_attribute(layer_group, "activation_function", lay_dt, scalar_space)
-    HDF5.write_attribute(attr_lay, lay_dt, Int64(activation_function_map[layer.σ]))
-    HDF5.write(layer_group, "bias", layer.bias)
-    HDF5.write(layer_group, "weight", layer.weight)
+    HDF5.write_attribute(attr_lay, lay_dt, Int64(activation_function_map[layer.activation]))
+    HDF5.write(layer_group, "bias", ps.bias)
+    HDF5.write(layer_group, "weight", ps.weight)
 end
 
-function write_layers_to_file(layers::Tuple{Vararg{Dense}}, layers_group)
+function write_layers_to_file(layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}, ps::NamedTuple{LayerNames, <:Tuple}, layers_group) where {LayerNames}
     for i in eachindex(layers)
         layer = layers[i]
-        layer_group = HDF5.create_group(layers_group, "layer $i")
-        write_layer_to_file(layer, layer_group)
+        layer_group = HDF5.create_group(layers_group, "$i")
+        write_layer_to_file(layer, ps[i], layer_group)
     end
 end
 
-function write_chain_to_file(chain::Chain, chain_group)
-    write_layers_to_file(chain.layers, chain_group)
+function write_chain_to_file(chain::Chain, ps::NamedTuple, chain_group)
+    write_layers_to_file(chain.layers, ps, chain_group)
 end
 
 function read_group_layer_parameters(layer_group)
@@ -94,15 +94,32 @@ function read_group_layer_parameters(layer_group)
     W = read(layer_group["weight"])
     bias = read(layer_group["bias"])
     σ = activation_function_inverse_map[UInt8(read(HDF5.attributes(layer_group)["activation_function"]))]
-    return Dense(W, bias, σ)
+    
+    out_dims, in_dims = size(W) 
+    layer = Dense(in_dims => out_dims, σ)
+    
+    ps = (weight = W, bias = bias)
+
+    return layer, ps
 end
 
 function read_group_layers_parameters(layers_group)
-    return Tuple(read_group_layer_parameters(layer_group) for layer_group in layers_group)
+    n_layers = length(layers_group)
+    layer_names = ["layer_$i" for i in 1:n_layers]
+    
+    results = [read_group_layer_parameters(layers_group[name]) for name in layer_names]
+    
+    layer_keys = Tuple(Symbol(name) for name in layer_names)
+    layers_nt = NamedTuple{layer_keys}(Tuple(r[1] for r in results))
+    ps_nt = NamedTuple{layer_keys}(Tuple(r[2] for r in results))
+    
+    return layers_nt, ps_nt
 end
 
 function read_group_chain_parameters(chain_group)
-    return Chain(read_group_layers_parameters(chain_group))
+    layers_nt, ps_nt = read_group_layers_parameters(chain_group)
+
+    return Chain(Tuple(layers_nt)), ps_nt
 end
 
 # Auxiliary scripts

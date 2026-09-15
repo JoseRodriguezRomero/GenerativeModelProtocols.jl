@@ -1,5 +1,5 @@
 using GenerativeModelProtocols
-using Flux, Plots, StatsBase
+using Lux, Plots, StatsBase, Optimisers
 using LaTeXStrings
 
 function make_data(num_samples)
