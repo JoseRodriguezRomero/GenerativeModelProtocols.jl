@@ -9,7 +9,6 @@ using Reactant
 using StatsBase
 using Optimisers
 using LinearAlgebra
-using ComponentArrays
 using DocStringExtensions
 
 using Compat: @compat

@@ -50,6 +50,12 @@ jobs:
         run: |
           using Pkg
           Pkg.Registry.add("General") 
+
+          # Delete the committed Manifest.toml so a valid one can be generated
+          if isfile("Manifest.toml")
+            rm("Manifest.toml")
+          end
+
           Pkg.activate(".")
           Pkg.resolve()
           Pkg.instantiate()
