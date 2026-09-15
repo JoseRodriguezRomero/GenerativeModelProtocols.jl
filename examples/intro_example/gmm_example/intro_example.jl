@@ -25,7 +25,7 @@ protocols = [
         batchsize = 256,
         epochs = 1500,
         optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
-        device = reactant_device()
+        device = cpu_device()
     )
     for model in models
 ]

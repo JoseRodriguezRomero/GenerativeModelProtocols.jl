@@ -26,7 +26,7 @@ protocol = GenerativeModelProtocol(model,train_data;
     batchsize   = 256,
     epochs      = 3500,
     optimiser   = (critic_optimiser, vae_optimiser),
-    device      = reactant_device()
+    device      = cpu_device()
 )
 train!(protocol; β = 0.1, γ_vae = 1.0, γ_wgan = 0.1,
     grad_penalty = true, λ = 10.0, a = 1.0,
