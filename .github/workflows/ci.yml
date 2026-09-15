@@ -45,17 +45,21 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
+      - name: Resolve Manifest
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.activate(".")
+          Pkg.resolve()
+
       - uses: julia-actions/julia-buildpkg@v1
 
-      # MODIFIED STEP: Tell Julia to track code coverage while running tests
       - uses: julia-actions/julia-runtest@v1
         with:
           coverage: true
 
-      # NEW STEP: Process the raw coverage files into a standard format
       - uses: julia-actions/julia-processcoverage@v1
 
-      # NEW STEP: Securely upload results using your secret token
       - uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
