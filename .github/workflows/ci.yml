@@ -51,6 +51,7 @@ jobs:
           using Pkg
           Pkg.activate(".")
           Pkg.resolve()
+          Pkg.instantiate()
 
       - uses: julia-actions/julia-buildpkg@v1
 
