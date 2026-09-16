@@ -221,16 +221,9 @@ function _generative_model(::VariationalAutoencoder)::GenerativeModel
     return variational_autoencoder
 end
 
-# function sample_latent(μ, σ)
-#     ϵ = randn_like(μ, size(μ))
-#     return μ .+ σ .* ϵ
-# end
-
 function sample_latent(μ, σ)
-    out = randn_like(μ, size(μ))
-    out .= μ .+ σ .* out
-    
-    return out
+    ϵ = randn_like(μ, size(μ))
+    return μ .+ σ .* ϵ
 end
 
 function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}

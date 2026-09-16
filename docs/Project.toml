@@ -1,0 +1,6 @@
+[deps]
+GenerativeModelProtocols = "a0057f27-f638-4fe0-93cd-51391adb8eb4"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
+

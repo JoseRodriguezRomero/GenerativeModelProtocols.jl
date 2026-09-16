@@ -227,9 +227,7 @@ function compute_sinusoidal_frequencies(t, T::Int, max_period::AbstractFloat)
     scale = log(max_period) / (half_dim - 1)
     
     frequencies = similar(t, eltype(t), half_dim)
-    for i in 1:half_dim
-        frequencies[i] = exp(-(i - 1) * scale)
-    end
+    frequencies .= exp.(-(eltype(t).(0:(half_dim - 1))) .* scale)
     
     scaled_time = t' .* frequencies
     sin_components = sin.(scaled_time)

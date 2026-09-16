@@ -83,9 +83,5 @@ function compatible_neural_network(network::NamedTuple)
         end
         return true
     end
-
-    if haskey(network, :weight) && haskey(network, :bias)
-        return network.weight isa AbstractMatrix && network.bias isa AbstractVector
-    end
 end
 
