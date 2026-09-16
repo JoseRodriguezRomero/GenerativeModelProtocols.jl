@@ -32,7 +32,7 @@ makedocs(;
         "Generative Models" => [
             "Variational Autoencoders" => "generative_models/variational_autoencoders.md",
             "Gaussian Mixture Models" => "generative_models/gaussian_mixture_models.md",
-            "Diffusion Models" => "examples/diffusion_models.md",
+            "Diffusion Models" => "generative_models/diffusion_models.md",
             "Generative Adversarial Networks" => "generative_models/generative_adversarial_networks.md"
         ],
         "Examples" => [
@@ -49,6 +49,7 @@ makedocs(;
         ],
         "References" => "references.md"
     ],
+
 )
 
 deploydocs(; 
