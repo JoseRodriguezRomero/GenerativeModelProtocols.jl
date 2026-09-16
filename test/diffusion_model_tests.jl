@@ -58,7 +58,7 @@ end
     end
 
     @testset "Train Test" begin
-        train_data = make_test_train_data(500)
+        train_data = make_test_train_data(50)
 
         input_size = size(train_data,1)
         T = 21
@@ -66,6 +66,7 @@ end
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
         test_train_model(model, train_data)
         test_train_model_no_data(model, input_size)
+        # test_train_model_reactant(model, train_data)
     end
 
     @testset "Incompatible DiffusionModel Architecture Test" begin

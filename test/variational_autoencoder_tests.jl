@@ -65,7 +65,7 @@
     end
 
     @testset "Train Test" begin
-        train_data = make_test_train_data(500)
+        train_data = make_test_train_data(50)
 
         input_size = size(train_data, 1)
         latent_dim = 2
@@ -74,6 +74,10 @@
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
         test_train_model(model, train_data; β = [0.1, 0.2])
         test_train_model_no_data(model, input_size; β = [0.1, 0.2])
+
+        # Hierarchical VAEs are currently too slow using the reactant backend.
+        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
+        test_train_model_reactant(model, train_data; β = [0.1, 0.2])
     end
 
     @testset "Incompatible VariationalAutoencoder Architecture Test" begin

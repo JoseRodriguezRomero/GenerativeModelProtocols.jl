@@ -1,7 +1,7 @@
 using GenerativeModelProtocols
 using StatsBase
 using FileIO, HDF5
-using Lux
+using Lux, Reactant
 
 using Test
 
@@ -117,18 +117,25 @@ function make_empty_data_prot(model::GenerativeModelProtocols.AbstractGenerative
 end
 
 function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int; kwargs...)
-    try
-        train!(make_empty_data_prot(model, input_size); kwargs...)
-        return true
-    catch
-        return false
-    end
+    protocol = make_empty_data_prot(model, input_size)
+    @test_throws Exception train!(protocol; kwargs...)
 end
 
-function test_train_model(model::GenerativeModelProtocols.AbstractGenerativeModel, train_data::Matrix; kwargs...)
-    protocol = GenerativeModelProtocol(model, train_data; epochs = 20)
-    train_log = train!(protocol; kwargs...)
-    @test isa(train_log, typeof(protocol._log))
+function _base_test_train_model(model, train_data, device; kwargs...)
+    protocol = GenerativeModelProtocol(model, train_data; epochs = 20, device = device)
+    train!(protocol; kwargs...)
+
+    @test !isempty(protocol._log.loss)
+end
+
+function test_train_model(model, train_data; kwargs...)
+    println("Testing train! with the default cpu_device()")
+    _base_test_train_model(model, train_data, cpu_device(); kwargs...)
+end
+
+function test_train_model_reactant(model, train_data; kwargs...)
+    println("Testing train! with reactant_device()")
+    _base_test_train_model(model, train_data, reactant_device(); kwargs...)
 end
 
 function test_model_make_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)

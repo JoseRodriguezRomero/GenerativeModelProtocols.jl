@@ -249,11 +249,11 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     opt_vae_model = nothing
 
     if isa(protocol.optimiser, Tuple)
-        opt_disc = deepcopy(protocol.optimiser[1])
-        opt_vae_model = deepcopy(protocol.optimiser[2])
+        opt_disc = protocol.optimiser[1]
+        opt_vae_model = protocol.optimiser[2]
     else
-        opt_disc = deepcopy(protocol.optimiser)
-        opt_vae_model = deepcopy(protocol.optimiser)
+        opt_disc = protocol.optimiser
+        opt_vae_model = protocol.optimiser
     end
 
     loader = load_data(training_data_device, protocol.batchsize, shuffle_device)

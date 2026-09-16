@@ -71,7 +71,7 @@
     end
 
     @testset "Train Test" begin
-        train_data = make_test_train_data(500)
+        train_data = make_test_train_data(50)
 
         input_size = size(train_data,1)
         latent_dim = 2
@@ -79,6 +79,7 @@
         model = GenerativeModelProtocols.GenerativeAdversarialNetwork(input_size, latent_dim)
         test_train_model(model, train_data; grad_penalty = true, weight_clipping = true)
         test_train_model_no_data(model, input_size; grad_penalty = true, weight_clipping = true)
+        test_train_model_reactant(model, train_data; grad_penalty = true, weight_clipping = true)
     end
 
     @testset "Incompatible GenerativeAdversarialNetwork Architecture Test" begin

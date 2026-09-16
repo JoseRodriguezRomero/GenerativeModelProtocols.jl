@@ -258,10 +258,15 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwarg
         throw(ArgumentError("No training data was loaded!"))
     end
 
-    # Loop unrolling is disabled until #3568 of Enzyme.jl is fixed.
-    Enzyme.Compiler.LLVM.clopts("-unroll-runtime=false")
-    train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
-    Enzyme.Compiler.LLVM.clopts("-unroll-runtime=true")
+    local train_log
+    if protocol.device isa CPUDevice
+        # Loop unrolling is disabled until #3568 of Enzyme.jl is fixed.
+        Enzyme.Compiler.LLVM.clopts("-unroll-runtime=false")
+        train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
+        Enzyme.Compiler.LLVM.clopts("-unroll-runtime=true")
+    else
+        train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
+    end
 
     return train_log
 end

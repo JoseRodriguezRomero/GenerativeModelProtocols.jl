@@ -240,20 +240,20 @@ function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x
     enc_out, st_new = encoders[k1](x, ps[k1], st[k1])
     st_encoders_list[1] = st_new 
 
-    @views μ[:, 1, :] .= enc_out[1:latent_dim, :]
-    @views logσ²[:, 1, :] .= enc_out[(latent_dim+1):end, :]
-    @views σ[:, 1, :] .= exp.(logσ²[:, 1, :] .* T(0.5f0))
-    @views z[:, 1, :] .= sample_latent(μ[:, 1, :], σ[:, 1, :])
+    μ[:, 1, :] .= enc_out[1:latent_dim, :]
+    logσ²[:, 1, :] .= enc_out[(latent_dim+1):end, :]
+    σ[:, 1, :] .= exp.(logσ²[:, 1, :] .* T(0.5f0))
+    z[:, 1, :] .= sample_latent(μ[:, 1, :], σ[:, 1, :])
 
     for i in 2:num_latent_layers
         ki = LayerNames[i]
         enc_out, st_new = encoders[ki](z[:, i-1, :], ps[ki], st[ki])
         st_encoders_list[i] = st_new 
         
-        @views μ[:, i, :] .= enc_out[1:latent_dim, :]
-        @views logσ²[:, i, :] .= enc_out[(latent_dim+1):end, :]
-        @views σ[:, i, :] .= exp.(logσ²[:, i, :] .* T(0.5f0))
-        @views z[:, i, :] .= sample_latent(μ[:, i, :], σ[:, i, :])
+        μ[:, i, :] .= enc_out[1:latent_dim, :]
+        logσ²[:, i, :] .= enc_out[(latent_dim+1):end, :]
+        σ[:, i, :] .= exp.(logσ²[:, i, :] .* T(0.5f0))
+        z[:, i, :] .= sample_latent(μ[:, i, :], σ[:, i, :])
     end
 
     return μ, σ, logσ², z
@@ -271,19 +271,19 @@ function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, z
     for i in 2:num_latent_layers
         idx = num_latent_layers - i + 1
         
-        z_slice = @views z[:, idx+1, :]
+        z_slice = z[:, idx+1, :]
 
         ki = LayerNames[idx + 1]
         dec_out, st_new = decoders[ki](z_slice, ps[ki], st[ki])
         st_decoders_list[idx + 1] = st_new 
         
-        @views μ[:, idx, :] .= dec_out[1:latent_dim, :]
-        @views logσ²[:, idx, :] .= dec_out[(latent_dim+1):end, :]
-        @views σ[:, idx, :] .= exp.(logσ²[:, idx, :] .* T(0.5))
+        μ[:, idx, :] .= dec_out[1:latent_dim, :]
+        logσ²[:, idx, :] .= dec_out[(latent_dim+1):end, :]
+        σ[:, idx, :] .= exp.(logσ²[:, idx, :] .* T(0.5))
     end
 
     k1 = LayerNames[1]
-    z_slice = @views z[:, 1, :]
+    z_slice = z[:, 1, :]
     x̂, st_new = decoders[k1](z_slice, ps[k1], st[k1])
     st_decoders_list[1] = st_new 
 
@@ -328,21 +328,16 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
     
     function _vae_train_step!(x, p_current, s_current, o_current)
-        function _objective(encoders, decoders, p, s)
-            return _vae_elbo(encoders, decoders, β_device, latent_dim_device, num_latent_layers, size(x,2), x, p, s)
-        end
+        _objective = (p) -> _vae_elbo(encoders, decoders, β_device, latent_dim_device, num_latent_layers, size(x,2), x, p, s_current)
 
-        loss_val = _objective(encoders, decoders, p_current, s_current)
+        loss_val = _objective(p_current)
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
             Enzyme.Const(_objective),
             Enzyme.Active,
-            Enzyme.Const(encoders),
-            Enzyme.Const(decoders),
-            Enzyme.Duplicated(p_current, loss_grads),
-            Enzyme.Const(s_current)
+            Enzyme.Duplicated(p_current, loss_grads)
         )
 
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)

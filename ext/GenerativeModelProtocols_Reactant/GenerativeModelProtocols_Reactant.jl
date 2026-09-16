@@ -17,14 +17,11 @@ function GenerativeModelProtocols._train_step_device_dispatch(::Lux.ReactantDevi
     o_init = opt_state.optimizer_state
 
     _, p_init, o_init = @jit train_step_func!(first_batch, p_init, s_init, o_init)
-    
+    _compiled_pass = @compile train_step_func!(first_batch, p_init, s_init, o_init)
+
     opt_state = Lux.Training.TrainState(
         opt_state.cache, opt_state.objective_function, opt_state.allocator_cache,
         opt_state.model, p_init, s_init, opt_state.optimizer, o_init, opt_state.step
-    )
-
-    _compiled_pass = @compile train_step_func!(
-        first_batch, opt_state.parameters, opt_state.states, opt_state.optimizer_state
     )
 
     _train_step! = (x, state) -> begin

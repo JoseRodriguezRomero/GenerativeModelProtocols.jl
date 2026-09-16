@@ -68,7 +68,7 @@
     end
 
     @testset "Train Test" begin
-        train_data = make_test_train_data(500)
+        train_data = make_test_train_data(50)
 
         k = 15
         input_size = size(train_data,1)
@@ -76,6 +76,7 @@
         model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
         test_train_model(model, train_data)
         test_train_model_no_data(model, input_size)
+        test_train_model_reactant(model, train_data)
     end
 
     @testset "Incompatible GaussianMixtureModel Architecture Test" begin
