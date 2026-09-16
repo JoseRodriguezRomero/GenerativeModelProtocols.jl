@@ -1,0 +1,15 @@
+/* Forces the number and the text to sit side-by-side using an inline grid */
+.citation dl { 
+    display: grid; 
+    grid-template-columns: max-content auto; 
+    gap: 0.75em;
+}
+.citation dt { 
+    grid-column-start: 1; 
+}
+.citation dd { 
+    grid-column-start: 2; 
+    margin-bottom: 0.75em; 
+    margin-left: 0;
+}
+

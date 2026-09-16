@@ -1,0 +1,104 @@
+\documentclass[tikz,border=10pt]{standalone}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta,shapes.geometric,calc}
+
+\begin{document}
+	
+	\begin{tikzpicture}[
+		>=Stealth,
+		node distance=1.2cm and 1.6cm,
+		thick,
+		generator_wedge/.style={
+			trapezium, trapezium left angle=75, trapezium right angle=75, shape border rotate=270,
+			draw=black, fill=white, minimum width=1.6cm, minimum height=1.8cm, font=\sffamily\bfseries,
+			align=center
+		},
+		discriminator_wedge/.style={
+			trapezium, trapezium left angle=75, trapezium right angle=75, shape border rotate=90,
+			draw=black, fill=white, minimum width=2.4cm, minimum height=1.8cm, font=\sffamily\bfseries,
+			align=center
+		},
+		encoder_wedge/.style={
+			trapezium, trapezium left angle=75, trapezium right angle=75, shape border rotate=180,
+			draw=black, fill=white, minimum width=1.4cm, text width=1.2cm, minimum height=1.6cm, font=\sffamily\bfseries,
+			align=center, inner sep=0pt
+		},
+		image/.style={rectangle, draw=black, fill=black!2, minimum size=1.6cm, font=\scriptsize\sffamily\bfseries, align=center},
+		loss_node/.style={circle, draw=black, fill=black!5, minimum size=0.9cm, font=\sffamily\bfseries, align=center}
+		]
+		
+		% --- SYMMETRICAL INPUT BLOCKS (Left Base Anchor) ---
+		% Noise is placed at the baseline (0,0)
+		\node[image] (noise) {Gaussian\\Noise\\$\epsilon \sim \mathcal{N}(0,I)$};
+		
+		% Latent Variables placed exactly 2.2cm above noise to balance G at 1.1cm
+		\node[image, above=0.6cm of noise] (z) {Latent\\Variables\\$z \sim \mathcal{N}(0,1)$};
+		
+		% --- GENERATOR TRACK CENTER LINE ---
+		% Generator is positioned exactly midway between z and noise vertically
+		\node[generator_wedge, right=1.3cm of noise, yshift=1.1cm] (G) {Generator\\$G$};
+		
+		% Generated Fake Data
+		\node[image, right=3.1cm of G] (x_fake) {Fake\\Sample\\$G(z)$};
+		
+		
+		% --- ENCODER & REAL DATA TRACK ---
+		% Encoder Wedge positioned directly above z
+		\node[encoder_wedge, above=1.3cm of z] (E) {Encoder\\$E$};
+		
+		% Real Sample placed to match the wide horizontal alignment clearance
+		\node[image, right=2.1cm of E] (x_real) {Real\\Sample\\$x$};
+		
+		
+		% --- DISCRIMINATOR TRACK ---
+		\path (x_real.east) -- (x_fake.east) coordinate[midway] (mid_data);
+		\node[discriminator_wedge, right=2.5cm of mid_data] (D) {Discriminator\\$D$};
+		
+		
+		% --- OUTPUT AND LOSS NODES POSITIONED FOR ZERO OVERLAP ---
+		\node[image, right=1.2cm of D] (D_out) {Discriminator\\Output\\$D(\cdot)$};
+		
+		% Loss Nodes
+		\node[loss_node, right=1.4cm of D_out] (L_D) {$\mathcal{L}_\mathrm{D}$};
+		
+		% L_vae is placed directly above x_fake to ensure a perfectly straight line
+		\node[loss_node, above=4.5cm of x_fake] (L_vae) {$\mathcal{L}_\mathrm{VAE}$};
+		
+		
+		% --- FORWARD CONNECTIONS AND FLOW (Solid Black Lines) ---
+		% 1. Symmetrical diagonal lines straight into the west face of G
+		\draw[->, line width=1.2pt] (z.east) -- ([yshift=0.35cm]G.west);
+		\draw[->, line width=1.2pt] (noise.east) -- ([yshift=-0.35cm]G.west);
+		
+		% 2. Reconstruction Loop
+		\draw[->, line width=1.2pt] (x_real.west) -- (E.east);
+		\draw[->, line width=1.2pt] (E.south) -- (z.north);
+		
+		% 3. Generator Output Path
+		\draw[->, line width=1.2pt] (G.east) -- (x_fake.west);
+		
+		% 4. Discriminator Inflow
+		\draw[->, line width=1.2pt] (x_real.east) -- ([yshift=0.5cm]D.west);
+		\draw[->, line width=1.2pt] (x_fake.north east) -- ([yshift=-0.4cm]D.west);
+		\draw[->, line width=1.2pt] (D.east) -- (D_out.west);
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.east) -- (L_D.west);
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_D.north) |- ([yshift=1.4cm]D.north) -- (D.north);
+		
+		% --- L_VAE INFLOWS ---
+		% 1. Real Sample up to L_VAE
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_real.north) |- (L_vae.west);
+		
+		% 2. Discriminator Output up to L_VAE
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (D_out.north) |- (L_vae.east);
+		
+		% 3. Fake Sample straight up to L_VAE
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (x_fake.north) -- (L_vae.south);
+		
+		% --- CLEAN BRANCHED L_VAE BACKPROPAGATION FEEDBACK TRACKS ---
+		\coordinate (branch_pt) at (G.north |- {$(L_vae.north)+(0,0.6)$});
+		
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (L_vae.north) |- (branch_pt) -- (G.north);
+		\draw[->, dashed, line width=1.2pt, draw=black!40] (branch_pt) -| (E.north);
+		
+	\end{tikzpicture}
+\end{document}
