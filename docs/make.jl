@@ -53,6 +53,6 @@ makedocs(;
 )
 
 deploydocs(; 
-    repo = "://github.com",
+    repo = "github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl.git",
     devbranch = "main"
 )
