@@ -56,23 +56,7 @@ synthetic_data_2 = protocols[2](num_samples)
 synthetic_data_3 = protocols[3](num_samples)
 ```
 
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="intro_example.svg" alt="intro_example" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: 
-                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
-                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+![intro_example](../../../assets/examples/getting_started/gmm/intro_example.svg)
 
 ## Displaying models and protocols
 
@@ -123,23 +107,7 @@ function (PDF) via a 2D histogram or kernel density estimate offers a more
 rigorous and reliable assessment of how accurately the underlying distributions 
 were learned.
 
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="intro_example_density_comp.svg" alt="intro_example_density_comp" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: 
-                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
-                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+![intro_example_density_comp](../../../assets/examples/getting_started/gmm/intro_example_density_comp.svg)
 
 ## Source code
 

@@ -15,21 +15,7 @@ merely requires sampling directly from this distribution. Typically, these
 latent variables are optimized to be statistically independent, following a 
 normal distribution with zero mean and unit variance.
 
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="vae_diagram.svg" alt="vae_diagram" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+![vae_diagram](../assets/generative_models/vae_diagram.svg)
 
 ## Evidence Lower Bound
 

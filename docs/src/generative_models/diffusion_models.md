@@ -15,21 +15,7 @@ process forces the final latent variables to become statistically independent,
 allowing us to simply seed the network with pure random noise to synthesize 
 completely new data.
 
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="dm_diagram.svg" alt="dm_diagram" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+![dm_diagram](../assets/generative_models/dm_diagram.svg)
 
 # Noise Model
 

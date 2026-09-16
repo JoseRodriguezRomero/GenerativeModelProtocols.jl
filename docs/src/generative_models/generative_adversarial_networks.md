@@ -18,21 +18,7 @@ Once training is complete, the generator operates as a standalone model. It
 takes stochastic latent variables from a simple distribution and transforms them 
 into synthetic data points within the target data space.
 
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="gan_diagram.svg" alt="gan_diagram" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+![gan_diagram](../assets/generative_models/gan_diagram.svg)
 
 ## Vanilla GAN Loss Function
 

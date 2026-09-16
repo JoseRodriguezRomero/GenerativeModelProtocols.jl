@@ -24,7 +24,7 @@ makedocs(;
         prettyurls = get(ENV, "CI", "false") == "true",
         canonical = "https://github.io",
         edit_link = "main",
-        assets=String["assets/citations.css"], 
+        assets=String["assets/citations.css", "assets/custom.css"], 
     ),
     pages = [
         "Home" => "index.md",

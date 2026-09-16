@@ -50,23 +50,7 @@ finally, we can generate synthetic data by simply invoking our trained protocol
 synthetic_data = protocol(num_samples)
 ```
 
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="intro_example.svg" alt="intro_example" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: 
-                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
-                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+![intro_example](../../../assets/examples/getting_started/vae/intro_example.svg)
 
 ## Displaying models and protocols
 
@@ -131,23 +115,8 @@ test_data = collect(transpose(hcat(x_test,y_test)))
 z_test_data = GenerativeModelProtocols.encode(model,test_data)
 recon_test_data = GenerativeModelProtocols.decode(model,z_test_data)
 ```
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="intro_example_recon.svg" alt="intro_example_recon" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: 
-                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
-                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+
+![intro_example_recon](../../../assets/examples/getting_started/vae/intro_example_recon.svg)
 
 To test if the latent variables of our trained model follow a normal 
 distribution with zero mean and unit variance we solely need to use the 
@@ -158,23 +127,9 @@ x_test, y_test = make_data(10000)
 test_data = collect(transpose(hcat(x_test,y_test)))
 z_test_data = GenerativeModelProtocols.encode(model,test_data)
 ```
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="intro_example_latents.svg" alt="intro_example_latents" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: 
-                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
-                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+
+![intro_example_latents](../../../assets/examples/getting_started/vae/intro_example_latents.svg)
+
 this immediately explains why the trained VAE struggles to reproduce the true 
 training data distribution. In both the reconstruction and synthetic generation 
 tests, we observe a noticeable amount of scattered, noisy data points. 
@@ -192,23 +147,9 @@ using StatsBase
 pearson_corr = cor(z_test_data[1,:],z_test_data[2,:])
 spearman_corr = corspearman(z_test_data[1,:],z_test_data[2,:])
 ```
-```@raw html
-<div style="text-align: center; margin: 1.5em 0;">
-    <img src="intro_example_latents_corr.svg" alt="intro_example_latents_corr" 
-        style="padding: 5px; 
-               max-width: 750px; 
-               width: 100%;
-               height: auto; 
-               border: 1px solid transparent;
-               border-radius: 10px;
-               background-image: 
-                linear-gradient(var(--sidebar-bg, #ffffff), var(--sidebar-bg, #ffffff)), 
-                linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 50%, #94a3b8 100%);
-               background-origin: border-box;
-               background-clip: content-box, border-box;
-               box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);">
-</div>
-```
+
+![intro_example_latents_corr](../../../assets/examples/getting_started/vae/intro_example_latents_corr.svg)
+
 the resulting correlations, visible in the illustration above, are close enough 
 to zero to confirm that the latent variables are effectively independent.
 
