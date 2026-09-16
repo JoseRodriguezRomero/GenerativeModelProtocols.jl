@@ -19,11 +19,10 @@ makedocs(;
     plugins=[bib],
     modules = [GenerativeModelProtocols],
     authors = "José Romero <jrodriguesro@umass.edu>",
-    repo = "https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/blob/{commit}{path}#{line}",
     sitename = "GenerativeModelProtocols.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://generativeprotocols.org",
+        canonical = "https://github.io",
         edit_link = "main",
         assets=String["assets/citations.css"], 
     ),
@@ -33,7 +32,7 @@ makedocs(;
         "Generative Models" => [
             "Variational Autoencoders" => "generative_models/variational_autoencoders.md",
             "Gaussian Mixture Models" => "generative_models/gaussian_mixture_models.md",
-            "Diffusion Models" => "generative_models/diffusion_models.md",
+            "Diffusion Models" => "examples/diffusion_models.md",
             "Generative Adversarial Networks" => "generative_models/generative_adversarial_networks.md"
         ],
         "Examples" => [
@@ -53,6 +52,6 @@ makedocs(;
 )
 
 deploydocs(; 
-    repo = "github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl",
-    cname = "docs.generativeprotocols.org"
+    repo = "://github.com",
+    devbranch = "main"
 )
