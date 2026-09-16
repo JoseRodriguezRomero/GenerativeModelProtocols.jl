@@ -1,0 +1,13 @@
+.content img {
+    background-color: #ffffff !important;
+    padding: 12px;
+    border-radius: 6px;
+    display: block;
+    margin: 1rem auto;
+    
+    /* Sets the width to 85% of the text container */
+    width: 85% !important;
+    max-width: 85% !important;
+    height: auto !important;
+}
+
