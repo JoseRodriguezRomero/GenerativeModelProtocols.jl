@@ -20,9 +20,6 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             julia-version: '1'
-          - os: ubuntu-latest
-            arch: x64
-            julia-version: 'lts'
           - os: windows-latest
             arch: x64
             julia-version: '1'
@@ -31,9 +28,6 @@ jobs:
           - os: macOS-latest
             arch: aarch64
             julia-version: '1'
-          - os: macOS-latest
-            arch: aarch64
-            julia-version: 'lts'
 
     steps:
       - uses: actions/checkout@v4

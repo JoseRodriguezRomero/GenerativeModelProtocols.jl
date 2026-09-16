@@ -23,7 +23,7 @@ makedocs(;
     sitename = "GenerativeModelProtocols.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
-        canonical = "https://JoseRodriguezRomero.github.io/GenerativeModelProtocols.jl",
+        canonical = "https://generativeprotocols.org",
         edit_link = "main",
         assets=String["assets/citations.css"], 
     ),
@@ -52,5 +52,7 @@ makedocs(;
     ],
 )
 
-deploydocs(; repo = "github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl")
-
+deploydocs(; 
+    repo = "github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl",
+    cname = "docs.generativeprotocols.org"
+)

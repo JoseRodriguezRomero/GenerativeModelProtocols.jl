@@ -1,4 +1,5 @@
 [![CI](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/ci.yml)
+[![docs](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/documentation.yml/badge.svg)](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/documentation.yml)
 [![codecov](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl/graph/badge.svg?token=3I64XP0CQ2)](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl)
 
 # GenerativeModelProtocols.jl
