@@ -325,39 +325,39 @@ function categorize(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
 end
 
 """
-    encode(protocol::GenerativeModelProtocol, x::Matrix) -> Matrix
+    encode(protocol::GenerativeModelProtocol, x::Matrix; kwargs...) -> Matrix
 
 Encodes the data space variable `x` into a latent space variable.
 """
-function encode(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
-    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
+function encode(protocol::GenerativeModelProtocol, x::Matrix; kwargs...)::Matrix
+    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)); kwargs...)
 end
 
 """
-    encode(protocol::GenerativeModelProtocol, x::Vector) -> Vector
+    encode(protocol::GenerativeModelProtocol, x::Vector; kwargs...) -> Vector
 
 Encodes the data space variable `x` into a latent space variable.
 """
-function encode(protocol::GenerativeModelProtocol, x::Vector)::Vector
-    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
+function encode(protocol::GenerativeModelProtocol, x::Vector; kwargs...)::Vector
+    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)); kwargs...)
 end
 
 """
-    decode(protocol::GenerativeModelProtocol, z::Matrix) -> Matrix
+    decode(protocol::GenerativeModelProtocol, z::Matrix; kwargs...) -> Matrix
 
 Decodes the latent space representations `z` back into the data space.
 """
-function decode(protocol::GenerativeModelProtocol, z::Matrix)::Matrix
-    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z)))
+function decode(protocol::GenerativeModelProtocol, z::Matrix; kwargs...)::Matrix
+    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z; kwargs...)))
 end
 
 """
-    decode(protocol::GenerativeModelProtocol, z::Vector) -> Vector
+    decode(protocol::GenerativeModelProtocol, z::Vector; kwargs...) -> Vector
 
 Decodes the latent space representations `z` back into the data space.
 """
-function decode(protocol::GenerativeModelProtocol, z::Vector)::Vector
-    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z)))
+function decode(protocol::GenerativeModelProtocol, z::Vector; kwargs...)::Vector
+    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z; kwargs...)))
 end
 
 """

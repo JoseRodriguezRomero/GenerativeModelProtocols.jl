@@ -412,11 +412,11 @@ function _vae_encode(encoders, ps, st, x)
     return z
 end
 
-function _encode(model::VariationalAutoencoder, x::AbstractMatrix)
+function _encode(model::VariationalAutoencoder, x::Matrix)
     return _vae_encode(model.encoders, model._ps[], model._st[], x)
 end
 
-function _encode(model::VariationalAutoencoder, x::AbstractVector)
+function _encode(model::VariationalAutoencoder, x::Vector)
     return _encode(model, reshape(x, :, 1))[:]
 end
 
@@ -444,11 +444,11 @@ function _vae_decode(decoders, ps, st, z)
     return out
 end
 
-function _decode(model::VariationalAutoencoder, z::AbstractMatrix)
+function _decode(model::VariationalAutoencoder, z::Matrix)
     return _vae_decode(model.decoders, model._ps[], model._st[], z)
 end
 
-function _decode(model::VariationalAutoencoder, z::AbstractVector)
+function _decode(model::VariationalAutoencoder, z::Vector)
     return _decode(model, reshape(z,:,1))[:]
 end
 

@@ -33,14 +33,16 @@ makedocs(;
             "Variational Autoencoders" => "generative_models/variational_autoencoders.md",
             "Gaussian Mixture Models" => "generative_models/gaussian_mixture_models.md",
             "Diffusion Models" => "generative_models/diffusion_models.md",
-            "Generative Adversarial Networks" => "generative_models/generative_adversarial_networks.md"
+            "Generative Adversarial Networks" => "generative_models/generative_adversarial_networks.md",
+            "Normalizing Flows" => "generative_models/normalizing_flows.md"
         ],
         "Examples" => [
             "Getting Started" => [
                 "Variational Autoencoder" => "examples/getting_started/vae/getting_started.md",
                 "Gaussian Mixture Model" => "examples/getting_started/gmm/getting_started.md",
                 "Diffusion Model" => "examples/getting_started/dm/getting_started.md",
-                "Generative Adversarial Network" => "examples/getting_started/gan/getting_started.md"
+                "Generative Adversarial Network" => "examples/getting_started/gan/getting_started.md",
+                "Normalizing Flow" => "examples/getting_started/nf/getting_started.md"
             ],
             "β Annealing" => "examples/beta_annealing/beta_annealing.md",
             "Hierarchical VAEs" => "examples/hierarchical_vaes/hierarchical_vaes.md",

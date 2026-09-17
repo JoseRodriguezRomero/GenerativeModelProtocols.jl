@@ -13,8 +13,7 @@ experience with native GPU acceleration and maintainable code.
 * **Unified Interface**: Standardized protocol for all generative architectures.
 * **Lux Ecosystem**: Seamless integration with modern Lux.jl neural networks.
 * **Hardware Accelerated**: Out-of-the-box support for execution on GPUs.
-* **Model Persistence**: Built-in serialization mechanisms to save and 
-resume workflows.
+* **Model Persistence**: Built-in serialization mechanisms to save and resume workflows.
 
 ## Storage & Serialization
 

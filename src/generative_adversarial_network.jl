@@ -394,27 +394,27 @@ function _eval(model::GenerativeAdversarialNetwork)
     return _eval(model, 1)[:]
 end
 
-function _categorize(model::GenerativeAdversarialNetwork, x::AbstractMatrix)::AbstractMatrix
+function _categorize(model::GenerativeAdversarialNetwork, x::Matrix)::Matrix
     return model.discriminator_network(x)
 end
 
-function _categorize(model::GenerativeAdversarialNetwork, x::AbstractVector)::AbstractVector
+function _categorize(model::GenerativeAdversarialNetwork, x::Vector)::Vector
     return _categorize(model, reshape(x, :, 1))[:]
 end
 
-function _encode(model::GenerativeAdversarialNetwork, x::AbstractMatrix)::AbstractMatrix
+function _encode(model::GenerativeAdversarialNetwork, x::Matrix)::Matrix
     return _encode(model.vae_model, x)
 end
 
-function _encode(model::GenerativeAdversarialNetwork, x::AbstractVector)::AbstractVector
+function _encode(model::GenerativeAdversarialNetwork, x::Vector)::Vector
     return _encode(model, reshape(x, :, 1))[:]
 end
 
-function _decode(model::GenerativeAdversarialNetwork, z::AbstractMatrix)::AbstractMatrix
+function _decode(model::GenerativeAdversarialNetwork, z::Matrix)::Matrix
     return _decode(model.vae_model, z)
 end
 
-function _decode(model::GenerativeAdversarialNetwork, z::AbstractVector)::AbstractVector
+function _decode(model::GenerativeAdversarialNetwork, z::Vector)::Vector
     return _decode(model, reshape(z, :, 1))[:]
 end
 
