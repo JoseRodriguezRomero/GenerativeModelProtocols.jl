@@ -213,7 +213,7 @@ function GenerativeModelProtocol(saved_protocol::String;
         elseif generative_model == generative_adversarial_network
             return GenerativeAdversarialNetwork
         elseif generative_model == normalizing_flow
-            return nothing # Temporary dummy line
+            return NormalizingFlow
         elseif generative_model == gaussian_mixture_model
             return GaussianMixtureModel
         end

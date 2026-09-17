@@ -67,6 +67,29 @@ function NormalizingFlow(input_size::Int)
     )
 end
 
+function load_normalizing_flow_parameters end
+
+macro load_normalizing_flow_parameters(saved_model, main_group_name, generative_model_group_name)
+    return :(load_normalizing_flow_parameters($(esc(saved_model)); 
+        $(main_group_name = esc(main_group_name)), 
+        $(generative_model_group_name = esc(generative_model_group_name))
+    ))
+end
+
+function NormalizingFlow(saved_model::String; 
+    main_group_name::String = @default_main_group_name,
+    generative_model_group_name::String = @default_generative_model_group_name)
+
+    return @load_normalizing_flow_parameters(saved_model, main_group_name, generative_model_group_name)
+end
+
+function Base.display(model::NormalizingFlow)
+    print_padding = @_default_print_padding
+    println("$(Base.typename(typeof(model)).wrapper):")
+    println("velocity_field: ")
+    _print_chains(model.velocity_field, print_padding)
+end
+
 function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; print_log::Bool = true)
     training_data_device = protocol.training_data |> protocol.device
     loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
