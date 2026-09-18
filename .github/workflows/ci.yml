@@ -10,16 +10,23 @@ on:
 
 jobs:
   test:
-    name: Julia ${{ matrix.julia-version }} - ${{ matrix.os }} - ${{ matrix.arch }}
+    name: Julia ${{ matrix.julia-version }} - t=${{ matrix.threads }} - ${{ matrix.os }} - ${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        threads:
+          - '5'
         include:
-          # Linux and Windows runner configurations
+          # Linux runner configurations
           - os: ubuntu-latest
             arch: x64
             julia-version: '1'
+          - os: ubuntu-latest
+            arch: x64
+            julia-version: 'lts'
+
+          # Windows runner configurations
           - os: windows-latest
             arch: x64
             julia-version: '1'
@@ -28,6 +35,9 @@ jobs:
           - os: macOS-latest
             arch: aarch64
             julia-version: '1'
+          - os: macOS-latest
+            arch: aarch64
+            julia-version: 'lts'
 
     steps:
       - uses: actions/checkout@v7
@@ -56,6 +66,8 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
 
       - uses: julia-actions/julia-runtest@v1
+        env:
+          JULIA_NUM_THREADS: ${{ matrix.threads }}
         with:
           coverage: true
 
