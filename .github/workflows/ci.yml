@@ -15,22 +15,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        threads:
-          - '5'
         include:
           # Linux runner configurations
           - os: ubuntu-latest
             arch: x64
+            threads: '5'
             julia-version: '1'
 
           # Windows runner configurations
           - os: windows-latest
             arch: x64
+            threads: '5'
             julia-version: '1'
           
           # Native Apple Silicon configurations
           - os: macOS-latest
             arch: aarch64
+            threads: '5'
             julia-version: '1'
     steps:
       - uses: actions/checkout@v7
