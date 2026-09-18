@@ -90,6 +90,10 @@ function Base.display(model::NormalizingFlow)
     _print_chains(model.velocity_field, print_padding)
 end
 
+function _generative_model(::NormalizingFlow)::GenerativeModel
+    return normalizing_flow
+end
+
 function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; print_log::Bool = true)
     training_data_device = protocol.training_data |> protocol.device
     loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)

@@ -60,6 +60,7 @@ include("tabular_denoiser_FileIO.jl")
 
 # Generative models
 include("diffusion_model_FileIO.jl")
+include("normalizing_flow_FileIO.jl")
 include("gaussian_mixture_model_FileIO.jl")
 include("variational_autoencoder_FileIO.jl")
 include("generative_adversarial_network_FileIO.jl")
