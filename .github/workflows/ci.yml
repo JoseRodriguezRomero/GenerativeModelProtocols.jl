@@ -22,9 +22,6 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             julia-version: '1'
-          - os: ubuntu-latest
-            arch: x64
-            julia-version: 'lts'
 
           # Windows runner configurations
           - os: windows-latest
@@ -35,10 +32,6 @@ jobs:
           - os: macOS-latest
             arch: aarch64
             julia-version: '1'
-          - os: macOS-latest
-            arch: aarch64
-            julia-version: 'lts'
-
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
