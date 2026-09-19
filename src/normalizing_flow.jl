@@ -174,20 +174,20 @@ function _latent_size(model::NormalizingFlow)
     return size(model._ps[].velocity_field[end].weight,1)
 end
 
-function _encode(model::NormalizingFlow, x::Matrix; ode_solver = nothing)
-    return _normalizing_flow_ode_solve_reverse(x, model, ode_solver)
+function _encode(model::NormalizingFlow, x::Matrix; ode_solver = nothing, t_final::AbstractFloat = 0.0)
+    return _normalizing_flow_ode_solve_reverse(x, model, ode_solver, t_final)
 end
 
-function _encode(model::NormalizingFlow, x::Vector; ode_solver = nothing)
-    return _encode(model, reshape(x, :, 1); ode_solver = ode_solver)[:]
+function _encode(model::NormalizingFlow, x::Vector; ode_solver = nothing, t_final::AbstractFloat = 0.0)
+    return _encode(model, reshape(x, :, 1); ode_solver = ode_solver, t_final = t_final)[:]
 end
 
-function _decode(model::NormalizingFlow, z::Matrix; ode_solver = nothing)
-    return _normalizing_flow_ode_solve_forward(z, model, ode_solver)
+function _decode(model::NormalizingFlow, z::Matrix; ode_solver = nothing, t_final::AbstractFloat = 1.0)
+    return _normalizing_flow_ode_solve_forward(z, model, ode_solver, t_final)
 end
 
-function _decode(model::NormalizingFlow, z::Vector; ode_solver = nothing)
-    return _decode(model, reshape(z,:,1); ode_solver = ode_solver)[:]
+function _decode(model::NormalizingFlow, z::Vector; ode_solver = nothing, t_final::AbstractFloat = 1.0)
+    return _decode(model, reshape(z,:,1); ode_solver = ode_solver, t_final = t_final)[:]
 end
 
 function _eval(model::NormalizingFlow, n_samples::Int; ode_solver = nothing)

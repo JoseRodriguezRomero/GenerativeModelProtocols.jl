@@ -47,7 +47,7 @@ distributions of the latent and target spaces, respectively.
 While it is necessary to solve a first order ODE to use a trained CNF, during 
 training it is possible to bypass the need of a numerical integrator, thus, 
 substantially reducing code complexity and computational cost. This is possible 
-using a technique known as *Flow Matching* (FM).
+using a technique known as *Flow Matching* (FM) [Lipman2022](@cite).
 
 Instead of backpropagating gradients through an expensive ODE solver over 
 multiple time steps, Flow Matching formulates a regression objective that 
@@ -108,7 +108,8 @@ hence
 ```
 
 Substituting the path $x = (1 - t)x_0 + tx_1$ and this conditional vector 
-field directly into the conditional loss gives a simple, simulation-free objective:
+field directly into the conditional loss gives a simple, simulation-free 
+objective:
 ```math
     \mathcal{L}_{\text{OT-CFM}}(\theta) = \mathbb{E}_{t, \, x_0, \, x_1} \left[
         \Vert{} v_\theta\big((1 - t)x_0 + tx_1, \, t\big) - (x_1 - x_0) 

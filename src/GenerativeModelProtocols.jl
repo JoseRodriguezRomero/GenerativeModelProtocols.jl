@@ -113,6 +113,8 @@ $TYPEDFIELDS
     batchsize::Int = 32
     """Flag indicating whether to shuffle the training data during training."""
     shuffle::Bool = true
+    """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
+    normalize_data::Bool = true
     """Optimizer used to train the generative model."""
     optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01)
     """Hardware device (CPU or GPU) on which to perform training and inference."""
@@ -131,6 +133,7 @@ $TYPEDFIELDS
     epochs::Int,
     batchsize::Int,
     shuffle::Bool,
+    normalize_data::Bool,
     optimiser::Union{O, Tuple{Vararg{O}}},
     device::Lux.MLDataDevices.AbstractDevice,
     model::M,
@@ -138,9 +141,9 @@ $TYPEDFIELDS
     _log::TrainingLog,
     ) where {M<:AbstractGenerativeModel, O}
 
-        if !compatible_generative_protocol(training_data, var_training_data)
+        if normalize_data && !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
-            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, precision, _log)))
+            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, normalize_data, optimiser, device, model, precision, _log)))
         end
 
         training_data = _cast_to_precision(precision, training_data)
@@ -156,19 +159,19 @@ $TYPEDFIELDS
         M_c = typeof(model)
         O_c = typeof(optimiser)
 
-        return new{M_c,O_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, optimiser, device, model, precision, _log)
+        return new{M_c,O_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, normalize_data, optimiser, device, model, precision, _log)
     end
 end
 
 GenerativeModelProtocol{M,O}(args...; kwargs...) where {M<:AbstractGenerativeModel, O} = GenerativeModelProtocol(args...; kwargs...)
 
 """
-    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, kwargs...) where {M<:AbstractGenerativeModel}
+    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
 
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; precision::Function = f32, optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01), kwargs...) where {M<:AbstractGenerativeModel, O}
+function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel, O}
     copy_training_data = copy(training_data)
 
     mean_training_data = mean(copy_training_data, dims = 2)
@@ -177,13 +180,16 @@ function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat
     copy_training_data .-= mean_training_data
     copy_training_data ./= sqrt.(var_training_data)
 
+    if normalize_data
+        training_data = copy_training_data
+    end
+
     return GenerativeModelProtocol(;
-        training_data      = copy_training_data,
+        training_data      = training_data,
         mean_training_data = Tuple(mean_training_data),
         var_training_data  = Tuple(var_training_data),
-        optimiser          = optimiser,
         model              = model,
-        precision          = precision,
+        normalize_data     = normalize_data,
         kwargs...
     )
 end
@@ -203,7 +209,7 @@ function GenerativeModelProtocol(saved_protocol::String;
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
     model = nothing
-    generative_model, mean_training_data, var_training_data = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
+    generative_model, mean_training_data, var_training_data, normalize_data = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
 
     function _gen_model(generative_model)
         if generative_model == variational_autoencoder
@@ -227,7 +233,8 @@ function GenerativeModelProtocol(saved_protocol::String;
     return GenerativeModelProtocol(;
         model              = model,
         mean_training_data = mean_training_data,
-        var_training_data  = var_training_data
+        var_training_data  = var_training_data,
+        normalize_data     = normalize_data
     )
 end
 
@@ -272,7 +279,11 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwarg
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Matrix)
-    return (x .- protocol.mean_training_data) ./ sqrt.(protocol.var_training_data)
+    if protocol.normalize_data
+        x = (x .- protocol.mean_training_data) ./ sqrt.(protocol.var_training_data)
+    end
+
+    return x
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Vector)
@@ -280,7 +291,11 @@ function _shift_and_scale(protocol::GenerativeModelProtocol, x::Vector)
 end
 
 function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Matrix)
-    return (x .* sqrt.(protocol.var_training_data)) .+ protocol.mean_training_data
+    if protocol.normalize_data
+        x = (x .* sqrt.(protocol.var_training_data)) .+ protocol.mean_training_data
+    end
+
+    return x
 end
 
 function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Vector)

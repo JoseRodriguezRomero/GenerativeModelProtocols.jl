@@ -1,16 +1,36 @@
 using Plots
 using Plots.Measures
 
+using Optimisers, Lux
+using DifferentialEquations
+using GenerativeModelProtocols
 
-ρ0(x, y) = exp(-(x^2 + y^2))
-ρ1(x, y) = 2 * exp(-0.3 * (2*(x - 1)^2 + (y + 0.5)^2)) + 2 * exp(-2.0 * (0.5*(x + 2)^2 + 0.8*(y - 1)^2))
+using FileIO, HDF5
+
+normal(σ, μ, x) = exp(-((x-μ)^2)/(2*σ^2)) / sqrt(2*π*σ^2)
+
+protocol = GenerativeModelProtocol("sample_nf_model.h5")
+
+ρ0(x, y) = normal(1.0, 0.0, x) * normal(1.0, 0.0, y)
+ρ1(x, y) = 
+    (1.25 / 3.0) * (normal(0.5,  1.0, x) * normal(1.0, -0.5, y)) +
+    (1.75 / 3.0) * (normal(1.0, -3.0, x) * normal(0.6,  1.0, y))
+
 ρ(x, y, t) = ρ0(x, y) + t * (ρ1(x, y) - ρ0(x, y))
 
 x_range = range(-6, 6, length=300)
 y_range = range(-6, 6, length=300)
 
-contour_levels = collect(0.2:0.2:2.0)
+c1 = 0.02
+c2 = 0.2
+
+contour_levels = collect(c1:((c2-c1)/6.0):c2)
 contour_color = :cool
+
+## Make Plots
+t1_samples = protocol(100)
+t0_samples = encode(protocol, t1_samples)
+t_half_samples = decode(protocol, t0_samples; t_final = 0.5)
 
 plot_lims = (-5, 5)
 
@@ -29,6 +49,7 @@ p1 = contour(x_range, y_range, z0,
     aspect_ratio=:equal,
     frame=:box
 )
+scatter!(t0_samples[1,:],t0_samples[2,:], legend = false)
 
 z_mid = [ρ(x, y, 0.5) for y in y_range, x in x_range]
 p2 = contour(x_range, y_range, z_mid,
@@ -45,6 +66,7 @@ p2 = contour(x_range, y_range, z_mid,
     aspect_ratio=:equal,
     frame=:box
 )
+scatter!(t_half_samples[1,:],t_half_samples[2,:], legend = false)
 
 z1 = [ρ1(x, y) for y in y_range, x in x_range]
 p3 = contour(x_range, y_range, z1,
@@ -61,6 +83,7 @@ p3 = contour(x_range, y_range, z1,
     aspect_ratio=:equal,
     frame=:box
 )
+scatter!(t1_samples[1,:],t1_samples[2,:], legend = false)
 
 final_plot = plot(p1, p2, p3, 
     layout=(1, 3), 
@@ -70,4 +93,3 @@ final_plot = plot(p1, p2, p3,
 
 display(final_plot)
 savefig(final_plot, "normalizing_flow_contours.svg")
-
