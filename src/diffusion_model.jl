@@ -59,8 +59,7 @@ end
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
-Sets the values of `α` and `ᾱ` automatically for the user. A default 
-`denoiser_model` is created based on `num_inputs`.
+A default `denoiser_model` is created based on `num_inputs`.
 """
 function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}})
     T = length(β)
@@ -77,8 +76,7 @@ end
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
-Sets the values of `α` and `ᾱ` automatically for the user, using user specified 
-`denoiser_model`. This constructor initializes `β` with 
+This constructor initializes `β` with 
 `collect(range(β_start, β_end, length=T))`.
 """
 function DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames, FP}) where {LayerNames, FP<:AbstractFloat}
@@ -90,9 +88,8 @@ end
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
-Sets the values of `α` and `ᾱ` automatically for the user. A default 
-`denoiser_model` is created based on `num_inputs`. This constructor initializes 
-`β` with `collect(range(β_start, β_end, length=T))`.
+A default `denoiser_model` is created based on `num_inputs`. This constructor 
+initializes `β` with `collect(range(β_start, β_end, length=T))`.
 """
 function DiffusionModel(num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02) where {FP<:AbstractFloat}
     denoiser_model = default_denoiser_network(num_inputs, T, eltype(β_start))

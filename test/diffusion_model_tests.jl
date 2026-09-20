@@ -24,26 +24,6 @@ function randomize_tabular_denoiser!(denoiser::GenerativeModelProtocols.TabularD
     randomize_layer!(denoiser._ps[].output_projection)
 end
 
-function example_diffusion_model(; 
-    T::Union{Int64, Nothing} = nothing,
-    β::Union{Tuple{Vararg{Float32}}, Nothing} = nothing)
-
-    default_model = GenerativeModelProtocols.DiffusionModel(2, 30)
-
-    if isnothing(β)
-        β = default_model.β
-    end
-
-    if !isnothing(T)
-        default_model = GenerativeModelProtocols.DiffusionModel(2, T)
-    end
-
-    return GenerativeModelProtocols.DiffusionModel(;
-        β              = β,
-        denoiser_model = default_model.denoiser_model
-    )
-end
-
 function randomize_diffusion_model!(model::GenerativeModelProtocols.DiffusionModel)
     randomize_tabular_denoiser!(model.denoiser_model)
 end
@@ -53,8 +33,11 @@ end
         input_size = 3
         T = 30
 
-        model = GenerativeModelProtocols.DiffusionModel(input_size, T)
-        @test isa(model, GenerativeModelProtocols.DiffusionModel)
+        model1 = GenerativeModelProtocols.DiffusionModel(input_size, T)
+        model2 = GenerativeModelProtocols.DiffusionModel(input_size, model1.β)
+
+        @test isa(model1, GenerativeModelProtocols.DiffusionModel)
+        @test isa(model2, GenerativeModelProtocols.DiffusionModel)
     end
 
     @testset "Train Test" begin
@@ -70,11 +53,20 @@ end
     end
 
     @testset "Incompatible DiffusionModel Architecture Test" begin
-        default_dm = example_diffusion_model()
-        default_T = default_dm.denoiser_model.T
+        num_inputs = 2
+        default_T1 = 30
+        default_dm1 = GenerativeModelProtocols.DiffusionModel(num_inputs, default_T1)
 
+        default_T2 = default_T1 + 1
+        default_dm2 = GenerativeModelProtocols.DiffusionModel(num_inputs, default_T2)
+        
         # Test incompatible vector lengths
-        @test_throws Exception example_diffusion_model(; β = Tuple(rand(Float32, default_T + 1)))
+        @test_throws Exception GenerativeModelProtocols.DiffusionModel(;
+            β              = default_dm1.β,
+            denoiser_model = default_dm2.denoiser_model
+        )
+
+        @test_throws Exception GenerativeModelProtocols.DiffusionModel()
     end
 
     @testset "Make Synthetic Data Test" begin
@@ -86,11 +78,14 @@ end
     end
 
     @testset "Encode/Decode Test" begin
-        input_size = 3
+        input_dims = 3
         T = 30
 
-        model = GenerativeModelProtocols.DiffusionModel(input_size, T)
-        protocol = make_empty_data_prot(model, input_size)
+        model = GenerativeModelProtocols.DiffusionModel(input_dims, T)
+        protocol = make_empty_data_prot(model, input_dims)
+
+        # Test input and latent sizes
+        @test input_size(protocol) == latent_size(protocol)
 
         # Vector single call
         x = protocol()
@@ -113,7 +108,7 @@ end
 
         @test isa(x̂, Matrix)
         @test size(x) == size(x̂)
-        @test size(z) == (input_size, size(x,2))
+        @test size(z) == (input_dims, size(x,2))
     end
 
     @testset "Display Test" begin
@@ -136,7 +131,8 @@ end
         save_path = joinpath(@__DIR__(), "test_dm_model.h5")
         test_model_save(save_path, model, input_size)
         
-        loaded_model = GenerativeModelProtocols.DiffusionModel(save_path)
+        loaded_protocol = GenerativeModelProtocol(save_path)
+        loaded_model = loaded_protocol.model
         test_compare_models(model, loaded_model)
 
         model_β = loaded_model.β

@@ -1,54 +1,54 @@
+function test_compare_models(model_a::GenerativeModelProtocols.GenerativeAdversarialNetwork, model_b::GenerativeModelProtocols.GenerativeAdversarialNetwork)
+    @test compare_chains(model_a._ps_discriminator[].discriminator, model_b._ps_discriminator[].discriminator)
+    @test compare_tuple_chains(model_a.vae_model._ps[].encoders, model_b.vae_model._ps[].encoders)
+    @test compare_tuple_chains(model_a.vae_model._ps[].decoders, model_b.vae_model._ps[].decoders)
+end
+
+function randomize_generative_adversarial_network!(model::GenerativeModelProtocols.GenerativeAdversarialNetwork)
+    randomize_chain!(model._ps_discriminator[].discriminator)
+    randomize_chains!(model.vae_model._ps[].encoders)
+    randomize_chains!(model.vae_model._ps[].decoders)
+end
+
+function example_encoder(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
+    return Chain(
+        Dense(num_inputs => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => 2*latent_dim, activation_function)
+    )
+end
+
+function example_generator(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
+    return Chain(
+        Dense(latent_dim => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => num_inputs, activation_function)
+    )
+end
+
+function example_vae(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
+    encoder = example_encoder(num_inputs, latent_dim;
+        hidden_layer_size   = hidden_layer_size,
+        activation_function = activation_function
+    )
+
+    decoder = example_generator(num_inputs, latent_dim;
+        hidden_layer_size   = hidden_layer_size,
+        activation_function = activation_function
+    )
+
+    return GenerativeModelProtocols.VariationalAutoencoder((encoder,), (decoder,))
+end
+
+function example_critic(num_inputs::Int, output_size::Int = 1; hidden_layer_size::Int = 32, activation_function::Function = relu)
+    return Chain(
+        Dense(num_inputs => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => hidden_layer_size, activation_function),
+        Dense(hidden_layer_size => output_size, activation_function)
+    )
+end
+
 @testset "GenerativeAdversarialNetwork Tests" begin
-    function test_compare_models(model_a::GenerativeModelProtocols.GenerativeAdversarialNetwork, model_b::GenerativeModelProtocols.GenerativeAdversarialNetwork)
-        @test compare_chains(model_a._ps_discriminator[].discriminator, model_b._ps_discriminator[].discriminator)
-        @test compare_tuple_chains(model_a.vae_model._ps[].encoders, model_b.vae_model._ps[].encoders)
-        @test compare_tuple_chains(model_a.vae_model._ps[].decoders, model_b.vae_model._ps[].decoders)
-    end
-
-    function randomize_generative_adversarial_network!(model::GenerativeModelProtocols.GenerativeAdversarialNetwork)
-        randomize_chain!(model._ps_discriminator[].discriminator)
-        randomize_chains!(model.vae_model._ps[].encoders)
-        randomize_chains!(model.vae_model._ps[].decoders)
-    end
-
-    function example_encoder(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
-        return Chain(
-            Dense(num_inputs => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => 2*latent_dim, activation_function)
-        )
-    end
-
-    function example_generator(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
-        return Chain(
-            Dense(latent_dim => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => num_inputs, activation_function)
-        )
-    end
-
-    function example_vae(num_inputs::Int, latent_dim::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
-        encoder = example_encoder(num_inputs, latent_dim;
-            hidden_layer_size   = hidden_layer_size,
-            activation_function = activation_function
-        )
-
-        decoder = example_generator(num_inputs, latent_dim;
-            hidden_layer_size   = hidden_layer_size,
-            activation_function = activation_function
-        )
-
-        return GenerativeModelProtocols.VariationalAutoencoder((encoder,), (decoder,))
-    end
-
-    function example_critic(num_inputs::Int, output_size::Int = 1; hidden_layer_size::Int = 32, activation_function::Function = relu)
-        return Chain(
-            Dense(num_inputs => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => output_size, activation_function)
-        )
-    end
-
     @testset "Constructors Tests" begin
         input_size = 3
         latent_dim = 3
@@ -83,17 +83,21 @@
     end
 
     @testset "Incompatible GenerativeAdversarialNetwork Architecture Test" begin
-        GAN = GenerativeModelProtocols.GenerativeAdversarialNetwork
-
         # Test incompatible VAE input size
         discriminator = example_critic(1,1) 
         vae_model = example_vae(2,2)
-        @test_throws Exception GAN(discriminator, vae_model)
+        @test_throws Exception GenerativeModelProtocols.GenerativeAdversarialNetwork(;
+            discriminator = discriminator, 
+            vae_model     = vae_model
+        )
 
         # Test incompatible discriminator output size
         discriminator = example_critic(2,2) 
         vae_model = example_vae(2,2)
-        @test_throws Exception GAN(discriminator, vae_model)
+        @test_throws Exception GenerativeModelProtocols.GenerativeAdversarialNetwork(;
+            discriminator = discriminator, 
+            vae_model     = vae_model
+        )
     end
 
     @testset "Make Synthetic Data Test" begin
@@ -152,7 +156,8 @@
         save_path = joinpath(@__DIR__(), "test_gan_model.h5")
         test_model_save(save_path, model, input_size)
         
-        loaded_model = GenerativeModelProtocols.GenerativeAdversarialNetwork(save_path)
+        loaded_protocol = GenerativeModelProtocol(save_path)
+        loaded_model = loaded_protocol.model
         test_compare_models(model, loaded_model)
 
         remove_file(save_path)

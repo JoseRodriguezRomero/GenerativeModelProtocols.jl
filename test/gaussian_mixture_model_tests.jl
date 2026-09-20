@@ -94,11 +94,15 @@
 
     @testset "Make Synthetic Data Test" begin
         k = 15
-        input_size = 3
+        input_dims = 3
 
-        model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
-        test_model_make_synthetic_data(model, input_size)
-        test_model_make_categorical_synthetic_data(model, input_size)
+        model = GenerativeModelProtocols.GaussianMixtureModel(input_dims, k)
+        test_model_make_synthetic_data(model, input_dims)
+        test_model_make_categorical_synthetic_data(model, input_dims)
+
+        # Test input and latent size
+        protocol = make_empty_data_prot(model, input_dims)
+        @test input_size(protocol) != latent_size(protocol)
     end
 
     @testset "Categorize Test" begin
@@ -128,7 +132,8 @@
         save_path = joinpath(@__DIR__(), "test_gmm_model.h5")
         test_model_save(save_path, model, input_size)
         
-        loaded_model = GenerativeModelProtocols.GaussianMixtureModel(save_path)
+        loaded_protocol = GenerativeModelProtocol(save_path)
+        loaded_model = loaded_protocol.model
         test_compare_models(model, loaded_model)
 
         remove_file(save_path)

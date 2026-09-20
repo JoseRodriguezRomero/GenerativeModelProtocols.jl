@@ -93,7 +93,8 @@ end
         save_path = joinpath(@__DIR__(), "test_nf_model.h5")
         test_model_save(save_path, model, input_size)
         
-        loaded_model = GenerativeModelProtocols.NormalizingFlow(save_path)
+        loaded_protocol = GenerativeModelProtocol(save_path)
+        loaded_model = loaded_protocol.model
         test_compare_models(model, loaded_model)
 
         remove_file(save_path)
