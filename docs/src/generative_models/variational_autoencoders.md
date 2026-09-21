@@ -111,9 +111,9 @@ optimization challenges must be addressed:
   ignores the latent space entirely. To prevent this, a scaling hyperparameter 
   $\beta$ is introduced to weight the KL term [Higgins2017](@cite). While 
   $\beta = 1$ satisfies the strict mathematical derivation of the ELBO, $\beta$ 
-  is often dynamically scheduled (KL annealing) or tuned arbitrarily: $\beta < 
-  1$ prioritizes sharp reconstructions, whereas $\beta > 1$ enforces stricter 
-  latent independence at the expense of output detail.
+  is often dynamically scheduled (KL annealing) [Chunyuan2019](@cite) or tuned 
+  arbitrarily: $\beta < 1$ prioritizes sharp reconstructions, whereas $\beta > 
+  1$ enforces stricter latent independence at the expense of output detail.
 * __Hierarchical Latents__: A single layer of latent variables assumes a simple 
   flat distribution, which often lacks the mathematical flexibility to model 
   complex data distributions. To increase model capacity, Hierarchical VAEs 
