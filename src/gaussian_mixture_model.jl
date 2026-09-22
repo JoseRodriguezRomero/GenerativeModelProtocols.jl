@@ -174,6 +174,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     ps = protocol.precision(model._ps[]) |> protocol.device
     st = protocol.precision(model._st[]) |> protocol.device
 
+    protocol._log["Mean Log-Likelihood"] = zeros(T, protocol.epochs)
+
     function _compute_gaussian_kernels(μ, log_σ²)
         pred_out, _ = predictor(training_data_device, ps.predictor_network, st.predictor_network)
         π_network_all = softmax(pred_out, dims=1) 
@@ -253,13 +255,11 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
             _, opt_state = _train_step!((x_batch, γ_batch), opt_state)
         end
 
-        protocol._log.loss[epoch] = epoch_loss
+        mean_loss = T(-1.0) * epoch_loss
+        protocol._log["Mean Log-Likelihood"][epoch] = mean_loss
 
-        if epoch % 5 == 0 || epoch == 1
-            average_loss = protocol._log.loss[epoch]
-            if print_log
-                @printf("Epoch %8d | Negative Log-Likelihood: %16.8e \n", epoch, average_loss)
-            end
+        if print_log && (epoch % 5 == 0 || epoch == 1)
+            @printf("Epoch %8d | Mean Log-Likelihood: %16.8e \n", epoch, mean_loss)
         end
     end
     if print_log; println("Training complete!") end

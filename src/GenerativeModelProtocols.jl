@@ -18,11 +18,6 @@ export GenerativeModelProtocol, train!, categorize, encode, decode, input_size, 
 abstract type AbstractGenerativeModel end
 abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 
-@kwdef struct TrainingLog
-    loss::Vector{Float64} = Float64[]
-    loss_grad_norm::Vector{Float64} = Float64[]
-end
-
 function compatible_generative_protocol(
     training_data::Union{Matrix{F}, Nothing},
     var_training_data::Tuple{Vararg{F}}
@@ -124,7 +119,7 @@ $TYPEDFIELDS
     """Floating point precision to be used"""
     precision::Function = f32
     """Stores the time-series data generated while training the generative model."""
-    _log::TrainingLog = TrainingLog()
+    _log::Dict{String,Vector} = Dict{String,Vector}()
 
     function GenerativeModelProtocol(
     training_data::Union{Matrix, Nothing},
@@ -138,7 +133,7 @@ $TYPEDFIELDS
     device::Lux.MLDataDevices.AbstractDevice,
     model::M,
     precision::Function,
-    _log::TrainingLog,
+    _log::Dict{String,Vector},
     ) where {M<:AbstractGenerativeModel, O}
 
         if normalize_data && !compatible_generative_protocol(training_data, var_training_data)
@@ -242,16 +237,6 @@ macro _train!(protocol, model, print_log, kwargs...)
     :(_train!($(esc(protocol)), $(esc(model)); $(print_log = esc(print_log)), $(esc(kwargs...))))
 end
 
-function clean_logged_data!(log::Vector{Float64}, epochs::Int)
-    resize!(log, epochs)
-    log[:] .= Float64(0.0)
-end
-
-function clean_logged_data!(log::TrainingLog, epochs::Int)
-    clean_logged_data!(log.loss, epochs)
-    clean_logged_data!(log.loss_grad_norm, epochs)
-end
-
 """
     train!(protocol::GenerativeModelProtocol; kwargs...)
 
@@ -259,7 +244,7 @@ Method to train the model inside `protocol` with its `training_data`. This
 method can be called again after it finishes to resume training.
 """
 function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwargs...)
-    clean_logged_data!(protocol._log, protocol.epochs)
+    empty!(protocol._log)
 
     if isnothing(protocol.training_data) || isempty(protocol.training_data)
         throw(ArgumentError("No training data was loaded!"))

@@ -326,6 +326,8 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     training_data_device = protocol.training_data |> protocol.device
 
     loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
+
+    protocol._log["Mean ELBO"] = zeros(T, protocol.epochs)
     
     function _vae_train_step!(x, p_current, s_current, o_current)
         _objective = (p) -> _vae_elbo(encoders, decoders, β_device, latent_dim_device, num_latent_layers, size(x,2), x, p, s_current)
@@ -361,13 +363,11 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
             epoch_loss += elbo
         end
 
-        protocol._log.loss[epoch] = epoch_loss / length(loader)
+        mean_elbo = -epoch_loss / length(loader)
+        protocol._log["Mean ELBO"][epoch] = mean_elbo
 
-        if epoch % 5 == 0 || epoch == 1
-            average_loss = protocol._log.loss[epoch]
-            if print_log
-                @printf("Epoch %8d | Avg. ELBO: %16.8e \n", epoch, average_loss)
-            end
+        if print_log && (epoch % 5 == 0 || epoch == 1)
+            @printf("Epoch %8d | Avg. ELBO: %16.8e \n", epoch, mean_elbo)
         end
     end
     if print_log; println("Training complete!") end

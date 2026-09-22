@@ -245,6 +245,9 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     decoders = model.vae_model.decoders
     discriminator = model.discriminator
 
+    protocol._log["Mean Critic Loss"] = zeros(T, protocol.epochs)
+    protocol._log["Mean VAE Loss"] = zeros(T, protocol.epochs)
+
     opt_disc = nothing
     opt_vae_model = nothing
 
@@ -346,13 +349,13 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
             running_loss_vae += loss_vae
         end
 
-        protocol._log.loss[epoch] = running_loss_critic / length(loader)
-        protocol._log.loss_grad_norm[epoch] = running_loss_vae / length(loader)
+        avg_loss_critic = running_loss_critic / length(loader)
+        avg_loss_vae = running_loss_vae / length(loader)
+
+        protocol._log["Mean Critic Loss"][epoch] = avg_loss_critic
+        protocol._log["Mean VAE Loss"][epoch] = avg_loss_vae
         
-        if print_log && (epoch % 5 == 0 || epoch == 1)
-            avg_loss_critic = running_loss_critic / length(loader)
-            avg_loss_vae = running_loss_vae / length(loader)
-        
+        if print_log && (epoch % 5 == 0 || epoch == 1)    
             @printf("Epoch %5d", epoch)
             @printf(" | Avg. Critic Loss: %15.6E", avg_loss_critic)
             @printf(" | Avg. VAE Loss: %15.6E \n", avg_loss_vae)

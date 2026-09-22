@@ -164,6 +164,8 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
     ᾱ = cumprod(α)
     ᾱ_device = ᾱ |> protocol.device
 
+    protocol._log["Mean MSE"] = zeros(T, protocol.epochs)
+
     function _dm_train_step!(x, p_current, s_current, o_current)
         num_steps = denoiser_model.T
         batch_size = size(x, 2)
@@ -214,10 +216,11 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
             epoch_loss += loss
         end
 
-        protocol._log.loss[epoch] = epoch_loss / length(loader)
+        mean_loss = epoch_loss / length(loader)
+        protocol._log["Mean MSE"][epoch] = mean_loss
 
-        if (epoch % 5 == 0 || epoch == 1) && print_log
-            @printf("Epoch: %8d | Mean MSE Loss: %-15.8f \n", epoch, protocol._log.loss[epoch])
+        if print_log && (epoch % 5 == 0 || epoch == 1)
+            @printf("Epoch: %8d | Mean MSE Loss: %-15.8f \n", epoch, mean_loss)
         end
     end
     if print_log; println("Training complete!") end
