@@ -44,8 +44,8 @@ julia> save("file_name.h5", protocol)
 ```
 
 ```@raw html
-<div style="text-align: center; margin: 00px 0;">
-    <img src="../../assets/examples/save_load/hdfview_screenshot.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
+<div style="text-align: center; margin: 0px 0;">
+    <img src="../../../assets/examples/save_load/hdfview_screenshot.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
 </div>
 ```
 
