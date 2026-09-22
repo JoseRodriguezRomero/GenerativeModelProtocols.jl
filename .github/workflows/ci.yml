@@ -19,19 +19,19 @@ jobs:
           # Linux runner configurations
           - os: ubuntu-latest
             arch: x64
-            threads: '5'
+            threads: '4'
             julia-version: '1'
 
           # Windows runner configurations
           - os: windows-latest
             arch: x64
-            threads: '5'
+            threads: '4'
             julia-version: '1'
           
           # Native Apple Silicon configurations
           - os: macOS-latest
             arch: aarch64
-            threads: '5'
+            threads: '3'
             julia-version: '1'
     steps:
       - uses: actions/checkout@v7
