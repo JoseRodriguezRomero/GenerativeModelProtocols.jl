@@ -1,32 +1,4 @@
-function test_compare_tabular_denoiser(denoiser_a::GenerativeModelProtocols.TabularDenoiser, denoiser_b::GenerativeModelProtocols.TabularDenoiser)
-    ϵ = 1.0E-9
-
-    @test compare_chains(denoiser_a._ps[].time_embedding_mlp, denoiser_b._ps[].time_embedding_mlp)
-    @test compare_layers(denoiser_a._ps[].input_projection, denoiser_b._ps[].input_projection)
-    @test compare_tuple_layers(denoiser_a._ps[].residual_layers, denoiser_b._ps[].residual_layers)
-    @test compare_tuple_layers(denoiser_a._ps[].time_projection_layers, denoiser_b._ps[].time_projection_layers)
-    @test compare_layers(denoiser_a._ps[].output_projection, denoiser_b._ps[].output_projection)
-    @test abs(denoiser_a.max_period - denoiser_b.max_period) < ϵ
-end
-
-function test_compare_models(model_a::GenerativeModelProtocols.DiffusionModel, model_b::GenerativeModelProtocols.DiffusionModel)
-    ϵ = 1.0E-9
-
-    @test maximum(collect(model_a.β) - collect(model_b.β)) < ϵ
-    test_compare_tabular_denoiser(model_a.denoiser_model, model_b.denoiser_model)
-end
-
-function randomize_tabular_denoiser!(denoiser::GenerativeModelProtocols.TabularDenoiser)
-    randomize_chain!(denoiser._ps[].time_embedding_mlp)
-    randomize_layer!(denoiser._ps[].input_projection)
-    randomize_layers!(denoiser._ps[].residual_layers)
-    randomize_layers!(denoiser._ps[].time_projection_layers)
-    randomize_layer!(denoiser._ps[].output_projection)
-end
-
-function randomize_diffusion_model!(model::GenerativeModelProtocols.DiffusionModel)
-    randomize_tabular_denoiser!(model.denoiser_model)
-end
+include("utility_utils/tests_base_utils.jl")
 
 @testset "DiffusionModel Tests" begin
     @testset "Constructors Tests" begin

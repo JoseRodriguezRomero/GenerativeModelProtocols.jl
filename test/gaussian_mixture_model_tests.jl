@@ -1,52 +1,6 @@
+include("utility_utils/tests_base_utils.jl")
+
 @testset "GaussianMixtureModel Tests" begin
-    function test_compare_models(model_a::GenerativeModelProtocols.GaussianMixtureModel, model_b::GenerativeModelProtocols.GaussianMixtureModel)
-        ϵ = 1.0E-8
-        
-        @test maximum(abs.(model_a.log_σ² - model_b.log_σ²)) < ϵ
-        @test maximum(abs.(model_a.μ - model_b.μ)) < ϵ
-        @test compare_chains(model_a._ps[].predictor_network, model_b._ps[].predictor_network)
-        @test maximum(abs.(model_a.p - model_b.p)) < ϵ
-    end
-
-    function example_chain(input_size::Int, output_size::Int; hidden_layer_size::Int = 16, activation_function::Function = relu)
-        return Chain(
-            Dense(input_size => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => output_size),
-        )
-    end
-
-    function example_gmm(k::Int, input_size::Int; 
-        log_σ²::Union{Matrix{Float32}, Nothing} = nothing, 
-        μ::Union{Matrix{Float32}, Nothing} = nothing, 
-        predictor_network::Union{Chain, Nothing} = nothing,
-        p::Union{Vector{Float32}, Nothing} = nothing)
-
-        if isnothing(log_σ²)
-            log_σ² = rand(Float32, k, input_size)
-        end
-
-        if isnothing(μ)
-            μ = rand(Float32, k, input_size)
-        end
-
-        if isnothing(predictor_network)
-            predictor_network = example_chain(input_size, k)
-        end
-
-        if isnothing(p)
-            p = rand(Float32, k)
-        end
-
-        return GenerativeModelProtocols.GaussianMixtureModel(;
-            log_σ²              = log_σ²,
-            μ                   = μ,
-            predictor_network   = predictor_network,
-            p                   = p
-        )
-    end
-
     @testset "Constructors Tests" begin
         k = 15
         input_size = 3

@@ -1,10 +1,4 @@
-function randomize_normalizing_flow!(model::GenerativeModelProtocols.NormalizingFlow)
-    randomize_chain!(model._ps[].velocity_field)
-end
-
-function test_compare_models(model_a::GenerativeModelProtocols.NormalizingFlow, model_b::GenerativeModelProtocols.NormalizingFlow)
-    @test compare_chains(model_a._ps[].velocity_field, model_b._ps[].velocity_field)
-end
+include("utility_utils/tests_base_utils.jl")
 
 @testset "NormalizingFlow Tests" begin
     @testset "Constructors Tests" begin

@@ -1,44 +1,6 @@
+include("utility_utils/tests_base_utils.jl")
+
 @testset "VariationalAutoencoder Tests" begin
-    function test_compare_models(model_a::GenerativeModelProtocols.VariationalAutoencoder, model_b::GenerativeModelProtocols.VariationalAutoencoder)
-        @test compare_tuple_chains(model_a._ps[].encoders, model_b._ps[].encoders)
-        @test compare_tuple_chains(model_a._ps[].decoders, model_b._ps[].decoders)
-    end
-
-    function randomize_variational_autoencoder!(model::GenerativeModelProtocols.VariationalAutoencoder)
-        randomize_chains!(model._ps[].encoders)
-        randomize_chains!(model._ps[].decoders)
-    end
-
-    function example_encoder(num_inputs::Int, latent_dim::Int, latent_layers::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
-        first_layer = Chain(
-            Dense(num_inputs => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => 2*latent_dim)
-        )
-
-        lower_layer = Chain(
-            Dense(latent_dim => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => 2*latent_dim)
-        )
-
-        lower_layers = [lower_layer for _ in 1:(latent_layers-1)]
-        return Tuple(vcat([first_layer], lower_layers))
-    end
-
-    function example_decoder(num_inputs::Int, latent_dim::Int, latent_layers::Int; hidden_layer_size::Int = 32, activation_function::Function = relu)
-        first_layer = Chain(
-            Dense(latent_dim => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => num_inputs)
-        )
-
-        lower_layer = Chain(
-            Dense(latent_dim => hidden_layer_size, activation_function),
-            Dense(hidden_layer_size => 2*latent_dim)
-        )
-
-        lower_layers = [lower_layer for _ in 1:(latent_layers-1)]
-        return Tuple(vcat([first_layer], lower_layers))
-    end
-
     @testset "Constructors Tests" begin
         input_size = 3
         latent_dim = 3

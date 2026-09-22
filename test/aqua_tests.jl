@@ -1,5 +1,7 @@
 using Aqua
 
+using GenerativeModelProtocols
+
 @testset "Aqua.jl" begin
     Aqua.test_all(
     GenerativeModelProtocols;

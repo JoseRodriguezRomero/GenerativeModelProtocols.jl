@@ -2,6 +2,8 @@
 [![docs](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/documentation.yml/badge.svg)](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/documentation.yml)
 [![codecov](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl/graph/badge.svg?token=3I64XP0CQ2)](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl)
 
+[![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+
 # GenerativeModelProtocols.jl
 
 A unified Julia framework for building, training, and deploying generative 
