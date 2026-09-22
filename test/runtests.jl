@@ -217,6 +217,8 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
     @test check_file_size(save_path)
 end
 
+include("aqua_tests.jl")
+
 include("diffusion_model_tests.jl")
 include("normalizing_flow_tests.jl")
 include("gaussian_mixture_model_tests.jl")

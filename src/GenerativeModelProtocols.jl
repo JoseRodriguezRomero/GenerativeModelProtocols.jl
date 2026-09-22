@@ -11,7 +11,6 @@ using LinearAlgebra
 using DocStringExtensions
 
 using Compat: @compat
-using EnzymeCore
 
 export GenerativeModelProtocol, train!, categorize, encode, decode, input_size, latent_size
 
@@ -19,9 +18,9 @@ abstract type AbstractGenerativeModel end
 abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 
 function compatible_generative_protocol(
-    training_data::Union{Matrix{F}, Nothing},
-    var_training_data::Tuple{Vararg{F}}
-    ) where {F<:AbstractFloat}
+    training_data::Union{Matrix{<:AbstractFloat}, Nothing},
+    var_training_data::Tuple{Vararg{AbstractFloat}}
+    )
 
     ϵ = 1.0E-9
     if !isnothing(training_data)
@@ -95,7 +94,7 @@ changed by setting `device` to a GPU device of preference.
 
 $TYPEDFIELDS
 """
-@kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel, O}
+@kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
     """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
     training_data::Union{Matrix, Nothing} = nothing
     """Mean of the raw (unshifted and unscaled) training data."""
@@ -111,7 +110,7 @@ $TYPEDFIELDS
     """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
     normalize_data::Bool = true
     """Optimizer used to train the generative model."""
-    optimiser::Union{O, Tuple{Vararg{O}}} = Adam(0.01)
+    optimiser::Union{Any, Tuple} = Adam(0.01)
     """Hardware device (CPU or GPU) on which to perform training and inference."""
     device::Lux.MLDataDevices.AbstractDevice = cpu_device()
     """Generative model architecture to be used."""
@@ -129,12 +128,12 @@ $TYPEDFIELDS
     batchsize::Int,
     shuffle::Bool,
     normalize_data::Bool,
-    optimiser::Union{O, Tuple{Vararg{O}}},
+    optimiser::Union{Any, Tuple},
     device::Lux.MLDataDevices.AbstractDevice,
     model::M,
     precision::Function,
     _log::Dict{String,Vector},
-    ) where {M<:AbstractGenerativeModel, O}
+    ) where {M<:AbstractGenerativeModel}
 
         if normalize_data && !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
@@ -152,13 +151,12 @@ $TYPEDFIELDS
         model = _cast_to_precision(precision, model)
 
         M_c = typeof(model)
-        O_c = typeof(optimiser)
 
-        return new{M_c,O_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, normalize_data, optimiser, device, model, precision, _log)
+        return new{M_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, normalize_data, optimiser, device, model, precision, _log)
     end
 end
 
-GenerativeModelProtocol{M,O}(args...; kwargs...) where {M<:AbstractGenerativeModel, O} = GenerativeModelProtocol(args...; kwargs...)
+GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel} = GenerativeModelProtocol(args...; kwargs...)
 
 """
     GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
@@ -166,7 +164,7 @@ GenerativeModelProtocol{M,O}(args...; kwargs...) where {M<:AbstractGenerativeMod
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel, O}
+function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
     copy_training_data = copy(training_data)
 
     mean_training_data = mean(copy_training_data, dims = 2)

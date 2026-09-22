@@ -69,9 +69,9 @@ function _vae_default_decoder_network(num_inputs::Int, latent_dim::Int, latent_l
 end
 
 function compatible_vae_model(
-    encoders::NamedTuple{EncNames, NTuple{N, C}}, 
-    decoders::NamedTuple{DecNames, NTuple{N, C}}
-    ) where {EncNames, DecNames, N, C}
+    encoders::NamedTuple{EncNames, Tuple}, 
+    decoders::NamedTuple{DecNames, Tuple}
+    ) where {EncNames, DecNames}
 
     if _is_empty_state_tree(encoders) || _is_empty_state_tree(decoders)
         return true

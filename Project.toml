@@ -29,3 +29,22 @@ GenerativeModelProtocols_HDF5 = ["FileIO", "HDF5"]
 GenerativeModelProtocols_Reactant = ["Reactant"]
 GenerativeModelProtocols_DifferentialEquations = ["DifferentialEquations"]
 
+[compat]
+julia = "1.13"
+Compat = "4"
+DocStringExtensions = "0.9"
+Enzyme = "0.13"
+LinearAlgebra = "1"
+Lux = "1"
+MLUtils = "0.4"
+Optimisers = "0.4"
+Printf = "1"
+Random = "1"
+StatsBase = "0.34"
+
+# Weakdeps / Extensions:
+DifferentialEquations = "8"
+FileIO = "1"
+HDF5 = "0.17"
+Reactant = "0.2"
+
