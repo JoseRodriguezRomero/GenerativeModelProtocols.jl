@@ -34,20 +34,20 @@ $TYPEDFIELDS
     """Neural network parametrizing the velocity field as a function of time."""
     velocity_field::Chain
     """Trained parameters of the model. Users should not use this directly."""
-    _ps::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _ps::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
     """Trained state of the model. Users should not use this directly."""
-    _st::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _st::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
     
-    function NormalizingFlow(velocity_field::Chain, _ps::Union{Ref{<:NamedTuple}, Nothing}, _st::Union{Ref{<:NamedTuple}, Nothing})
+    function NormalizingFlow(velocity_field::Chain, _ps::Ref{<:NamedTuple}, _st::Ref{<:NamedTuple})
         if !compatible_nf_model(velocity_field)
             @error "Incompatible NormalizingFlow architecture!"
             throw(MethodError(NormalizingFlow, (velocity_field)))
         end
 
-        if isnothing(_ps) && isnothing(_st)
+        if isempty(_ps[]) || isempty(_st[])
             _ps_val, _st_val = Lux.setup(Random.default_rng(), (velocity_field = velocity_field,))
-            _ps = Ref{NamedTuple}(_ps_val)
-            _st = Ref{NamedTuple}(_st_val)
+            _ps[] = _ps_val
+            _st[] = _st_val
         end
 
         return new(velocity_field, _ps, _st)

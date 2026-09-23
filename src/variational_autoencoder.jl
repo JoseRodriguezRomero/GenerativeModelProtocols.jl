@@ -114,30 +114,32 @@ $TYPEDFIELDS
     """Decoder chain of the VAE, responsible for generating time-series data from the latent representation."""
     decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{Chain}}}
     """Trained parameters of the model. Users should not use this directly."""
-    _ps::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _ps::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
     """Trained state of the model. Users should not use this directly."""
-    _st::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _st::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
 
     function VariationalAutoencoder(
         encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{Chain}}}, 
         decoders::NamedTuple{DecLayerNames, <:Tuple{Vararg{Chain}}},
-        _ps::Union{Ref{<:NamedTuple}, Nothing},
-        _st::Union{Ref{<:NamedTuple}, Nothing}
+        _ps::Ref{<:NamedTuple},
+        _st::Ref{<:NamedTuple}
         ) where {EncLayerNames, DecLayerNames}
         if !compatible_vae_model(encoders, decoders)
             @error "Incompatible VariationalAutoencoder architecture!"
             throw(MethodError(VariationalAutoencoder, (encoders, decoders)))
         end
 
-        if isnothing(_ps) && isnothing(_st)
+        if isempty(_ps[]) || isempty(_st[])
             _ps_val, _st_val = Lux.setup(Random.default_rng(), (encoders = encoders, decoders = decoders))
-            _ps = Ref{NamedTuple}(_ps_val)
-            _st = Ref{NamedTuple}(_st_val)
+            _ps[] = _ps_val
+            _st[] = _st_val
         end
 
         return new{EncLayerNames,DecLayerNames}(encoders, decoders, _ps, _st)
     end
 end
+
+VariationalAutoencoder{EncLayerNames, DecLayerNames}(args...; kwargs...) where {EncLayerNames, DecLayerNames} = VariationalAutoencoder(args...; kwargs...)
 
 """
     GenerativeModelProtocols.VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})

@@ -61,6 +61,7 @@ function compatible_neural_networks(networks::NamedTuple{Names, <:NTuple{N, Any}
             return false
         end
     end
+
     return true
 end
 
@@ -81,7 +82,10 @@ function compatible_neural_network(network::NamedTuple)
                 return false
             end
         end
+
         return true
     end
+
+    return false
 end
 

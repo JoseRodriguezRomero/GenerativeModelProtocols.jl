@@ -3,6 +3,7 @@
 [![codecov](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl/graph/badge.svg?token=3I64XP0CQ2)](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl)
 
 [![Aqua QA](https://juliatesting.github.io/Aqua.jl/dev/assets/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
 
 # GenerativeModelProtocols.jl
 

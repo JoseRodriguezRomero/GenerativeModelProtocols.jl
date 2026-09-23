@@ -57,17 +57,17 @@ $TYPEDFIELDS
     """Vector containing the categorical probabilities of each cluster."""
     p::Vector{F}
     """Trained parameters of the predictor model. Users should not use directly use this."""
-    _ps::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _ps::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
     """Trained state of the predictor model. Users should not use directly use this."""
-    _st::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _st::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
 
     function GaussianMixtureModel(
         log_σ²::Matrix{F}, 
         μ::Matrix{F}, 
         predictor_network::Chain, 
         p::Vector{F},
-        _ps::Union{Ref{<:NamedTuple}, Nothing},
-        _st::Union{Ref{<:NamedTuple}, Nothing}
+        _ps::Ref{<:NamedTuple},
+        _st::Ref{<:NamedTuple}
         ) where {F<:AbstractFloat}
 
         if !compatible_gmm_model(log_σ², μ, predictor_network, p)
@@ -75,15 +75,17 @@ $TYPEDFIELDS
             throw(MethodError(GaussianMixtureModel, (log_σ², μ, predictor_network, p)))
         end
 
-        if isnothing(_ps) && isnothing(_st)
+        if isempty(_ps[]) || isempty(_st[])
             _ps_val, _st_val = Lux.setup(Random.default_rng(), (predictor_network = predictor_network,))
-            _ps = Ref{NamedTuple}(_ps_val)
-            _st = Ref{NamedTuple}(_st_val)
+            _ps[] = _ps_val
+            _st[] = _st_val
         end
 
         return new{F}(log_σ², μ, predictor_network, p, _ps, _st)
     end
 end
+
+GaussianMixtureModel{F}(args...; kwargs...) where {F<:AbstractFloat} = GaussianMixtureModel(args...; kwargs...)
 
 """
     GenerativeModelProtocols.GaussianMixtureModel(input_size::Int, k::Int)

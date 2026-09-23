@@ -20,18 +20,21 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             threads: '4'
+            num-jobs: 4
             julia-version: '1'
 
           # Windows runner configurations
           - os: windows-latest
             arch: x64
             threads: '4'
+            num-jobs: 2
             julia-version: '1'
           
           # Native Apple Silicon configurations
           - os: macOS-latest
             arch: aarch64
             threads: '3'
+            num-jobs: 3
             julia-version: '1'
     steps:
       - uses: actions/checkout@v7
@@ -62,7 +65,7 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         env:
           JULIA_NUM_THREADS: ${{ matrix.threads }}
-          PTR_NUM_JOBS: ${{ matrix.threads }}
+          PTR_NUM_JOBS: ${{ matrix.num-jobs }}
         with:
           coverage: true
 

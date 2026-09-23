@@ -9,8 +9,8 @@ function compatible_tabular_denoiser(
     residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}},
     time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}, 
     output_projection::Dense,
-    max_period::F
-    ) where {LayerNames, F<:AbstractFloat}
+    max_period::AbstractFloat
+    ) where {LayerNames}
 
     if max_period ≤ 0
         return false
@@ -69,7 +69,7 @@ models.latent_dim, latent_layers, encoders, decoders
 
 $TYPEDFIELDS
 """
-@kwdef struct TabularDenoiser{LayerNames, F<:AbstractFloat}
+@kwdef struct TabularDenoiser{LayerNames}
     """Total number of discrete time steps in the forward noising process and reverse denoising timeline."""
     T::Int
     """Multi-layer perceptron that maps static sinusoidal time frequencies into a globally shared learned temporal context vector."""
@@ -83,11 +83,11 @@ $TYPEDFIELDS
     """Exit layer that projects final hidden features out of the residual block loop back to the original data dimensions to output the noise prediction."""
     output_projection::Dense
     """Constant that sets the maximum periodic scale for the base sinusoidal time step calculation."""
-    max_period::F = F(@tabular_denoiser_default_max_period)
+    max_period::AbstractFloat = @tabular_denoiser_default_max_period
     """Trained parameters of the tabular denoiser. Users should not use directly use this."""
-    _ps::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _ps::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
     """Trained state of the tabular denoiser. Users should not use directly use this."""
-    _st::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _st::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
 
     function TabularDenoiser(
     T::Int, 
@@ -96,17 +96,17 @@ $TYPEDFIELDS
     residual_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}},
     time_projection_layers::NamedTuple{LayerNames, <:Tuple{Vararg{Dense}}}, 
     output_projection::Dense,
-    max_period::F,
-    _ps::Union{Ref{<:NamedTuple}, Nothing},
-    _st::Union{Ref{<:NamedTuple}, Nothing}
-    ) where {LayerNames, F<:AbstractFloat}
+    max_period::AbstractFloat,
+    _ps::Ref{<:NamedTuple},
+    _st::Ref{<:NamedTuple}
+    ) where LayerNames
 
         if !compatible_tabular_denoiser(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)
             @error "Incompatible TabularDenoiser architecture!"
             throw(MethodError(TabularDenoiser, (T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period)))
         end
 
-        if isnothing(_ps) && isnothing(_st)
+        if isempty(_ps[]) || isempty(_st[])
             _ps_val, _st_val = Lux.setup(Random.default_rng(), (
                 time_embedding_mlp     = time_embedding_mlp, 
                 input_projection       = input_projection, 
@@ -115,13 +115,15 @@ $TYPEDFIELDS
                 output_projection      = output_projection)
             )
 
-            _ps = Ref{NamedTuple}(_ps_val)
-            _st = Ref{NamedTuple}(_st_val)
+            _ps[] = _ps_val
+            _st[] = _st_val
         end
 
-        return new{LayerNames, F}(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period, _ps, _st)
+        return new{LayerNames}(T, time_embedding_mlp, input_projection, residual_layers, time_projection_layers, output_projection, max_period, _ps, _st)
     end
 end
+
+TabularDenoiser{LayerNames}(args...; kwargs...) where LayerNames = TabularDenoiser(args...; kwargs...)
 
 """
     GenerativeModelProtocols.TabularDenoiser(num_inputs::Int; hidden_layer_size::Int = 64, T::Int = 32, activation_function::Function = relu, max_period::Float64 = 10000.0)
@@ -133,8 +135,8 @@ function TabularDenoiser(num_inputs::Int;
     hidden_layer_size::Int = 64, 
     T::Int = 32, 
     activation_function::Function = swish,
-    max_period::FP = @tabular_denoiser_default_max_period
-    ) where {FP<:AbstractFloat}
+    max_period::AbstractFloat = @tabular_denoiser_default_max_period
+    )
 
     function dense(in_size::Int, out_size::Int, activation::Function = identity)
         return Dense(in_size => out_size, activation; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32)
@@ -236,6 +238,53 @@ function compute_sinusoidal_frequencies(t, T::Int, max_period::AbstractFloat)
     return vcat(sin_components, cos_components)[1:T,:]
 end
 
+# function _eval(m::TabularDenoiser, x, t, ps, st)
+#     static_time_features = compute_sinusoidal_frequencies(t, m.T, m.max_period)
+    
+#     learned_time_context, new_time_st = m.time_embedding_mlp(static_time_features, ps.time_embedding_mlp, st.time_embedding_mlp)
+#     hidden_features, new_input_st = m.input_projection(x, ps.input_projection, st.input_projection)
+    
+#     N = length(m.residual_layers)
+#     layer_keys = keys(m.residual_layers)
+
+#     function step_layer(i, current_hidden)
+#         feature_layer = m.residual_layers[i]
+#         time_layer = m.time_projection_layers[i]
+
+#         feature_layer_ps = ps.residual_layers[i]
+#         feature_layer_st = st.residual_layers[i]
+
+#         time_layer_ps = ps.time_projection_layers[i]
+#         time_layer_st = st.time_projection_layers[i]
+
+#         transformed_features, new_feat_st = feature_layer(current_hidden, feature_layer_ps, feature_layer_st)
+#         time_bias_shift, new_time_proj_st = time_layer(learned_time_context, time_layer_ps, time_layer_st)
+
+#         next_hidden = transformed_features .+ time_bias_shift .+ current_hidden
+#         return next_hidden, new_feat_st, new_time_proj_st
+#     end
+
+#     final_hidden = hidden_features
+
+#     outputs = ntuple(N) do i
+#         next_hidden, feat_st, time_st = step_layer(i, final_hidden)
+#         final_hidden = next_hidden
+#         return (feat_st, time_st)
+#     end
+
+#     out_features, new_out_st = m.output_projection(final_hidden, ps.output_projection, st.output_projection)
+
+#     updated_st = (
+#         time_embedding_mlp     = new_time_st,
+#         input_projection       = new_input_st,
+#         residual_layers        = NamedTuple{layer_keys}(ntuple(i -> outputs[i][1], N)),
+#         time_projection_layers = NamedTuple{layer_keys}(ntuple(i -> outputs[i][2], N)),
+#         output_projection      = new_out_st
+#     )
+    
+#     return out_features, updated_st
+# end
+
 function _eval(m::TabularDenoiser, x, t, ps, st)
     static_time_features = compute_sinusoidal_frequencies(t, m.T, m.max_period)
     
@@ -262,21 +311,24 @@ function _eval(m::TabularDenoiser, x, t, ps, st)
         return next_hidden, new_feat_st, new_time_proj_st
     end
 
-    final_hidden = hidden_features
+    feat_states = Vector{Any}(undef, N)
+    time_states = Vector{Any}(undef, N)
 
-    outputs = ntuple(N) do i
-        next_hidden, feat_st, time_st = step_layer(i, final_hidden)
-        final_hidden = next_hidden
-        return (feat_st, time_st)
+    current_hidden = hidden_features
+    for i in 1:N
+        next_hidden, feat_st, time_st = step_layer(i, current_hidden)
+        feat_states[i] = feat_st
+        time_states[i] = time_st
+        current_hidden = next_hidden
     end
 
-    out_features, new_out_st = m.output_projection(final_hidden, ps.output_projection, st.output_projection)
+    out_features, new_out_st = m.output_projection(current_hidden, ps.output_projection, st.output_projection)
 
     updated_st = (
         time_embedding_mlp     = new_time_st,
         input_projection       = new_input_st,
-        residual_layers        = NamedTuple{layer_keys}(ntuple(i -> outputs[i][1], N)),
-        time_projection_layers = NamedTuple{layer_keys}(ntuple(i -> outputs[i][2], N)),
+        residual_layers        = NamedTuple{layer_keys}(Tuple(feat_states)),
+        time_projection_layers = NamedTuple{layer_keys}(Tuple(time_states)),
         output_projection      = new_out_st
     )
     

@@ -49,15 +49,15 @@ $TYPEDFIELDS
     """Variational Autoencoder for encoding and decoding."""
     vae_model::VariationalAutoencoder
     """Trained parameters of the discriminator model. Users should not use directly use this."""
-    _ps_discriminator::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _ps_discriminator::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
     """Trained state of the discriminator model. Users should not use directly use this."""
-    _st_discriminator::Union{Ref{<:NamedTuple}, Nothing} = nothing
+    _st_discriminator::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
 
     function GenerativeAdversarialNetwork(
     discriminator::Chain, 
     vae_model::VariationalAutoencoder,
-    _ps_discriminator::Union{Ref{<:NamedTuple}, Nothing},
-    _st_discriminator::Union{Ref{<:NamedTuple}, Nothing}
+    _ps_discriminator::Ref{<:NamedTuple},
+    _st_discriminator::Ref{<:NamedTuple}
     )
 
         if !compatible_gan_model(discriminator, vae_model)
@@ -65,10 +65,10 @@ $TYPEDFIELDS
             throw(MethodError(GenerativeAdversarialNetwork, (discriminator, vae_model)))
         end
 
-        if isnothing(_ps_discriminator) && isnothing(_st_discriminator)
+        if isempty(_ps_discriminator[]) || isempty(_st_discriminator[])
             _ps_discriminator_val, _st_discriminator_val = Lux.setup(Random.default_rng(), (discriminator = discriminator,))
-            _ps_discriminator = Ref{NamedTuple}(_ps_discriminator_val)
-            _st_discriminator = Ref{NamedTuple}(_st_discriminator_val)
+            _ps_discriminator[] = _ps_discriminator_val
+            _st_discriminator[] = _st_discriminator_val
         end
 
         return new(discriminator, vae_model, _ps_discriminator, _st_discriminator)
