@@ -1,6 +1,7 @@
 [deps]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
 GenerativeModelProtocols = "a0057f27-f638-4fe0-93cd-51391adb8eb4"
+JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"

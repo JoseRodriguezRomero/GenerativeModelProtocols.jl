@@ -18,7 +18,7 @@ function default_denoiser_network(
     )
 end
 
-function compatible_dm_model(β::Tuple{Vararg{<:AbstractFloat}}, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames}
+function compatible_dm_model(β::Tuple{Vararg{AbstractFloat}}, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames}
     if length(β) != denoiser_model.T
         return false
     end
@@ -39,12 +39,12 @@ $TYPEDFIELDS
 """
 @kwdef struct DiffusionModel{LayerNames} <: AbstractGenerativeModel
     """Variance of the Gaussian noise added in each diffusion step."""
-    β::Tuple{Vararg{<:AbstractFloat}}
+    β::Tuple{Vararg{AbstractFloat}}
     """Neural network parametrizing the denoising model, that is, a model that probabilisitically undoes the Gaussian noise."""
     denoiser_model::TabularDenoiser{LayerNames}
     """Number of training epochs for the VAE."""
 
-    function DiffusionModel(β::Tuple{Vararg{<:AbstractFloat}}, denoiser_model::TabularDenoiser{LayerNames}) where LayerNames
+    function DiffusionModel(β::Tuple{Vararg{AbstractFloat}}, denoiser_model::TabularDenoiser{LayerNames}) where LayerNames
         if !compatible_dm_model(β, denoiser_model)
             @error "Incompatible DiffusionModel architecture!"
             throw(MethodError(DiffusionModel, (β, denoiser_model)))
@@ -63,7 +63,7 @@ Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
 A default `denoiser_model` is created based on `num_inputs`.
 """
-function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{<:AbstractFloat}})
+function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}})
     T = length(β)
     denoiser_model = default_denoiser_network(num_inputs, T, eltype(β))
     return DiffusionModel(β, denoiser_model)
