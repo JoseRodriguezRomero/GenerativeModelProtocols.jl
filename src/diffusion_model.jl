@@ -74,7 +74,7 @@ function _generative_model(::DiffusionModel)::GenerativeModel
 end
 
 """
-    GenerativeModelProtocols.DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames, FP}) where {LayerNames, FP<:AbstractFloat}
+    GenerativeModelProtocols.DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames, FP<:AbstractFloat}
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
