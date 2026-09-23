@@ -1,4 +1,4 @@
-module GenerativeModelProtocols_HDF5
+module GenerativeModelProtocolsHDF5Ext
 
 using Lux
 
@@ -125,14 +125,14 @@ function read_group_chain_parameters(chain_group)
 end
 
 # Auxiliary scripts
-include("tabular_denoiser_HDF5.jl")
+include("tabular_denoiser_HDF5Ext.jl")
 
 # Generative models
-include("diffusion_model_HDF5.jl")
-include("normalizing_flow_HDF5.jl")
-include("gaussian_mixture_model_HDF5.jl")
-include("variational_autoencoder_HDF5.jl")
-include("generative_adversarial_network_HDF5.jl")
+include("diffusion_model_HDF5Ext.jl")
+include("normalizing_flow_HDF5Ext.jl")
+include("gaussian_mixture_model_HDF5Ext.jl")
+include("variational_autoencoder_HDF5Ext.jl")
+include("generative_adversarial_network_HDF5Ext.jl")
 
 end
 

@@ -22,10 +22,10 @@ HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
 Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 
 [extensions]
-GenerativeModelProtocols_FileIO = ["FileIO"]
-GenerativeModelProtocols_HDF5 = ["FileIO", "HDF5"]
-GenerativeModelProtocols_Reactant = ["Reactant"]
-GenerativeModelProtocols_DifferentialEquations = ["DifferentialEquations"]
+GenerativeModelProtocolsFileIOExt = ["FileIO"]
+GenerativeModelProtocolsHDF5Ext = ["FileIO", "HDF5"]
+GenerativeModelProtocolsReactantExt = ["Reactant"]
+GenerativeModelProtocolsDifferentialEquationsExt = ["DifferentialEquations"]
 
 [compat]
 julia = "1.13"

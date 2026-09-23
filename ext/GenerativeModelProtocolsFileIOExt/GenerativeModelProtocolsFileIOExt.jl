@@ -1,4 +1,4 @@
-module GenerativeModelProtocols_FileIO
+module GenerativeModelProtocolsFileIOExt
 
 import GenerativeModelProtocols
 import FileIO
@@ -56,14 +56,14 @@ function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.Gener
 end
 
 # Auxiliary scripts
-include("tabular_denoiser_FileIO.jl")
+include("tabular_denoiser_FileIOExt.jl")
 
 # Generative models
-include("diffusion_model_FileIO.jl")
-include("normalizing_flow_FileIO.jl")
-include("gaussian_mixture_model_FileIO.jl")
-include("variational_autoencoder_FileIO.jl")
-include("generative_adversarial_network_FileIO.jl")
+include("diffusion_model_FileIOExt.jl")
+include("normalizing_flow_FileIOExt.jl")
+include("gaussian_mixture_model_FileIOExt.jl")
+include("variational_autoencoder_FileIOExt.jl")
+include("generative_adversarial_network_FileIOExt.jl")
 
 end
 

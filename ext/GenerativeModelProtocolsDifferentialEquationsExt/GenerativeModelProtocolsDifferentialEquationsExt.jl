@@ -1,0 +1,9 @@
+module GenerativeModelProtocolsDifferentialEquationsExt
+
+import GenerativeModelProtocols
+using DifferentialEquations
+
+include("normalizing_flow_DifferentialEquationsExt.jl")
+
+end
+

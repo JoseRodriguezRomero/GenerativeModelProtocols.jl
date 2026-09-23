@@ -1,4 +1,4 @@
-module GenerativeModelProtocols_Reactant
+module GenerativeModelProtocolsReactantExt
 
 import GenerativeModelProtocols
 import Lux

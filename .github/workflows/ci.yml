@@ -20,7 +20,7 @@ jobs:
           - os: ubuntu-latest
             arch: x64
             threads: '4'
-            num-jobs: 4
+            num-jobs: 2
             julia-version: '1'
 
           # Windows runner configurations
@@ -34,7 +34,7 @@ jobs:
           - os: macOS-latest
             arch: aarch64
             threads: '3'
-            num-jobs: 3
+            num-jobs: 2
             julia-version: '1'
     steps:
       - uses: actions/checkout@v7
