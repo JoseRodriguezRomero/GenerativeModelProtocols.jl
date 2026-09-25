@@ -53,36 +53,26 @@ macro default_generative_model_group_name()
     return "generative_model"
 end
 
-function _cast_to_precision(FP, m)
-    FT = eltype(FP([1.0]))
-    
-    if m isa AbstractArray{<:AbstractFloat}
-        return FP(m)
-    elseif m isa Tuple
-        return tuple((_cast_to_precision(FP, mi) for mi in m)...)
-    elseif m isa Array{Any,0}
-        return Array{Any,0}(fill(FP(m[1])))
-    elseif m isa NamedTuple
-        fields = keys(m)
-        mapped_values = map(fields) do f
-            return _cast_to_precision(FP, getfield(m, f))
-        end
-        
-        return NamedTuple{fields}(Tuple(mapped_values))
-    elseif !isprimitivetype(typeof(m)) && fieldcount(typeof(m)) > 0
-        fields = fieldnames(typeof(m))
-        mapped_values = map(fields) do f
-            val = getfield(m, f)
-            return _cast_to_precision(FP, val)
-        end
+_cast_to_precision(FP, m::AbstractArray{<:AbstractFloat}) = FP(m)
+_cast_to_precision(FP, m::AbstractFloat) = eltype(FP([1.0]))(m)
 
-        return typeof(m).name.wrapper(mapped_values...)
-    elseif m isa AbstractFloat
-        return FT(m)
-    else
-        return m
+_cast_to_precision(FP, m::Ref{T}) where {T} = Ref{T}(_cast_to_precision(FP, m[]))
+
+_cast_to_precision(FP, m::Tuple) = map(x -> _cast_to_precision(FP, x), m)
+_cast_to_precision(FP, m::NamedTuple) = map(x -> _cast_to_precision(FP, x), m)
+
+function _cast_to_precision(FP, m::AbstractGenerativeModel)
+    T = typeof(m)
+    fields = fieldnames(T)
+    
+    mapped_fields = map(fields) do f
+        return _cast_to_precision(FP, getfield(m, f))
     end
+    
+    return T.name.wrapper(mapped_fields...)
 end
+
+_cast_to_precision(FP, m) = m
 
 """
 $TYPEDEF

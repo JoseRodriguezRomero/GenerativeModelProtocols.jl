@@ -178,8 +178,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
 
     protocol._log["Mean Log-Likelihood"] = zeros(T, protocol.epochs)
 
-    function _compute_gaussian_kernels(μ, log_σ²)
-        pred_out, _ = predictor(training_data_device, ps.predictor_network, st.predictor_network)
+    function _compute_gaussian_kernels(μ, log_σ², ps, st)
+        pred_out, st_pred = predictor(training_data_device, ps.predictor_network, st.predictor_network)
         π_network_all = softmax(pred_out, dims=1) 
         log_P_all = log_gaussian_pdf_matrix(training_data_device, μ, log_σ²)
         
@@ -207,54 +207,56 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         variance_matrix .= max.(variance_matrix, T(0.0025))
         next_log_σ² = identity.(transpose(log.(variance_matrix)))
 
-        return epoch_loss, γ_all, next_μ, next_log_σ²
+        return epoch_loss, γ_all, next_μ, next_log_σ², (predictor_network = st_pred,)
     end
 
-    function _predictor_train_step!(data_batch, p_current, s_current, o_current)
+    function _predictor_train_step!(data_batch, p_current, s_current, o_current, rng)
         x_batch = data_batch[1]
         γ_batch = data_batch[2]
 
         logitcrossentropy = CrossEntropyLoss(; logits=Val(true))
 
-        function _objective(predictor, p, s)
-            pred = first(predictor(x_batch, p.predictor_network, s.predictor_network))
-            return logitcrossentropy(pred, γ_batch)
+        function _objective(predictor, p, s, rng)
+            pred, s_pred = predictor(x_batch, p.predictor_network, s.predictor_network)
+            return logitcrossentropy(pred, γ_batch), (predictor_network = s_pred,), rng
         end
         
-        loss_val = _objective(predictor, p_current, s_current)
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const(_objective),
+            Enzyme.Const((predictor, p, s, rng) -> _objective(predictor, p, s, rng)[1]),
             Enzyme.Active,
             Enzyme.Const(predictor),
             Enzyme.Duplicated(p_current, loss_grads),
-            Enzyme.Const(s_current)
+            Enzyme.Const(s_current),
+            Enzyme.Const(rng)
         )
 
+        loss_val, s_updated, next_rng = _objective(predictor, p_current, s_current, rng)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
-        return loss_val, p_updated, o_updated
+
+        return loss_val, p_updated, s_updated, o_updated, next_rng
     end
 
-    compute_gaussian_kernels = _function_device_dispatch(protocol.device, _compute_gaussian_kernels, model_μ_device, model_log_σ²_device)
-    _, γ_all, model_μ_device, model_log_σ²_device = compute_gaussian_kernels(model_μ_device, model_log_σ²_device)
+    compute_gaussian_kernels = _function_device_dispatch(protocol.device, _compute_gaussian_kernels, model_μ_device, model_log_σ²_device, ps, st)
+    _, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
     opt_state = _initial_step(model.predictor_network, ps, st, protocol.optimiser)
     loader = load_data((training_data_device, γ_all), batchsize_device, shuffle_device)
 
-    _train_step!, opt_state = _train_step_device_dispatch(protocol.device, _predictor_train_step!, loader, opt_state)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _predictor_train_step!, loader, opt_state)
 
     if print_log; println("Training GMM via Global EM...") end
     for epoch in 1:protocol.epochs
-        epoch_loss, γ_all, model_μ_device, model_log_σ²_device = compute_gaussian_kernels(model_μ_device, model_log_σ²_device)
+        epoch_loss, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
         if epoch == 1 || (epoch % 100 == 0 && protocol.shuffle)
             loader = load_data((training_data_device, γ_all), batchsize_device, shuffle_device)
         end
 
         for (x_batch, γ_batch) in loader
-            _, opt_state = _train_step!((x_batch, γ_batch), opt_state)
+            _, opt_state, rng = _train_step!((x_batch, γ_batch), opt_state, rng)
         end
 
         mean_loss = T(-1.0) * epoch_loss
@@ -273,8 +275,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     _load_model!(model.μ, model_μ_device)
     _load_model!(model.log_σ², model_log_σ²_device)
 
-    model._ps[] = opt_state.parameters
-    model._st[] = opt_state.states
+    model._ps[] = opt_state.parameters |> cpu_device()
+    model._st[] = opt_state.states |> cpu_device()
 
     p = first(model.predictor_network(protocol.training_data, model._ps[].predictor_network, model._st[].predictor_network))
     p = mean(softmax(transpose(p)),dims=1)
@@ -286,7 +288,7 @@ end
 function _eval(model::GaussianMixtureModel, category::Int, n_samples::Int)
     T = eltype(model.μ)
     D = size(model.μ, 2)
-    synthetic_X = randn(Float64, D, n_samples)
+    synthetic_X = randn_like(model.μ, (D, n_samples))
     σ = exp.(T(0.5) .* model.log_σ²)
     
     for i in 1:n_samples

@@ -23,22 +23,25 @@ function _train_step_device_dispatch(::Lux.CPUDevice, train_step_func!::Function
     s_init = opt_state.states
     o_init = opt_state.optimizer_state
 
-    _, p_init, o_init = train_step_func!(first_batch, p_init, s_init, o_init)
+    utlimate_answer = 42
+    rng = Xoshiro(utlimate_answer)
+
+    _, p_init, s_init, o_init, rng = train_step_func!(first_batch, p_init, s_init, o_init, rng)
     
     opt_state = Lux.Training.TrainState(
         opt_state.cache, opt_state.objective_function, opt_state.allocator_cache,
         opt_state.model, p_init, s_init, opt_state.optimizer, o_init, opt_state.step
     )
 
-    _train_step! = (x, state) -> begin
-        res_loss, p_up, o_up = train_step_func!(x, state.parameters, state.states, state.optimizer_state)
+    _train_step! = (x, state, rng) -> begin
+        res_loss, p_up, s_up, o_up, rng = train_step_func!(x, state.parameters, state.states, state.optimizer_state, rng)
         state_up = Lux.Training.TrainState(
             state.cache, state.objective_function, state.allocator_cache,
-            state.model, p_up, state.states, state.optimizer, o_up, state.step + 1
+            state.model, p_up, s_up, state.optimizer, o_up, state.step + 1
         )
-        return res_loss, state_up
+        return res_loss, state_up, rng
     end
 
-    return _train_step!, opt_state
+    return _train_step!, opt_state, rng
 end
 

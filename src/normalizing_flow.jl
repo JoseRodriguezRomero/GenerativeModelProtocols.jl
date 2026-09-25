@@ -34,14 +34,14 @@ $TYPEDFIELDS
     """Neural network parametrizing the velocity field as a function of time."""
     velocity_field::Chain
     """Trained parameters of the model. Users should not use this directly."""
-    _ps::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
+    _ps::Ref{NamedTuple} = Ref{NamedTuple}(NamedTuple())
     """Trained state of the model. Users should not use this directly."""
-    _st::Ref{<:NamedTuple} = Ref{NamedTuple}(NamedTuple())
+    _st::Ref{NamedTuple} = Ref{NamedTuple}(NamedTuple())
     
     function NormalizingFlow(velocity_field::Chain, _ps::Ref{<:NamedTuple}, _st::Ref{<:NamedTuple})
         if !compatible_nf_model(velocity_field)
             @error "Incompatible NormalizingFlow architecture!"
-            throw(MethodError(NormalizingFlow, (velocity_field)))
+            throw(MethodError(NormalizingFlow, (velocity_field, _ps, _st)))
         end
 
         if isempty(_ps[]) || isempty(_st[])
@@ -103,52 +103,62 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
 
     FP = eltype(protocol.training_data)
 
-    function _nf_train_step!(x, p_current, s_current, o_current)
-        x₀ = randn_like(x, size(x))
+    velocity_field = model.velocity_field
+
+    function _nf_train_step!(x, p_current, s_current, o_current, rng)
         x₁ = x
-        t = rand_like(x₁, (1, size(x₀,2)))
-        xₜ = (FP(1.0) .- t) .* x₀ + t .* x₁
+        
+        _objective = (p, s, rng) -> begin
+            rng_trace = Lux.replicate(rng)
+            
+            x₀ = randn(rng_trace, eltype(x₁), size(x₁))
+            
+            t_shape = (1, size(x₀, 2))
+            t = rand(rng_trace, eltype(x₁), t_shape)
+            
+            xₜ = (FP(1.0) .- t) .* x₀ + t .* x₁
+            vₜ = x₁ - x₀
 
-        vₜ = x₁ - x₀
-
-        _objective = (p) -> begin
             ps_vf = p.velocity_field
-            st_vf = s_current.velocity_field
+            st_vf = s.velocity_field
 
-            v̂ₜ, _ = model.velocity_field(vcat(xₜ, t), ps_vf, st_vf)
-            return mean(abs2, v̂ₜ - vₜ)
+            v̂ₜ, st_vf = velocity_field(vcat(xₜ, t), ps_vf, st_vf)
+            
+            return mean(abs2, v̂ₜ - vₜ), (velocity_field = st_vf,), rng_trace
         end
 
-        loss_val = _objective(p_current)
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const(_objective),
+            Enzyme.Const((p, s, rng) -> _objective(p, s, rng)[1]),
             Enzyme.Active,
-            Enzyme.Duplicated(p_current, loss_grads)
+            Enzyme.Duplicated(p_current, loss_grads),
+            Enzyme.Const(s_current),
+            Enzyme.Const(rng)
         )
 
+        loss_val, s_updated, next_rng = _objective(p_current, s_current, rng)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
-        return loss_val, p_updated, o_updated
+        return loss_val, p_updated, s_updated, o_updated, next_rng
     end
 
     protocol._log["Mean MSE"] = zeros(FP, protocol.epochs)
 
     opt_state = _initial_step(model, ps, st, protocol.optimiser)
-    _train_step!, opt_state = _train_step_device_dispatch(protocol.device, _nf_train_step!, loader, opt_state)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _nf_train_step!, loader, opt_state)
 
     if print_log; println("Training Diffusion Model...") end
     for epoch in 1:protocol.epochs
         epoch_loss = FP(0.0)
 
-        if epoch % 100 == 0 && protocol.shuffle
+        if (epoch % 100 == 0) && protocol.shuffle
             loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
         end
 
         for x_batch in loader
-            mse_loss, opt_state = _train_step!(x_batch, opt_state)
+            mse_loss, opt_state, rng = _train_step!(x_batch, opt_state, rng)
             epoch_loss += mse_loss
         end
 
@@ -161,8 +171,8 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
     end
     if print_log; println("Training complete!") end
 
-    model._ps[] = opt_state.parameters
-    model._st[] = opt_state.states
+    model._ps[] = opt_state.parameters |> cpu_device()
+    model._st[] = opt_state.states |> cpu_device()
 
     return protocol._log
 end

@@ -16,7 +16,7 @@ include("utility_utils/tests_base_utils.jl")
         model = GenerativeModelProtocols.NormalizingFlow(input_size)
         test_train_model(model, train_data)
         test_train_model_no_data(model, input_size)
-        # test_train_model_reactant(model, train_data)
+        test_train_model_reactant(model, train_data)
     end
 
     @testset "Incompatible NormalizingFlow Architecture Test" begin

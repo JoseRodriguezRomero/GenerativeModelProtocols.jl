@@ -130,33 +130,32 @@ function _latent_size(model::DiffusionModel)::Int
     return _input_size(model)
 end 
 
-function forward_diffusion(ᾱ::Tuple{Vararg{AbstractFloat}}, x₀, t)
+function forward_diffusion(ᾱ::Tuple{Vararg{AbstractFloat}}, x₀, t, rng)
     FP = eltype(ᾱ)
-    ϵ = randn_like(x₀, FP, size(x₀))
+    ϵ = randn_like(rng, x₀, FP, size(x₀))
     
     ᾱₜ = reshape(view(collect(ᾱ), t), 1, :)
     xₜ = sqrt.(ᾱₜ) .* x₀ + sqrt.(FP(1.0) .- ᾱₜ) .* ϵ
     
-    return xₜ, ϵ
+    return xₜ, ϵ, rng
 end
 
-function forward_diffusion(model::DiffusionModel, x₀, t)
+function forward_diffusion(model::DiffusionModel, x₀, t, rng)
     FP = eltype(x₀)
 
     β = model.β
     α = FP(1.0) .- β
     ᾱ = cumprod(α)
 
-    return forward_diffusion(ᾱ, x₀, t)
+    return forward_diffusion(ᾱ, x₀, t, rng)
 end
 
-function forward_diffusion(model::DiffusionModel, x₀, t::Int)
-    return forward_diffusion(model, x₀, [t])
+function forward_diffusion(model::DiffusionModel, x₀, t::Int, rng)
+    return forward_diffusion(model, x₀, [t], rng)
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print_log::Bool = true)
-    denoiser_model = model.denoiser_model
-    training_data_device = protocol.training_data |> protocol.device
+    training_data_device = protocol.precision(protocol.training_data) |> protocol.device
 
     loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
     T = eltype(protocol.training_data)
@@ -168,42 +167,46 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
 
     protocol._log["Mean MSE"] = zeros(T, protocol.epochs)
 
-    function _dm_train_step!(x, p_current, s_current, o_current)
-        num_steps = denoiser_model.T
-        batch_size = size(x, 2)
+    num_steps = model.denoiser_model.T |> protocol.device
 
-        t_uniform = rand_like(x, eltype(x), (batch_size,))
-        t_raw = floor.(t_uniform .* num_steps) .+ 1
-        t_raw_int = Int.(t_raw)
-        xₜ, ϵ_true = forward_diffusion(ᾱ_device, x, t_raw_int)
+    denoiser_model = _to_named_tuple(model.denoiser_model)
+    ps = protocol.precision(model.denoiser_model._ps[]) |> protocol.device
+    st = protocol.precision(model.denoiser_model._st[]) |> protocol.device
 
-        _objective = (denoiser_model, p, s) -> begin
-            ϵ_pred, _ = _eval(denoiser_model, xₜ, t_raw, p, s)
-            return mean(abs2, ϵ_pred .- ϵ_true)
+    function _dm_train_step!(x, p_current, s_current, o_current, rng)
+        _objective = (p, s, rng) -> begin
+            rng_trace = Lux.replicate(rng)
+
+            batch_size = size(x, 2)
+
+            t_uniform = rand_like(rng, x, eltype(x), (batch_size,))
+            t_raw = floor.(t_uniform .* num_steps) .+ 1
+            t_raw_int = Int.(t_raw)
+            xₜ, ϵ_true, rng_trace = forward_diffusion(ᾱ_device, x, t_raw_int, rng_trace)
+
+            ϵ_pred, s = _eval_base_tabular_denoiser(denoiser_model, xₜ, t_raw, p, s)
+            return mean(abs2, ϵ_pred .- ϵ_true), s, rng_trace
         end
 
-        loss_val = _objective(denoiser_model, p_current, s_current)
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const(_objective),
+            Enzyme.Const((p, s, rng) -> _objective(p, s, rng)[1]),
             Enzyme.Active,
-            Enzyme.Const(denoiser_model),
             Enzyme.Duplicated(p_current, loss_grads),
-            Enzyme.Const(s_current)
+            Enzyme.Const(s_current),
+            Enzyme.Const(rng)
         )
 
+        loss_val, s_updated, rng_next = _objective(p_current, s_current, rng)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
-        return loss_val, p_updated, o_updated
+        return loss_val, p_updated, s_updated, o_updated, rng_next
     end
 
-    ps = protocol.precision(model.denoiser_model._ps[]) |> protocol.device
-    st = protocol.precision(model.denoiser_model._st[]) |> protocol.device
-
     opt_state = _initial_step(model.denoiser_model, ps, st, protocol.optimiser)
-    _train_step!, opt_state = _train_step_device_dispatch(protocol.device, _dm_train_step!, loader, opt_state)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _dm_train_step!, loader, opt_state)
 
     if print_log; println("Training Diffusion Model...") end
     for epoch in 1:protocol.epochs
@@ -214,7 +217,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
         end
 
         for x₀ in loader
-            loss, opt_state = _train_step!(x₀, opt_state)
+            loss, opt_state, rng = _train_step!(x₀, opt_state, rng)
             epoch_loss += loss
         end
 
@@ -227,14 +230,14 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
     end
     if print_log; println("Training complete!") end
 
-    model.denoiser_model._ps[] = opt_state.parameters
-    model.denoiser_model._st[] = opt_state.states
+    model.denoiser_model._ps[] = opt_state.parameters |> cpu_device()
+    model.denoiser_model._st[] = opt_state.states |> cpu_device()
 
     return protocol._log
 end
 
 function _encode(model::DiffusionModel, x::Matrix)::Matrix
-    z, _ = forward_diffusion(model, x, model.denoiser_model.T)
+    z, _, _ = forward_diffusion(model, x, model.denoiser_model.T, Random.default_rng())
     return z
 end
 

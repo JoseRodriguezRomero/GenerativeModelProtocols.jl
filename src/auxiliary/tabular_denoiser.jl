@@ -238,54 +238,19 @@ function compute_sinusoidal_frequencies(t, T::Int, max_period::AbstractFloat)
     return vcat(sin_components, cos_components)[1:T,:]
 end
 
-# function _eval(m::TabularDenoiser, x, t, ps, st)
-#     static_time_features = compute_sinusoidal_frequencies(t, m.T, m.max_period)
-    
-#     learned_time_context, new_time_st = m.time_embedding_mlp(static_time_features, ps.time_embedding_mlp, st.time_embedding_mlp)
-#     hidden_features, new_input_st = m.input_projection(x, ps.input_projection, st.input_projection)
-    
-#     N = length(m.residual_layers)
-#     layer_keys = keys(m.residual_layers)
+function _to_named_tuple(m::TabularDenoiser)
+    return (
+        T                      = m.T,
+        time_embedding_mlp     = m.time_embedding_mlp,
+        input_projection       = m.input_projection,
+        residual_layers        = m.residual_layers,
+        time_projection_layers = m.time_projection_layers,
+        output_projection      = m.output_projection,
+        max_period             = m.max_period
+    )
+end
 
-#     function step_layer(i, current_hidden)
-#         feature_layer = m.residual_layers[i]
-#         time_layer = m.time_projection_layers[i]
-
-#         feature_layer_ps = ps.residual_layers[i]
-#         feature_layer_st = st.residual_layers[i]
-
-#         time_layer_ps = ps.time_projection_layers[i]
-#         time_layer_st = st.time_projection_layers[i]
-
-#         transformed_features, new_feat_st = feature_layer(current_hidden, feature_layer_ps, feature_layer_st)
-#         time_bias_shift, new_time_proj_st = time_layer(learned_time_context, time_layer_ps, time_layer_st)
-
-#         next_hidden = transformed_features .+ time_bias_shift .+ current_hidden
-#         return next_hidden, new_feat_st, new_time_proj_st
-#     end
-
-#     final_hidden = hidden_features
-
-#     outputs = ntuple(N) do i
-#         next_hidden, feat_st, time_st = step_layer(i, final_hidden)
-#         final_hidden = next_hidden
-#         return (feat_st, time_st)
-#     end
-
-#     out_features, new_out_st = m.output_projection(final_hidden, ps.output_projection, st.output_projection)
-
-#     updated_st = (
-#         time_embedding_mlp     = new_time_st,
-#         input_projection       = new_input_st,
-#         residual_layers        = NamedTuple{layer_keys}(ntuple(i -> outputs[i][1], N)),
-#         time_projection_layers = NamedTuple{layer_keys}(ntuple(i -> outputs[i][2], N)),
-#         output_projection      = new_out_st
-#     )
-    
-#     return out_features, updated_st
-# end
-
-function _eval(m::TabularDenoiser, x, t, ps, st)
+function _eval_base_tabular_denoiser(m::NamedTuple, x, t, ps, st)
     static_time_features = compute_sinusoidal_frequencies(t, m.T, m.max_period)
     
     learned_time_context, new_time_st = m.time_embedding_mlp(static_time_features, ps.time_embedding_mlp, st.time_embedding_mlp)
@@ -333,6 +298,10 @@ function _eval(m::TabularDenoiser, x, t, ps, st)
     )
     
     return out_features, updated_st
+end
+
+function _eval(m::TabularDenoiser, x, t, ps, st)
+    return _eval_base_tabular_denoiser(_to_named_tuple(m), x, t, ps, st)
 end
 
 function (m::TabularDenoiser)(x, t)

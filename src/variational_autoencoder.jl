@@ -220,12 +220,12 @@ function _generative_model(::VariationalAutoencoder)::GenerativeModel
     return variational_autoencoder
 end
 
-function sample_latent(μ, σ)
-    ϵ = randn_like(μ, size(μ))
-    return μ .+ σ .* ϵ
+function sample_latent(μ, σ, rng)
+    ϵ = randn_like(rng, μ, size(μ))
+    return μ .+ σ .* ϵ, rng
 end
 
-function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}
+function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st, rng) where {LayerNames}
     T = eltype(x)
     
     μ = similar(x, T, latent_dim, num_latent_layers, batch_size)
@@ -242,7 +242,9 @@ function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x
     μ[:, 1, :] .= enc_out[1:latent_dim, :]
     logσ²[:, 1, :] .= enc_out[(latent_dim+1):end, :]
     σ[:, 1, :] .= exp.(logσ²[:, 1, :] .* T(0.5f0))
-    z[:, 1, :] .= sample_latent(μ[:, 1, :], σ[:, 1, :])
+
+    z_samp, rng = sample_latent(μ[:, 1, :], σ[:, 1, :], rng)
+    z[:, 1, :] .= z_samp
 
     for i in 2:num_latent_layers
         ki = LayerNames[i]
@@ -252,13 +254,15 @@ function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, x
         μ[:, i, :] .= enc_out[1:latent_dim, :]
         logσ²[:, i, :] .= enc_out[(latent_dim+1):end, :]
         σ[:, i, :] .= exp.(logσ²[:, i, :] .* T(0.5f0))
-        z[:, i, :] .= sample_latent(μ[:, i, :], σ[:, i, :])
+
+        z_samp, rng = sample_latent(μ[:, i, :], σ[:, i, :], rng)
+        z[:, i, :] .= z_samp
     end
 
-    return μ, σ, logσ², z
+    return μ, σ, logσ², z, NamedTuple{keys(st)}(st_encoders_list), rng
 end
 
-function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, z, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st) where {LayerNames}
+function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, z, latent_dim::Int, num_latent_layers::Int, batch_size::Int, ps, st, rng) where {LayerNames}
     T = eltype(z)
 
     μ = zeros(T, latent_dim, num_latent_layers, batch_size)
@@ -286,7 +290,7 @@ function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, z
     x̂, st_new = decoders[k1](z_slice, ps[k1], st[k1])
     st_decoders_list[1] = st_new 
 
-    return μ, σ, logσ², x̂
+    return μ, σ, logσ², x̂, NamedTuple{keys(st)}(st_decoders_list), rng
 end
 
 function _vae_elbo(
@@ -296,18 +300,20 @@ function _vae_elbo(
     latent_dim::Int, 
     num_latent_layers::Int, 
     batch_size::Int, 
-    x, ps, st)
+    x, ps, st, rng)
 
     T = eltype(x)
-    μ_enc, σ_enc, logσ²_enc, z = _encode_vae(encoders, x, latent_dim, num_latent_layers, batch_size, ps.encoders, st.encoders)
-    μ_dec, σ_dec, logσ²_dec, x̂ = _decode_vae(decoders, z, latent_dim, num_latent_layers, batch_size, ps.decoders, st.decoders)
+    μ_enc, σ_enc, logσ²_enc, z, _st_enc, rng = _encode_vae(encoders, x, latent_dim, num_latent_layers, batch_size, ps.encoders, st.encoders, rng)
+    μ_dec, σ_dec, logσ²_dec, x̂, _st_dec, rng = _decode_vae(decoders, z, latent_dim, num_latent_layers, batch_size, ps.decoders, st.decoders, rng)
 
     recon_loss = T(0.5) * mean(sum((x .- x̂) .^ 2, dims = 1))
     
     kl_elements = logσ²_dec .- logσ²_enc .+ (σ_enc.^2 .+ (μ_enc .- μ_dec).^2) ./ σ_dec.^2 .- T(1.0)
     kl_loss = T(0.5) * mean(sum(kl_elements, dims = 1))
 
-    return recon_loss + β * kl_loss
+    _st = (encoders = _st_enc, decoders = _st_dec)
+
+    return recon_loss + β * kl_loss, _st, rng
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder, β::AbstractFloat; print_log::Bool = true)
@@ -328,26 +334,32 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
 
     protocol._log["Mean ELBO"] = zeros(T, protocol.epochs)
     
-    function _vae_train_step!(x, p_current, s_current, o_current)
-        _objective = (p) -> _vae_elbo(encoders, decoders, β_device, latent_dim_device, num_latent_layers, size(x,2), x, p, s_current)
+    function _vae_train_step!(x, p_current, s_current, o_current, rng)
+        _objective = (p, s, rng) -> begin
+            rng_trace = Lux.replicate(rng)
+            elbo, s, rng_trace = _vae_elbo(encoders, decoders, β_device, latent_dim_device, num_latent_layers, size(x,2), x, p, s, rng_trace)
+            return elbo, s, rng_trace
+        end
 
-        loss_val = _objective(p_current)
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const(_objective),
+            Enzyme.Const((p, s, rng) -> _objective(p, s, rng)[1]),
             Enzyme.Active,
-            Enzyme.Duplicated(p_current, loss_grads)
+            Enzyme.Duplicated(p_current, loss_grads),
+            Enzyme.Const(s_current),
+            Enzyme.Const(rng)
         )
 
+        loss, s_updated, next_rng = _objective(p_current, s_current, rng)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
-        return loss_val, p_updated, o_updated
+        return loss, p_updated, s_updated, o_updated, next_rng
     end
 
     opt_state = _initial_step(model, ps, st, protocol.optimiser)
-    _train_step!, opt_state = _train_step_device_dispatch(protocol.device, _vae_train_step!, loader, opt_state)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _vae_train_step!, loader, opt_state)
 
     if print_log; println("Training VAE... (β = $β)") end
     for epoch in 1:protocol.epochs
@@ -358,7 +370,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         end
 
         for x_batch in loader
-            elbo, opt_state = _train_step!(x_batch, opt_state)
+            elbo, opt_state, rng = _train_step!(x_batch, opt_state, rng)
             epoch_loss += elbo
         end
 
@@ -371,8 +383,8 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     end
     if print_log; println("Training complete!") end
 
-    model._ps[] = opt_state.parameters
-    model._st[] = opt_state.states
+    model._ps[] = opt_state.parameters |> cpu_device()
+    model._st[] = opt_state.states |> cpu_device()
 
     return protocol._log
 end
@@ -386,7 +398,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     return training_log
 end
 
-function _vae_encode(encoders, ps, st, x)
+function _vae_encode(encoders, ps, st, x, rng = Random.default_rng())
     num_latent_layers = length(encoders)
     latent_size = round(Int, _output_size(encoders[end]) / 2)
     T = eltype(x)
@@ -397,7 +409,7 @@ function _vae_encode(encoders, ps, st, x)
     
     mu = enc_out[1:latent_size, :]
     logvar = enc_out[(latent_size + 1):end, :]
-    z = sample_latent(mu, exp.(logvar .* T(0.5)))
+    z, rng = sample_latent(mu, exp.(logvar .* T(0.5)), rng)
     
     for i in 2:num_latent_layers
         enc_out, st_new = encoders[i](z, ps.encoders[i], st.encoders[i])
@@ -405,21 +417,21 @@ function _vae_encode(encoders, ps, st, x)
         
         mu = enc_out[1:latent_size, :]
         logvar = enc_out[(latent_size + 1):end, :]
-        z = sample_latent(mu, exp.(logvar .* T(0.5)))
+        z, rng = sample_latent(mu, exp.(logvar .* T(0.5)), rng)
     end
 
-    return z
+    return z, rng
 end
 
 function _encode(model::VariationalAutoencoder, x::Matrix)
-    return _vae_encode(model.encoders, model._ps[], model._st[], x)
+    return first(_vae_encode(model.encoders, model._ps[], model._st[], x))
 end
 
 function _encode(model::VariationalAutoencoder, x::Vector)
     return _encode(model, reshape(x, :, 1))[:]
 end
 
-function _vae_decode(decoders, ps, st, z)
+function _vae_decode(decoders, ps, st, z, rng = Random.default_rng())
     num_latent_layers = length(decoders)
     latent_size =  _input_size(decoders[end])
     T = eltype(z)
@@ -434,17 +446,17 @@ function _vae_decode(decoders, ps, st, z)
         
         μ = dec_out[1:latent_size, :]
         log_σ² = dec_out[(latent_size + 1):end, :]
-        z = sample_latent(μ, exp.(log_σ² .* T(0.5)))
+        z, rng = sample_latent(μ, exp.(log_σ² .* T(0.5)), rng)
     end
 
     out, st_new = decoders[1](z, ps.decoders[1], st.decoders[1])
     st_decoders_list[1] = st_new
 
-    return out
+    return out, rng
 end
 
 function _decode(model::VariationalAutoencoder, z::Matrix)
-    return _vae_decode(model.decoders, model._ps[], model._st[], z)
+    return first(_vae_decode(model.decoders, model._ps[], model._st[], z))
 end
 
 function _decode(model::VariationalAutoencoder, z::Vector)

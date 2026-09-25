@@ -2,9 +2,6 @@ using GenerativeModelProtocols
 using Lux, Plots, Optimisers
 using LaTeXStrings
 
-ENV["LUX_DISABLE_FUSED_DENSE"] = "true"
-ENV["LUX_DISABLE_FUSED_OPS"] = "true"
-
 function make_data(num_samples)
     t = (2.0*π) .* rand(Float64,num_samples)
 
