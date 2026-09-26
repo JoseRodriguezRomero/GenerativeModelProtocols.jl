@@ -134,7 +134,7 @@ function forward_diffusion(ᾱ::Tuple{Vararg{AbstractFloat}}, x₀, t, rng)
     FP = eltype(ᾱ)
     ϵ = randn_like(rng, x₀, FP, size(x₀))
     
-    ᾱₜ = reshape(view(collect(ᾱ), t), 1, :)
+    ᾱₜ = reshape(collect(ᾱ)[t], 1, :)
     xₜ = sqrt.(ᾱₜ) .* x₀ + sqrt.(FP(1.0) .- ᾱₜ) .* ϵ
     
     return xₜ, ϵ, rng
@@ -176,10 +176,9 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
     function _dm_train_step!(x, p_current, s_current, o_current, rng)
         _objective = (p, s, rng) -> begin
             rng_trace = Lux.replicate(rng)
-
             batch_size = size(x, 2)
 
-            t_uniform = rand_like(rng, x, eltype(x), (batch_size,))
+            t_uniform = rand_like(rng_trace, x, eltype(x), (batch_size,))
             t_raw = floor.(t_uniform .* num_steps) .+ 1
             t_raw_int = Int.(t_raw)
             xₜ, ϵ_true, rng_trace = forward_diffusion(ᾱ_device, x, t_raw_int, rng_trace)
