@@ -1,6 +1,7 @@
 module GenerativeModelProtocols
 
 using Lux
+using Dates
 using Printf
 using Enzyme
 using Random
@@ -234,19 +235,12 @@ method can be called again after it finishes to resume training.
 function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwargs...)
     empty!(protocol._log)
 
-    if isnothing(protocol.training_data) || isempty(protocol.training_data)
-        throw(ArgumentError("No training data was loaded!"))
-    end
-
-    local train_log
-    if protocol.device isa CPUDevice
-        # Loop unrolling is disabled until #3568 of Enzyme.jl is fixed.
-        Enzyme.Compiler.LLVM.clopts("-unroll-runtime=false")
-        train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
-        Enzyme.Compiler.LLVM.clopts("-unroll-runtime=true")
-    else
-        train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
-    end
+    t₀ = time()
+    train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
+    t₁ = time()
+    
+    elapsed = canonicalize(Second(round(Int, t₁ - t₀)))
+    println("Training took $elapsed.")
 
     return train_log
 end
@@ -366,28 +360,6 @@ function latent_size(protocol::GenerativeModelProtocol)::Int
     return _latent_size(protocol.model)
 end
 
-function load_data(data::AbstractMatrix, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
-    data = shuffle ? shuffleobs(data) : data
-
-    return MLUtils.DataLoader(
-        data, 
-        batchsize = batchsize, 
-        shuffle = false,
-        parallel = true
-    )
-end
-
-function load_data(data::Tuple{Vararg{AbstractMatrix}}, batchsize::Int, shuffle::Bool = true, parallel::Bool = true)
-    data = shuffle ? shuffleobs(data) : data
-
-    return DataLoader(
-        data, 
-        batchsize = batchsize, 
-        shuffle = false,
-        parallel = true
-    )
-end
-
 function _save_metadata end
 
 macro _save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
@@ -431,6 +403,7 @@ end
 include("auxiliary/activation_functions.jl")
 include("auxiliary/input_output_sizes.jl")
 include("auxiliary/printing.jl")
+include("auxiliary/load_data.jl")
 include("auxiliary/optimisation.jl")
 include("auxiliary/named_tuples.jl")
 include("auxiliary/tabular_denoiser.jl")

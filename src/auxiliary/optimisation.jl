@@ -12,11 +12,11 @@ function _initial_step(model, ps, st, optimiser)
     )
 end
 
-function _function_device_dispatch(::Lux.CPUDevice, _train_function::Function, args...)
+function _function_device_dispatch(::Lux.MLDataDevices.AbstractDevice, _train_function::Function, args...)
     return _train_function
 end
 
-function _train_step_device_dispatch(::Lux.CPUDevice, train_step_func!::Function, loader, opt_state)
+function _train_step_device_dispatch(::Lux.MLDataDevices.AbstractDevice, train_step_func!::Function, loader, opt_state)
     first_batch = first(loader)
 
     p_init = opt_state.parameters

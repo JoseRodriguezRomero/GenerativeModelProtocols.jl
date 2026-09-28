@@ -95,8 +95,7 @@ function _generative_model(::NormalizingFlow)::GenerativeModel
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; print_log::Bool = true)
-    training_data_device = protocol.training_data |> protocol.device
-    loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
+    loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
 
     ps = protocol.precision(model._ps[]) |> protocol.device
     st = protocol.precision(model._st[]) |> protocol.device
@@ -106,42 +105,44 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
     velocity_field = model.velocity_field
 
     function _nf_train_step!(x, p_current, s_current, o_current, rng)
-        x₁ = x
-        
-        _objective = (p, s, rng) -> begin
-            rng_trace = Lux.replicate(rng)
-            
-            x₀ = randn(rng_trace, eltype(x₁), size(x₁))
-            
-            t_shape = (1, size(x₀, 2))
-            t = rand(rng_trace, eltype(x₁), t_shape)
-            
-            xₜ = (FP(1.0) .- t) .* x₀ + t .* x₁
-            vₜ = x₁ - x₀
+        rng_trace = Lux.replicate(rng)
+        batch_size = size(x, 2)
 
+        x₁ = x
+        x₀ = similar(x₁)
+        t = similar(x₁, (1, batch_size))
+
+        randn!(rng_trace, x₀)
+        rand!(rng_trace, t)
+
+        xₜ = (FP(1.0) .- t) .* x₀ .+ t .* x₁
+        vₜ = x₁ .- x₀
+
+        vcat_buffer = vcat(xₜ, t)
+        
+        _objective = (p, s) -> begin
             ps_vf = p.velocity_field
             st_vf = s.velocity_field
 
-            v̂ₜ, st_vf = velocity_field(vcat(xₜ, t), ps_vf, st_vf)
+            v̂ₜ, st_vf = velocity_field(vcat_buffer, ps_vf, st_vf)
             
-            return mean(abs2, v̂ₜ - vₜ), (velocity_field = st_vf,), rng_trace
+            return mean(abs2, v̂ₜ - vₜ), (velocity_field = st_vf,)
         end
 
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const((p, s, rng) -> _objective(p, s, rng)[1]),
+            Enzyme.Const((p, s) -> _objective(p, s)[1]),
             Enzyme.Active,
             Enzyme.Duplicated(p_current, loss_grads),
-            Enzyme.Const(s_current),
-            Enzyme.Const(rng)
+            Enzyme.Const(s_current)
         )
 
-        loss_val, s_updated, next_rng = _objective(p_current, s_current, rng)
+        loss_val, s_updated = _objective(p_current, s_current)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
-        return loss_val, p_updated, s_updated, o_updated, next_rng
+        return loss_val, p_updated, s_updated, o_updated, rng_trace
     end
 
     protocol._log["Mean MSE"] = zeros(FP, protocol.epochs)
@@ -154,7 +155,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; prin
         epoch_loss = FP(0.0)
 
         if (epoch % 100 == 0) && protocol.shuffle
-            loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
+            loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
         end
 
         for x_batch in loader

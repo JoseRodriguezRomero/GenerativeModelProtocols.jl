@@ -51,13 +51,15 @@ components using a diagonal covariance structure $\left( \Sigma_k =
 \text{diag}(\sigma_k^2) \right)$. To protect against floating-point underflow, 
 calculations are evaluated purely in log-space using the Log-Sum-Exp reduction 
 trick to resolve the latent posterior responsibilities ($\gamma _{nk}$):
-
+```math
+\gamma _{kn}=\frac{\exp \left( \log \left( \text{Joint}_{kn} \right) \right)}{
+    \sum_{j=1}^{K} \exp \left( \log \left( \text{Joint}_{jn} \right) \right)}
+```
+where
 ```math
 \log \left( \text{Joint}_{kn} \right) = \log (\pi _{kn}+\epsilon )-
     \frac{1}{2}\left[D \log (2\pi ) + \sum_{d=1}^{D}\log (\sigma _{kd}^{2}) + 
-    \sum_{d=1}^{D}\frac{(x_{dn} - \mu_{kd})^{2}}{\sigma _{kd}^{2}}\right] \\[0.5cm]
-\gamma _{kn}=\frac{\exp \left( \log \left( \text{Joint}_{kn} \right) \right)}{
-    \sum_{j=1}^{K} \exp \left( \log \left( \text{Joint}_{jn} \right) \right)}.
+    \sum_{d=1}^{D}\frac{(x_{dn} - \mu_{kd})^{2}}{\sigma _{kd}^{2}}\right] .
 ```
 
 ### Analytical Maximization Step (M-Step)

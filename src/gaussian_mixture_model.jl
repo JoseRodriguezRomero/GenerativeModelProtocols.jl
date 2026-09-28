@@ -243,7 +243,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     _, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
     opt_state = _initial_step(model.predictor_network, ps, st, protocol.optimiser)
-    loader = load_data((training_data_device, γ_all), batchsize_device, shuffle_device)
+    loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize_device, shuffle_device) |> protocol.device
 
     _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _predictor_train_step!, loader, opt_state)
 
@@ -252,7 +252,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         epoch_loss, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
         if epoch == 1 || (epoch % 100 == 0 && protocol.shuffle)
-            loader = load_data((training_data_device, γ_all), batchsize_device, shuffle_device)
+            loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize_device, shuffle_device) |> protocol.device
         end
 
         for (x_batch, γ_batch) in loader

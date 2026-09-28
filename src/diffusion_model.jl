@@ -155,9 +155,7 @@ function forward_diffusion(model::DiffusionModel, x₀, t::Int, rng)
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print_log::Bool = true)
-    training_data_device = protocol.precision(protocol.training_data) |> protocol.device
-
-    loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
+    loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
     T = eltype(protocol.training_data)
 
     β = model.β
@@ -212,7 +210,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; print
         epoch_loss = T(0.0)
 
         if epoch % 100 == 0 && protocol.shuffle
-            loader = load_data(training_data_device, protocol.batchsize, protocol.shuffle)
+            loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
         end
 
         for x₀ in loader
