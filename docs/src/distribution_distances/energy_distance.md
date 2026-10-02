@@ -122,7 +122,7 @@ which implies that the estimator satisfies:
 The same argument applies to the within-distribution term. Consider the 
 estimator:
 ```math
-    \widehat{B} = \frac{2}{n(n-1)} \sum_\){i<j} d(X_i, X_j).
+    \widehat{B} = \frac{2}{n(n-1)} \sum_{i<j} d(X_i, X_j).
 ```
 
 Letting $Z_{ij} = d(X_i, X_j)$, its variance can be written as:
