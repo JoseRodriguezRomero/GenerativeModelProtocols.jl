@@ -3,6 +3,10 @@ using GenerativeModelProtocols
 using Documenter
 using DocumenterCitations
 
+using Distances
+using OptimalTransport
+using Tulip
+
 DocMeta.setdocmeta!(
     GenerativeModelProtocols, 
     :DocTestSetup, 
@@ -15,9 +19,16 @@ bib = CitationBibliography(
     style=:numeric # Options: :numeric, :authoryear, or :alphabetic
 )
 
+ext_modules = [
+    GenerativeModelProtocols,
+    isdefined(Base, :get_extension) ? Base.get_extension(GenerativeModelProtocols, :GenerativeModelProtocolsOptimalTransportExt) : GenerativeModelProtocols.GenerativeModelProtocolsOptimalTransportExt,
+    isdefined(Base, :get_extension) ? Base.get_extension(GenerativeModelProtocols, :GenerativeModelProtocolsDistancesExt) : GenerativeModelProtocols.GenerativeModelProtocolsDistancesExt,
+    isdefined(Base, :get_extension) ? Base.get_extension(GenerativeModelProtocols, :GenerativeModelProtocolsTulipExt) : GenerativeModelProtocols.GenerativeModelProtocolsTulipExt
+]
+
 makedocs(;
     plugins=[bib],
-    modules = [GenerativeModelProtocols],
+    modules = Vector{Module}(filter(!isnothing, ext_modules)),
     authors = "José Romero <jrodriguesro@umass.edu>",
     sitename = "GenerativeModelProtocols.jl",
     format = Documenter.HTML(;
@@ -35,6 +46,11 @@ makedocs(;
             "Diffusion Models" => "generative_models/diffusion_models.md",
             "Generative Adversarial Networks" => "generative_models/generative_adversarial_networks.md",
             "Normalizing Flows" => "generative_models/normalizing_flows.md"
+        ],
+        "Distribution Distances" => [
+            "Energy Distance" => "distribution_distances/energy_distance.md",
+            "Earth Mover's Distance" => "distribution_distances/earth_mover_distance.md",
+            "Sinkhorn's Distance" => "distribution_distances/sinkhorn_distance.md"
         ],
         "Examples" => [
             "Getting Started" => [

@@ -33,6 +33,15 @@ decode(::GenerativeModelProtocol, ::Vector)
 decode(::GenerativeModelProtocol, ::Matrix)
 input_size(::GenerativeModelProtocol)
 latent_size(::GenerativeModelProtocol)
+GenerativeModelProtocols.sinkhorn_distance(::AbstractMatrix, ::AbstractMatrix)
+GenerativeModelProtocols.sinkhorn_distance(::GenerativeModelProtocol, ::AbstractMatrix)
+GenerativeModelProtocols.sinkhorn_distance(::GenerativeModelProtocol)
+GenerativeModelProtocols.earth_mover_distance(::AbstractMatrix, ::AbstractMatrix)
+GenerativeModelProtocols.earth_mover_distance(::GenerativeModelProtocol, ::AbstractMatrix)
+GenerativeModelProtocols.earth_mover_distance(::GenerativeModelProtocol)
+GenerativeModelProtocols.energy_distance(::AbstractMatrix, ::AbstractMatrix)
+GenerativeModelProtocols.energy_distance(::GenerativeModelProtocol, ::AbstractMatrix)
+GenerativeModelProtocols.energy_distance(::GenerativeModelProtocol)
 ```
 
 # Convenience Constructors

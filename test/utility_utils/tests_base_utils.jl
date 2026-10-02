@@ -4,6 +4,10 @@ using FileIO, HDF5
 using Lux, Reactant
 using DifferentialEquations
 
+using Tulip
+using Distances
+using OptimalTransport
+
 function make_test_train_data(num_samples)
     t = (2.0*π) .* rand(Float32,num_samples)
 

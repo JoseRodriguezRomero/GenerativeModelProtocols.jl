@@ -10,3 +10,7 @@ ParallelTestRunner = "d3525ed8-44d0-4b2c-a655-542cee43accc"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+OptimalTransport = "7e02d93a-ae51-4f58-b602-d97af76e3b33"
+Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
+

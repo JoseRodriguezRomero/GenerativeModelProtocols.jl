@@ -59,6 +59,20 @@ include("utility_utils/tests_base_utils.jl")
         test_model_make_synthetic_data(model, input_size)
     end
 
+    @testset "Distribution Distance Test" begin
+        train_data = make_test_train_data(10)
+
+        input_size = size(train_data,1)
+        latent_dim = 2
+
+        model = GenerativeModelProtocols.GenerativeAdversarialNetwork(input_size, latent_dim)
+        protocol = GenerativeModelProtocol(model, train_data)
+
+        @test abs(GenerativeModelProtocols.energy_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.earth_mover_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.sinkhorn_distance(protocol, train_data)) > 0.0
+    end
+
     @testset "Encode/Decode Test" begin
         input_size = 3
         latent_dim = 2

@@ -59,6 +59,20 @@ include("utility_utils/tests_base_utils.jl")
         @test input_size(protocol) != latent_size(protocol)
     end
 
+    @testset "Distribution Distance Test" begin
+        train_data = make_test_train_data(10)
+
+        k = 15
+        input_size = size(train_data,1)
+
+        model = GenerativeModelProtocols.GaussianMixtureModel(input_size, k)
+        protocol = GenerativeModelProtocol(model, train_data)
+
+        @test abs(GenerativeModelProtocols.energy_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.earth_mover_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.sinkhorn_distance(protocol, train_data)) > 0.0
+    end
+
     @testset "Categorize Test" begin
         k = 15
         input_size = 3

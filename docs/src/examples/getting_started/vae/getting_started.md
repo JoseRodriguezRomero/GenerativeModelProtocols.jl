@@ -43,7 +43,7 @@ protocol = GenerativeModelProtocol(model, train_data;
     optimiser   = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
     device      = cpu_device()
 )
-train!(protocol; β = 0.2)
+train!(protocol; β = 0.1)
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia

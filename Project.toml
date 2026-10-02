@@ -1,7 +1,7 @@
 name = "GenerativeModelProtocols"
 uuid = "a0057f27-f638-4fe0-93cd-51391adb8eb4"
-authors = ["Jose Romero <jrodriguesro@umass.edu>"]
 version = "0.1.0"
+authors = ["Jose Romero <jrodriguesro@umass.edu>"]
 
 [deps]
 Compat = "34da2185-b29b-5c13-b0c7-acf172513d20"
@@ -14,37 +14,45 @@ MLUtils = "f1d291b0-491e-4a28-83b9-f70985020b54"
 Optimisers = "3bd65402-5787-11e9-1adc-39752487f4e2"
 Printf = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [weakdeps]
 DifferentialEquations = "0c46a032-eb83-5123-abaf-570d42b7fbaa"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 FileIO = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
 HDF5 = "f67ccb44-e63f-5c2f-98bd-6dc0ccc4ba2f"
+OptimalTransport = "7e02d93a-ae51-4f58-b602-d97af76e3b33"
 Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
+Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
 [extensions]
+GenerativeModelProtocolsDifferentialEquationsExt = ["DifferentialEquations"]
+GenerativeModelProtocolsDistancesExt = ["Distances"]
 GenerativeModelProtocolsFileIOExt = ["FileIO"]
 GenerativeModelProtocolsHDF5Ext = ["FileIO", "HDF5"]
+GenerativeModelProtocolsOptimalTransportExt = ["Distances", "OptimalTransport"]
 GenerativeModelProtocolsReactantExt = ["Reactant", "Random"]
-GenerativeModelProtocolsDifferentialEquationsExt = ["DifferentialEquations"]
+GenerativeModelProtocolsTulipExt = ["Distances", "OptimalTransport", "Tulip"]
 
 [compat]
-julia = "1.13"
 Compat = "4"
 Dates = "1"
+DifferentialEquations = "8"
+Distances = "0.10"
 DocStringExtensions = "0.9"
 Enzyme = "0.13"
+FileIO = "1"
+HDF5 = "0.17"
 LinearAlgebra = "1"
 Lux = "1"
 MLUtils = "0.4"
+OptimalTransport = "0.3"
 Optimisers = "0.4"
 Printf = "1"
 Random = "1"
-StatsBase = "0.34"
-
-# Weakdeps / Extensions:
-DifferentialEquations = "8"
-FileIO = "1"
-HDF5 = "0.17"
 Reactant = "0.2"
-
+SpecialFunctions = "2.9.0"
+StatsBase = "0.34"
+Tulip = "0.9"
+julia = "1.13"

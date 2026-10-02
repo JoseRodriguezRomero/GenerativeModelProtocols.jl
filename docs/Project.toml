@@ -1,6 +1,12 @@
 [deps]
-GenerativeModelProtocols = "a0057f27-f638-4fe0-93cd-51391adb8eb4"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
 DocumenterCitations = "daee34ce-89f3-4625-b898-19384cb65244"
+GenerativeModelProtocols = "a0057f27-f638-4fe0-93cd-51391adb8eb4"
+LogExpFunctions = "2ab3a3ac-af41-5b50-aa03-7779005ae688"
+Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
+Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
+OptimalTransport = "7e02d93a-ae51-4f58-b602-d97af76e3b33"
+Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
+[sources]
+GenerativeModelProtocols = {path = ".."}

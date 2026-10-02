@@ -16,7 +16,7 @@ include("utility_utils/tests_base_utils.jl")
         train_data = make_test_train_data(50)
 
         input_size = size(train_data,1)
-        T = 21
+        T = 20
 
         model = GenerativeModelProtocols.DiffusionModel(input_size, T)
         test_train_model(model, train_data)
@@ -91,6 +91,20 @@ include("utility_utils/tests_base_utils.jl")
         test_model_display_no_data(model, input_size)
         test_model_display(model, input_size)
         test_display(model.denoiser_model)
+    end
+
+    @testset "Distribution Distance Test" begin
+        train_data = make_test_train_data(10)
+
+        input_size = size(train_data,1)
+        T = 20
+
+        model = GenerativeModelProtocols.DiffusionModel(input_size, T)
+        protocol = GenerativeModelProtocol(model, train_data)
+
+        @test abs(GenerativeModelProtocols.energy_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.earth_mover_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.sinkhorn_distance(protocol, train_data)) > 0.0
     end
 
     @testset "Save and Load Test" begin

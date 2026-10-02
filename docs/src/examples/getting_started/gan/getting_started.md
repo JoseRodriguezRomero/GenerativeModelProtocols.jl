@@ -52,7 +52,7 @@ protocol = GenerativeModelProtocol(model,train_data;
     optimiser   = (critic_optimiser, vae_optimiser),
     device      = cpu_device()
 )
-train!(protocol; β = 0.2, γ_vae = 1.0, γ_wgan = 0.1,
+train!(protocol; β = 0.1, γ_vae = 1.0, γ_wgan = 0.1,
     grad_penalty = true, λ = 10.0, a = 1.0
 )
 ```

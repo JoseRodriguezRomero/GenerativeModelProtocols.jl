@@ -180,6 +180,15 @@ end
 
 function _read_metadata end
 
+function _pairwise_metric_distance end
+function earth_mover_distance end
+function sinkhorn_distance end
+function energy_distance end
+
+@compat public earth_mover_distance
+@compat public sinkhorn_distance
+@compat public energy_distance
+
 macro _read_metadata(saved_protocol, main_group_name, metadata_group_name)
     return :(_read_metadata($(esc(saved_protocol)); 
         $(main_group_name = esc(main_group_name)), 
@@ -238,11 +247,12 @@ function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwarg
     t₀ = time()
     train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
     t₁ = time()
-    
-    elapsed = canonicalize(Second(round(Int, t₁ - t₀)))
+
+    Δt = t₁ - t₀
+    elapsed = canonicalize(Second(round(Int, Δt)))
     println("Training took $elapsed.")
 
-    return train_log
+    return (trace = train_log, elapsed = Δt)
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Matrix)

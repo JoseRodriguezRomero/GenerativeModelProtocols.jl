@@ -11,9 +11,10 @@ experience with native GPU acceleration and maintainable code.
 ## Key Features
 
 * **Unified Interface**: Standardized protocol for all generative architectures.
-* **Lux Ecosystem**: Seamless integration with modern Lux.jl neural networks.
+* **Lux Ecosystem**: Seamless integration with modern [`Lux.jl`](https://lux.csail.mit.edu/stable/) neural networks.
 * **Hardware Accelerated**: Out-of-the-box support for execution on GPUs.
-* **Model Persistence**: Built-in serialization mechanisms to save and resume workflows.
+* **Model Persistence**: Built-in serialization mechanisms to save and 
+resume workflows.
 
 ## Storage & Serialization
 
@@ -39,3 +40,4 @@ The currently built-in generative model architectures are:
 * [Diffusion Models](https://arxiv.org/abs/1503.03585)
 * [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)
 * [Normalizing Flows](https://arxiv.org/abs/1505.05770)
+
