@@ -88,9 +88,9 @@ include("utility_utils/tests_base_utils.jl")
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
         protocol = GenerativeModelProtocol(model, train_data)
 
-        @test abs(GenerativeModelProtocols.energy_distance(protocol, train_data)) > 0.0
-        @test abs(GenerativeModelProtocols.earth_mover_distance(protocol, train_data)) > 0.0
-        @test abs(GenerativeModelProtocols.sinkhorn_distance(protocol, train_data)) > 0.0
+        @test abs(GenerativeModelProtocols.energy_distance(protocol)) > 0.0
+        @test abs(GenerativeModelProtocols.earth_mover_distance(protocol)) > 0.0
+        @test abs(GenerativeModelProtocols.sinkhorn_distance(protocol)) > 0.0
     end
 
     @testset "Encode/Decode Test" begin
