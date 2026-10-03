@@ -71,7 +71,7 @@ function compute_distances(dist_func::Function, files_dir::String; num_reps::Int
     compute_distances_base(protocol, dist_func, files_dir * "gan_model.txt", num_reps, min_num_samples, max_num_samples)
 end
 
-compute_distances(GenerativeModelProtocols.earth_mover_distance, "emd_dist_comp/"; min_num_samples = 50, max_num_samples = 200)
+# compute_distances(GenerativeModelProtocols.earth_mover_distance, "emd_dist_comp/"; min_num_samples = 50, max_num_samples = 200)
 # compute_distances(GenerativeModelProtocols.energy_distance, "energy_dist_comp/"; min_num_samples = 200, max_num_samples = 800)
-# compute_distances(GenerativeModelProtocols.sinkhorn_distance, "sinkhorn_dist_comp/"; min_num_samples = 200, max_num_samples = 800)
+compute_distances(GenerativeModelProtocols.sinkhorn_distance, "sinkhorn_dist_comp/"; min_num_samples = 200, max_num_samples = 800)
 

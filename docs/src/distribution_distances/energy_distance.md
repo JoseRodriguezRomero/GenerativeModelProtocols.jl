@@ -106,7 +106,7 @@ The number of such dependent pairs is of order $\mathcal{O}(nm^2 + n^2m)$,
 whereas the total number of terms in the double summation for the variance is 
 $n^2m^2$. Consequently, the variance scales as:
 ```math
-    \operatorname{Var}(\widehat{A}) = \mathcal{O}\left( \frac{1}{n} + 
+    \operatorname{Var}(\widehat{A}) = \mathcal{O} \left( \frac{1}{n} + 
     \frac{1}{m} \right). 
 ```
 
@@ -157,12 +157,12 @@ energy distance is a linear combination of these three estimates,
 ```
 its statistical error therefore satisfies
 ```math
-    \boxed{ \widetilde{D}_{\mu, \nu} - D_{\mu, \nu} = O_p(n^{-1/2}) }
+    \boxed{ \widetilde{D}_{\mu, \nu} - D_{\mu, \nu} = \mathcal{O}_p(n^{-1/2}) }
 ```
 when the two sample sizes are of the same order. More generally, the error 
 scales as
 ```math
-    O_p \left( n^{-1/2} + m^{-1/2} \right).
+    \mathcal{O}_p \left( n^{-1/2} + m^{-1/2} \right).
 ```
 
 Importantly, this convergence rate does not deteriorate with the ambient 

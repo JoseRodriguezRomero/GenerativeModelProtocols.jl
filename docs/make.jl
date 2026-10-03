@@ -62,6 +62,9 @@ makedocs(;
             ],
             "β Annealing" => "examples/beta_annealing/beta_annealing.md",
             "Hierarchical VAEs" => "examples/hierarchical_vaes/hierarchical_vaes.md",
+            "Comparing Models" => "examples/comparing_models/comparing_models.md",
+            "Using GPUs" => "examples/using_gpus/using_gpus.md",
+            "Using Reactant.jl" => "examples/using_reactant/using_reactant.md",
             "Customizing Models" => "examples/customizing_models/customizing_models.md",
             "Saving and Loading Models" => "examples/save_load/save_load.md"
         ],

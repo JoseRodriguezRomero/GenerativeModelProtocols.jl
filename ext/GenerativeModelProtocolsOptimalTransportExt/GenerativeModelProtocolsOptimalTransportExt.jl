@@ -11,7 +11,8 @@ using OptimalTransport
         metric = Distances.Euclidean(), ε::Float64 = 0.05, 
         alg = SinkhornGibbs(), atol::Float64 = 0.0, 
         rtol::Float64 = atol > 0 ? 0 : √eps(Float64), 
-        check_convergence::Int = 10, maxiter::Int = 100_000)    
+        check_convergence::Int = 10, maxiter::Int = 100_000,
+        regularization::Bool = false)    
 
 Calculates the Sinkhorn distance between synthetic and target data.
 
@@ -27,11 +28,14 @@ Calculates the Sinkhorn distance between synthetic and target data.
  - `rtol::Float64`: Relative tolerance for convergence (default is 0 if atol > 0, otherwise √eps(Float64))
  - `check_convergence::Int`: Number of iterations between convergence checks (default is 10)
  - `maxiter::Int`: Maximum number of iterations (default is 100_000)
+ - `regularization::Bool`: Whether to add the regularization term to the returned distance (default is false)
 """
 function GenerativeModelProtocols.sinkhorn_distance(
     synthetic_data::AbstractMatrix, target_data::AbstractMatrix; 
     metric = Distances.Euclidean(), ε::Float64 = 0.05, alg = SinkhornGibbs(),
-    atol::Float64 = 0.0, rtol::Float64 = atol > 0 ? 0 : √eps(Float64), check_convergence::Int = 10, maxiter::Int = 100_000)
+    atol::Float64 = 0.0, rtol::Float64 = atol > 0 ? 0 : √eps(Float64), 
+    check_convergence::Int = 10, maxiter::Int = 100_000, 
+    regularization::Bool = false)
 
     num_samples = size(target_data, 2)
     μ = fill(1.0 / num_samples, num_samples)
@@ -43,7 +47,7 @@ function GenerativeModelProtocols.sinkhorn_distance(
         rtol              = rtol,
         check_convergence = check_convergence,
         maxiter           = maxiter,
-        regularization    = true
+        regularization    = regularization
     )
 end
 
@@ -53,7 +57,8 @@ end
         metric = Distances.Euclidean(), ε::Float64 = 0.05, 
         alg = SinkhornGibbs(), atol::Float64 = 0.0, 
         rtol::Float64 = atol > 0 ? 0 : √eps(Float64), 
-        check_convergence::Int = 10, maxiter::Int = 100_000)
+        check_convergence::Int = 10, maxiter::Int = 100_000,
+        regularization::Bool = false)
 
 Calculates the Sinkhorn distance between synthetic data produced by the protocol 
 and target data.
@@ -70,12 +75,15 @@ and target data.
  - `rtol::Float64`: Relative tolerance for convergence (default is 0 if atol > 0, otherwise √eps(Float64))
  - `check_convergence::Int`: Number of iterations between convergence checks (default is 10)
  - `maxiter::Int`: Maximum number of iterations (default is 100_000)
+ - `regularization::Bool`: Whether to add the regularization term to the returned distance (default is false)
 """
 function GenerativeModelProtocols.sinkhorn_distance(
     protocol::GenerativeModelProtocols.GenerativeModelProtocol, 
     target_data::AbstractMatrix; 
     metric = Distances.Euclidean(), ε::Float64 = 0.05, alg = SinkhornGibbs(),
-    atol::Float64 = 0.0, rtol::Float64 = atol > 0 ? 0 : √eps(Float64), check_convergence::Int = 10, maxiter::Int = 100_000)
+    atol::Float64 = 0.0, rtol::Float64 = atol > 0 ? 0 : √eps(Float64), 
+    check_convergence::Int = 10, maxiter::Int = 100_000, 
+    regularization::Bool = false)
 
     num_samples = size(target_data, 2)
     synthetic_data = protocol(num_samples)
@@ -86,7 +94,8 @@ function GenerativeModelProtocols.sinkhorn_distance(
         atol              = atol, 
         rtol              = rtol, 
         check_convergence = check_convergence, 
-        maxiter           = maxiter
+        maxiter           = maxiter,
+        regularization    = regularization
     )
 end
 
@@ -97,7 +106,8 @@ end
         metric = Distances.Euclidean(), ε::Float64 = 0.05, 
         alg = SinkhornGibbs(), atol::Float64 = 0.0, 
         rtol::Float64 = atol > 0 ? 0 : √eps(Float64), 
-        check_convergence::Int = 10, maxiter::Int = 100_000)
+        check_convergence::Int = 10, maxiter::Int = 100_000,
+        regularization::Bool = false)
 
 Calculates the Sinkhorn distance between synthetic data produced by the protocol 
 and its training data.
@@ -113,11 +123,14 @@ and its training data.
  - `rtol::Float64`: Relative tolerance for convergence (default is 0 if atol > 0, otherwise √eps(Float64))
  - `check_convergence::Int`: Number of iterations between convergence checks (default is 10)
  - `maxiter::Int`: Maximum number of iterations (default is 100_000)
+ - `regularization::Bool`: Whether to add the regularization term to the returned distance (default is false)
 """
 function GenerativeModelProtocols.sinkhorn_distance(
     protocol::GenerativeModelProtocols.GenerativeModelProtocol; 
     metric = Distances.Euclidean(), ε::Float64 = 0.05, alg = SinkhornGibbs(),
-    atol::Float64 = 0.0, rtol::Float64 = atol > 0 ? 0 : √eps(Float64), check_convergence::Int = 10, maxiter::Int = 100_000)
+    atol::Float64 = 0.0, rtol::Float64 = atol > 0 ? 0 : √eps(Float64), 
+    check_convergence::Int = 10, maxiter::Int = 100_000, 
+    regularization::Bool = false)
 
     return GenerativeModelProtocols.sinkhorn_distance(
         protocol, protocol.training_data;
@@ -127,7 +140,8 @@ function GenerativeModelProtocols.sinkhorn_distance(
         atol              = atol,
         rtol              = rtol,
         check_convergence = check_convergence,
-        maxiter           = maxiter
+        maxiter           = maxiter,
+        regularization    = regularization
     )
 end
 

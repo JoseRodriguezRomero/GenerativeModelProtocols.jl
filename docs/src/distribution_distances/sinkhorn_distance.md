@@ -22,7 +22,7 @@ transport costs. The Sinkhorn distance is defined as
 ```math
     W_{1,\varepsilon}(\mu, \nu) \equiv \inf_{\pi \in \Pi(\mu, \nu)} 
         \mathbb{E}_{(X,Y) \sim \pi} [ d(X, Y) ] + \varepsilon \, 
-        \mathrm{D}_{\mathrm{KL}}(\pi \,\Vert{}\, \mu \otimes \nu). 
+        D_{\mathrm{KL}}(\pi \,\Vert{}\, \mu \otimes \nu). 
 ```
 
 The entropic penalty restricts the optimization space, smoothing the transport 

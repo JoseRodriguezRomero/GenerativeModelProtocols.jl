@@ -83,6 +83,7 @@ parameters needed to train it and evaluate it. By default the training and
 evaluation of the generative model is done in the CPU, however, this can be 
 changed by setting `device` to a GPU device of preference.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
@@ -150,10 +151,19 @@ end
 GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel} = GenerativeModelProtocol(args...; kwargs...)
 
 """
-    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
+    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; 
+        normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
 
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
+
+# Arguments
+ - `model<:AbstractGenerativeModel`: The generative model to use.
+ - `training_data::Matrix{<:AbstractFloat}`: The training data to use.
+
+# Keyword Arguments
+ - `normalize_data::Bool = true`: Whether to normalize the training data.
+ - `kwargs...`: Additional keyword arguments for the generative model protocol.
 """
 function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
     copy_training_data = copy(training_data)
@@ -240,6 +250,26 @@ end
 
 Method to train the model inside `protocol` with its `training_data`. This 
 method can be called again after it finishes to resume training.
+
+# Arguments
+ - `protocol`: The generative model protocol to train.
+
+# Keyword Arguments (All Models)
+ - `print_log::Bool`: Whether to print training logs (default is `true`).
+
+# Keyword Arguments (VariationalAutoencoder)
+ - `β::Union{Vector{<:AbstractFloat}, AbstractFloat}`: The β parameter for the VAE ELBO function (default is `1.0`).
+
+# Keyword Arguments (GenerativeAdversarialNetwork)
+ - `β::Union{Vector{<:AbstractFloat}, AbstractFloat}`: The β parameter for the VAE ELBO function (default is `1.0`).
+ - `n_critic::Int`: The number of subiterations to train the critic in each training step (default is `5`).
+ - `γ_vae::AbstractFloat`: The weight of the VAE ELBO in the VAE loss function (default is `1.0`).
+ - `γ_wgan::AbstractFloat`: The weight of the Wasserstein distance in the VAE loss function (default is `1.0`).
+ - `grad_penalty::Bool`: Whether to use gradient penalty in the WGAN loss function (default is `false`).
+ - `λ::AbstractFloat`: The weight of the gradient penalty in the WGAN loss function (default is `10.0`).
+ - `a::AbstractFloat`: The gradient norm target in the gradient penalty (default is `1.0`).
+ - `weight_clipping::Bool`: Whether to use weight clipping in the WGAN loss function (default is `false`).
+ - `clip_value::AbstractFloat`: The value to clip the weights and biases of the critic at each training step (default is `1.0`).
 """
 function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwargs...)
     empty!(protocol._log)
@@ -298,6 +328,10 @@ Compute the posterior probability distribution over the mixture components for a
 given input vector `x`. Returns a vector where the k-th element represents the 
 conditional probability that the input stems from the k-th categorical cluster 
 of the model.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use for categorization.
+ - `x::Vector`: The input vector for which to compute the posterior probability distribution.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Vector)::Vector
     return _categorize(protocol.model, _shift_and_scale(protocol, x))
@@ -311,6 +345,10 @@ components for multiple input vectors. Each sample in the input matrix `x` is
 mapped to a normalized categorical probability vector where the k-th element 
 represents the conditional probability that the sample stems from the k-th 
 cluster.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use for categorization.
+ - `x::Matrix`: The input matrix for which to compute the posterior probability distributions.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
     return _categorize(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
@@ -320,6 +358,14 @@ end
     encode(protocol::GenerativeModelProtocol, x::Matrix; kwargs...) -> Matrix
 
 Encodes the data space variable `x` into a latent space variable.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use for encoding.
+ - `x::Matrix`: The input matrix to encode.
+
+# Keyword Arguments (NormalizingFlow)
+ - `ode_solver`: The ODE solver to use for the normalizing flow.
+ - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function encode(protocol::GenerativeModelProtocol, x::Matrix; kwargs...)::Matrix
     return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)); kwargs...)
@@ -329,6 +375,14 @@ end
     encode(protocol::GenerativeModelProtocol, x::Vector; kwargs...) -> Vector
 
 Encodes the data space variable `x` into a latent space variable.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use for encoding.
+ - `x::Vector`: The input vector to encode.
+
+# Keyword Arguments (NormalizingFlow)
+ - `ode_solver`: The ODE solver to use for the normalizing flow.
+ - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function encode(protocol::GenerativeModelProtocol, x::Vector; kwargs...)::Vector
     return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)); kwargs...)
@@ -338,6 +392,14 @@ end
     decode(protocol::GenerativeModelProtocol, z::Matrix; kwargs...) -> Matrix
 
 Decodes the latent space representations `z` back into the data space.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use for decoding.
+ - `z::Matrix`: The latent space representations to decode.
+
+# Keyword Arguments (NormalizingFlow)
+ - `ode_solver`: The ODE solver to use for the normalizing flow.
+ - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function decode(protocol::GenerativeModelProtocol, z::Matrix; kwargs...)::Matrix
     return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z; kwargs...)))
@@ -347,6 +409,14 @@ end
     decode(protocol::GenerativeModelProtocol, z::Vector; kwargs...) -> Vector
 
 Decodes the latent space representations `z` back into the data space.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use for decoding.
+ - `z::Vector`: The latent space representations to decode.
+
+# Keyword Arguments (NormalizingFlow)
+ - `ode_solver`: The ODE solver to use for the normalizing flow.
+ - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function decode(protocol::GenerativeModelProtocol, z::Vector; kwargs...)::Vector
     return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z; kwargs...)))
@@ -356,6 +426,9 @@ end
     input_size(protocol::GenerativeModelProtocol) -> Int
 
 Returns the dimension size of an input vector.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use.
 """
 function input_size(protocol::GenerativeModelProtocol)::Int
     return _input_size(protocol.model)
@@ -365,6 +438,9 @@ end
     latent_size(protocol::GenerativeModelProtocol) -> Int
 
 Returns the dimension size of an encoded latent vector.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol to use.
 """
 function latent_size(protocol::GenerativeModelProtocol)::Int
     return _latent_size(protocol.model)

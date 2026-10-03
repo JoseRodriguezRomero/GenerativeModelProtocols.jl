@@ -35,6 +35,7 @@ A structure containing the general parameters needed to evaluate and train
 a Diffusion Model (DM). Once trained, its denoiser model can be used as a 
 generative model.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct DiffusionModel{LayerNames} <: AbstractGenerativeModel
@@ -62,6 +63,10 @@ DiffusionModel{LayerNames}(args...; kwargs...) where LayerNames = DiffusionModel
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
 A default `denoiser_model` is created based on `num_inputs`.
+
+# Arguments
+ - `num_inputs::Int`: The dimensionality of the input data.
+ - `β::Tuple{Vararg{AbstractFloat}}`: The variance of the Gaussian noise added in each diffusion step.
 """
 function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}})
     T = length(β)
@@ -74,24 +79,40 @@ function _generative_model(::DiffusionModel)::GenerativeModel
 end
 
 """
-    GenerativeModelProtocols.DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames, FP<:AbstractFloat}
+    GenerativeModelProtocols.DiffusionModel(
+        T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames}) 
+        where {LayerNames, FP<:AbstractFloat}
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
 This constructor initializes `β` with 
 `collect(range(β_start, β_end, length=T))`.
+
+# Arguments
+ - `T::Int`: The number of diffusion steps.
+ - `β_start::FP`: The variance of the Gaussian noise at the first step.
+ - `β_end::FP`: The variance of the Gaussian noise at the last step.
+ - `denoiser_model::TabularDenoiser{LayerNames}`: The neural network parametrizing the denoising model.
 """
 function DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames, FP<:AbstractFloat}
     return DiffusionModel(Tuple(collect(range(β_start, β_end, length=T))), denoiser_model)
 end
 
 """
-    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02) where {FP<:AbstractFloat}
+    GenerativeModelProtocols.DiffusionModel(
+        num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02) 
+        where {FP<:AbstractFloat}
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
 A default `denoiser_model` is created based on `num_inputs`. This constructor 
 initializes `β` with `collect(range(β_start, β_end, length=T))`.
+
+# Arguments
+ - `num_inputs::Int`: The dimensionality of the input data.
+ - `T::Int`: The number of diffusion steps.
+ - `β_start::FP`: The variance of the Gaussian noise at the first step.
+ - `β_end::FP`: The variance of the Gaussian noise at the last step.
 """
 function DiffusionModel(num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02) where {FP<:AbstractFloat}
     denoiser_model = default_denoiser_network(num_inputs, T, eltype(β_start))

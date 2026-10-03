@@ -65,8 +65,9 @@ end
 $TYPEDEF
 
 A time-conditioned residual neural network for vector-based diffusion 
-models.latent_dim, latent_layers, encoders, decoders
+models.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct TabularDenoiser{LayerNames}
@@ -126,10 +127,21 @@ end
 TabularDenoiser{LayerNames}(args...; kwargs...) where LayerNames = TabularDenoiser(args...; kwargs...)
 
 """
-    GenerativeModelProtocols.TabularDenoiser(num_inputs::Int; hidden_layer_size::Int = 64, T::Int = 32, activation_function::Function = relu, max_period::Float64 = 10000.0)
+    GenerativeModelProtocols.TabularDenoiser(num_inputs::Int; 
+        hidden_layer_size::Int = 64, T::Int = 32, activation_function::Function = relu, 
+        max_period::Float64 = 10000.0)
 
 Convenience constructor to create a default `TabularDenoiser` that matches the
 number of inputs specified by `num_inputs`.
+
+# Arguments
+ - `num_inputs::Int`: The dimensionality of the input data.
+
+# Keyword Arguments
+ - `hidden_layer_size::Int`: The size of the hidden layers.
+ - `T::Int`: The number of time steps.
+ - `activation_function::Function`: The activation function to use.
+ - `max_period::Float64`: The maximum period for the time embedding.
 """
 function TabularDenoiser(num_inputs::Int; 
     hidden_layer_size::Int = 64, 

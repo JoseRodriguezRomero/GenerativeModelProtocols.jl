@@ -41,6 +41,7 @@ A structure containing the general parameters needed to evaluate and train a
 Generative Adversarial Network (GAN). Once trained, it can be used a generative 
 model.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct GenerativeAdversarialNetwork <: AbstractCategoricalGenerativeModel
@@ -76,11 +77,17 @@ $TYPEDFIELDS
 end
 
 """
-    GenerativeModelProtocols.GenerativeAdversarialNetwork(input_size::Int, latent_size::Int)
+    GenerativeModelProtocols.GenerativeAdversarialNetwork(
+        input_size::Int, latent_size::Int = 1, latent_layers::Int = 1)
 
 Convenience constructor that creates a 
 `GenerativeModelProtocols.GenerativeAdversarialNetwork` using default generator
 and discriminator networks.
+
+# Arguments
+ - `input_size::Int`: The dimensionality of the input data.
+ - `latent_size::Int`: The size of the latent space (default is 1).
+ - `latent_layers::Int`: The number of layers in the latent space (default is 1).
 """
 function GenerativeAdversarialNetwork(input_size::Int, latent_size::Int = 1, latent_layers::Int = 1)
     return GenerativeAdversarialNetwork(;

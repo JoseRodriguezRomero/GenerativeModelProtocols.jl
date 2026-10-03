@@ -105,14 +105,14 @@ function read_data(base_dir::String, xlabel, ylabel)
     return p
 end
 
-p1 = read_data("emd_dist_comp/", "", "Earth Mover's Distance")
+p1 = read_data("emd_dist_comp/", "", "𝔼[Earth Mover's Distance]")
 plot!(p1, ylims = [0, 0.4])
 
-p2 = read_data("sinkhorn_dist_comp/", "Number of Samples", "Sinkhorn Distance")
-plot!(p2, ylims = [-0.425, 0.0])
+p2 = read_data("sinkhorn_dist_comp/", "", "𝔼[Sinkhorn Distance]")
+plot!(p2, ylims = [0, 0.25])
 
-p3 = read_data("energy_dist_comp/", "Number of Samples", "Energy Distance")
-plot!(p3, ylims = [-0.02, 0.02])
+p3 = read_data("energy_dist_comp/", "Number of Samples", "𝔼[Energy Distance]")
+plot!(p3, ylims = [-0.01, 0.02])
 
 labels = [
     "Reference",
@@ -149,10 +149,12 @@ plot(
     legend_plot,
     p1,
     p2,
+    p3,
     layout = @layout([
         a{0.08h}
         b
         c
+        d
     ]),
     size = (900, 800),
     bottom_margin = 1mm,

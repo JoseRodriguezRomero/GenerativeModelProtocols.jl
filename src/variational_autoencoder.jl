@@ -128,6 +128,7 @@ A structure containing the general parameters needed to evaluate and train
 a Variational Autoencoder (VAE). Once trained, its decoder can be used as a 
 generative model.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct VariationalAutoencoder{EncLayerNames, DecLayerNames} <: AbstractGenerativeModel
@@ -164,10 +165,15 @@ end
 VariationalAutoencoder{EncLayerNames, DecLayerNames}(args...; kwargs...) where {EncLayerNames, DecLayerNames} = VariationalAutoencoder(args...; kwargs...)
 
 """
-    GenerativeModelProtocols.VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})
+    GenerativeModelProtocols.VariationalAutoencoder(
+        encoders::Tuple{Vararg{Lux.Chain}}, decoders::Tuple{Vararg{Lux.Chain}})
 
 Convenience constructor that generates a 
 `GenerativeModelProtocols.VariationalAutoencoder` from plain `Tuple` containers.
+
+# Arguments
+ - `encoders::Tuple{Vararg{Lux.Chain}}`: The encoder networks.
+ - `decoders::Tuple{Vararg{Lux.Chain}}`: The decoder networks.
 """
 function VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{Vararg{Chain}})
     return VariationalAutoencoder(;
@@ -177,10 +183,17 @@ function VariationalAutoencoder(encoders::Tuple{Vararg{Chain}}, decoders::Tuple{
 end
 
 """
-    GenerativeModelProtocols.VariationalAutoencoder(encoders::NamedTuple{EncLayerNames, Tuple{Vararg{Chain}}}, decoders::NamedTuple{DecLayerNames, Tuple{Vararg{Chain}}}) where {EncLayerNames, DecLayerNames}
+    GenerativeModelProtocols.VariationalAutoencoder(
+        encoders::NamedTuple{EncLayerNames, Tuple{Vararg{Lux.Chain}}}, 
+        decoders::NamedTuple{DecLayerNames, Tuple{Vararg{Lux.Chain}}}) 
+        where {EncLayerNames, DecLayerNames}
 
 Convenience constructor that generates a 
 `GenerativeModelProtocols.VariationalAutoencoder` from plain `Tuple` containers.
+
+# Arguments
+ - `encoders::NamedTuple{EncLayerNames, Tuple{Vararg{Lux.Chain}}}`: The encoder networks.
+ - `decoders::NamedTuple{DecLayerNames, Tuple{Vararg{Lux.Chain}}}`: The decoder networks.
 """
 function VariationalAutoencoder(
     encoders::NamedTuple{EncLayerNames, <:Tuple{Vararg{Chain}}}, 
@@ -190,11 +203,17 @@ function VariationalAutoencoder(
 end
 
 """
-    GenerativeModelProtocols.VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1)
+    GenerativeModelProtocols.VariationalAutoencoder(
+        input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1)
 
 Convenience constructor that generates a 
 `GenerativeModelProtocols.VariationalAutoencoder` using default encoder and 
 decoder network architectures.
+
+# Arguments
+ - `input_dim::Int`: The dimensionality of the input data.
+ - `latent_dim::Int`: The dimensionality of the latent space(s) (default is 1).
+ - `latent_layers::Int`: The number of latent layers (default is 1).
 """
 function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1)
     return VariationalAutoencoder(

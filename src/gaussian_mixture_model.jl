@@ -45,6 +45,7 @@ $TYPEDEF
 A structure containing the general parameters needed to evaluate and train a 
 Gaussian Mixture Model (GMM). Once trained, it can be used a generative model.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct GaussianMixtureModel{F<:AbstractFloat} <: AbstractCategoricalGenerativeModel
@@ -93,6 +94,10 @@ GaussianMixtureModel{F}(args...; kwargs...) where {F<:AbstractFloat} = GaussianM
 Convenience constructor that creates a 
 `GenerativeModelProtocols.GaussianMixtureModel` using default predictor network 
 architecture.
+
+# Arguments
+ - `input_size::Int`: The dimensionality of the input data.
+ - `k::Int`: The number of Gaussian clusters in the model.
 """
 function GaussianMixtureModel(input_size::Int, k::Int)
     return GaussianMixtureModel(;

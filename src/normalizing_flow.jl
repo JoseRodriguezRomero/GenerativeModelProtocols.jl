@@ -28,6 +28,7 @@ A structure containing the general parameters needed to evaluate and train a
 Continuous Normalizing Flow (CNF). Once trained, it can be used a generative 
 model.
 
+# Structure Fields
 $TYPEDFIELDS
 """
 @kwdef struct NormalizingFlow <: AbstractGenerativeModel
@@ -60,6 +61,9 @@ end
 Convenience constructor that creates a 
 `GenerativeModelProtocols.NormalizingFlow` using default velocity field network 
 architecture.
+
+# Arguments
+ - `input_size::Int`: The dimensionality of the input data.
 """
 function NormalizingFlow(input_size::Int)
     return NormalizingFlow(;
