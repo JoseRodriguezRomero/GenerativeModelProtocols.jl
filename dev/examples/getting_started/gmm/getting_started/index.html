@@ -15,26 +15,23 @@ end
 num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))</code></pre><p>we then define the GMMs that are to be trained, with 15, 65 and 120 Gaussian  clusters each, on this data</p><pre><code class="language-julia hljs">k = [15, 65, 120]
-models = [GenerativeModelProtocols.GaussianMixtureModel(2, ki) for ki in k]</code></pre><p>thus, our trainable generative model protocols are defined, and trained, as</p><pre><code class="language-julia hljs">protocols = [
-    GenerativeModelProtocol(model, train_data;
+models = [GenerativeModelProtocols.GaussianMixtureModel(2, ki) for ki in k]</code></pre><p>thus, our trainable generative model protocols are defined, and trained, as</p><pre><code class="language-julia hljs">protocols = [GenerativeModelProtocol(model, train_data) for model in models]
+
+for i in eachindex(protocols)
+    train!(protocols[i];
         batchsize = 256,
-        epochs = 1500,
-        optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-        device = cpu_device()
+        epochs    = 1500,
+        optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+        device    = cpu_device()
     )
-    for model in models
-]
-train!(protocol)</code></pre><p>finally, we can generate synthetic data by simply invoking our trained protocol</p><pre><code class="language-julia hljs">synthetic_data_1 = protocols[1](num_samples)
+end</code></pre><p>finally, we can generate synthetic data by simply invoking our trained protocol</p><pre><code class="language-julia hljs">synthetic_data_1 = protocols[1](num_samples)
 synthetic_data_2 = protocols[2](num_samples)
 synthetic_data_3 = protocols[3](num_samples)</code></pre><p><img src="../../../../assets/examples/getting_started/gmm/intro_example.svg" alt="intro_example"/></p><h2 id="Displaying-models-and-protocols"><a class="docs-heading-anchor" href="#Displaying-models-and-protocols">Displaying models and protocols</a><a id="Displaying-models-and-protocols-1"></a><a class="docs-heading-anchor-permalink" href="#Displaying-models-and-protocols" title="Permalink"></a></h2><p>As part of this module, <code>Base.display</code> is overloaded with most relevant  structures that users can need. We can easily read the configuration of  <code>protocol</code> from the REPL by inputting</p><pre><code class="language-julia-repl hljs">julia&gt; protocols[1]
-GenerativeModelProtocol{GenerativeModelProtocols.GaussianMixtureModel, Adam{Float64, Tuple{Float64, Float64}, Float64}}:
-training_data = 2×5000 Matrix{Float64}
-epochs        = 1500
-batchsize     = 256
-shuffle       = true
-optimiser     = Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GaussianMixtureModel</code></pre><p>likewise, we can also read the configuration of <code>model</code> from the REPL by inputting</p><pre><code class="language-julia-repl hljs">julia&gt; models[1]
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.GaussianMixtureModel</code></pre><p>likewise, we can also read the configuration of <code>model</code> from the REPL by inputting</p><pre><code class="language-julia-repl hljs">julia&gt; models[1]
 GenerativeModelProtocols.GaussianMixtureModel:
 μ      = 15×2 Matrix{Float64}
 log_σ² = 15×2 Matrix{Float64}
@@ -49,4 +46,4 @@ predictor_network:
       Dense(32 =&gt; 32, relu)
       Dense(32 =&gt; 15)
    )</code></pre><h2 id="Model-Validation"><a class="docs-heading-anchor" href="#Model-Validation">Model Validation</a><a id="Model-Validation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-Validation" title="Permalink"></a></h2><p>Across all three trained architectures, the generated synthetic data generally  preserves the geometric structure of the reference training set. However,  artifacts such as incorrect distribution shape, or scattered out of trend  datapoints, particularly in the GMM with 15 Gaussian components which yields the  most significant distributional divergence.</p><p>To overcome these visual anomalies, evaluating the 2D probability density  function (PDF) via a 2D histogram or kernel density estimate offers a more  rigorous and reliable assessment of how accurately the underlying distributions  were learned.</p><p><img src="../../../../assets/examples/getting_started/gmm/intro_example_density_comp.svg" alt="intro_example_density_comp"/></p><h2 id="Source-code"><a class="docs-heading-anchor" href="#Source-code">Source code</a><a id="Source-code-1"></a><a class="docs-heading-anchor-permalink" href="#Source-code" title="Permalink"></a></h2><p>The scripts used to create and train the GMMs, and to produce all the plots  shown in this page are included in the <code>examples</code> folder of this module.</p><pre><code class="language-bash hljs">cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/gmm_example
-julia intro_example.jl</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../vae/getting_started/">« Variational Autoencoder</a><a class="docs-footer-nextpage" href="../../dm/getting_started/">Diffusion Model »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Saturday 3 October 2026 08:54">Saturday 3 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+julia intro_example.jl</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../vae/getting_started/">« Variational Autoencoder</a><a class="docs-footer-nextpage" href="../../dm/getting_started/">Diffusion Model »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 5 October 2026 08:50">Monday 5 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

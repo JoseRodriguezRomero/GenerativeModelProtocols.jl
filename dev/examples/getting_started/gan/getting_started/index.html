@@ -15,51 +15,52 @@ end
 num_samples = 5000
 x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))</code></pre><p>we then define the WGAN-VAE that is to be trained on this data, whose latent  variables are also two-dimensional as</p><pre><code class="language-julia hljs">model = GenerativeModelProtocols.GenerativeAdversarialNetwork(2, 2)</code></pre><p>however, unlike our VAE implementation that uses only one optimiser, we want  to specify (in general) different optimiser settings for the cost function of  the critic and the generator models, which we do as</p><pre><code class="language-julia hljs">critic_optimiser = Adam(; eta = 1.0E-4, beta = (0.0,0.9))
-vae_optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999))</code></pre><p>thus, our trainable generative model protocol is defined, and trained, as</p><pre><code class="language-julia hljs">protocol = GenerativeModelProtocol(model,train_data;
-    batchsize   = 256,
-    epochs      = 1500,
-    optimiser   = (critic_optimiser, vae_optimiser),
-    device      = cpu_device()
-)
-train!(protocol; β = 0.1, γ_vae = 1.0, γ_wgan = 0.1,
-    grad_penalty = true, λ = 10.0, a = 1.0
+vae_optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999))</code></pre><p>thus, our trainable generative model protocol is defined, and trained, as</p><pre><code class="language-julia hljs">protocol = GenerativeModelProtocol(model,train_data)
+train!(protocol; 
+   β            = 0.1, 
+   γ_vae        = 1.0, 
+   γ_wgan       = 0.1,
+   grad_penalty = true, 
+   λ            = 10.0, 
+   a            = 1.0,
+   batchsize    = 256,
+   epochs       = 1500,
+   optimiser    = (critic_optimiser, vae_optimiser),
+   device       = cpu_device()
 )</code></pre><p>finally, we can generate synthetic data by simply invoking our trained protocol</p><pre><code class="language-julia hljs">synthetic_data = protocol(num_samples)</code></pre><p><img src="../../../../assets/examples/getting_started/gan/intro_example.svg" alt="intro_example"/></p><h2 id="Displaying-models-and-protocols"><a class="docs-heading-anchor" href="#Displaying-models-and-protocols">Displaying models and protocols</a><a id="Displaying-models-and-protocols-1"></a><a class="docs-heading-anchor-permalink" href="#Displaying-models-and-protocols" title="Permalink"></a></h2><p>As part of this module, <code>Base.display</code> is overloaded with most relevant  structures that users can need. We can easily read the configuration of  <code>protocol</code> from the REPL by inputting</p><pre><code class="language-julia-repl hljs">julia&gt; protocol
-GenerativeModelProtocol{GenerativeModelProtocols.GenerativeAdversarialNetwork, Adam{Float64, Tuple{Float64, Float64}, Float64}}:
-training_data = 2×5000 Matrix{Float64}
-epochs        = 1500
-batchsize     = 256
-shuffle       = true
-optimiser     = (Adam(eta=0.0001, beta=(0.0, 0.9), epsilon=1.0e-8), Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8))
-device        = CPUDevice
-model         = GenerativeModelProtocols.GenerativeAdversarialNetwork</code></pre><p>likewise, we can also read the configuration of <code>model</code> from the REPL by inputting</p><pre><code class="language-julia-repl hljs">julia&gt; model
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.GenerativeAdversarialNetwork</code></pre><p>likewise, we can also read the configuration of <code>model</code> from the REPL by inputting</p><pre><code class="language-julia-repl hljs">julia&gt; model
 GenerativeModelProtocols.GenerativeAdversarialNetwork:
 discriminator: 
    Chain(
-      Dense(2 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
+      Dense(2 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
       Dense(32 =&gt; 1)
    )
 
 encoders: 
    Chain(
-      Dense(2 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
+      Dense(2 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
       Dense(32 =&gt; 4)
    )
 
 decoders: 
    Chain(
-      Dense(2 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
-      Dense(32 =&gt; 32, leakyrelu)
+      Dense(2 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
+      Dense(32 =&gt; 32, elu)
       Dense(32 =&gt; 2)
    )</code></pre><h2 id="Model-validation"><a class="docs-heading-anchor" href="#Model-validation">Model validation</a><a id="Model-validation-1"></a><a class="docs-heading-anchor-permalink" href="#Model-validation" title="Permalink"></a></h2><p>So far, we have only validated our model by verifying that its synthetic data  resembles the training data. However, we can perform at least two additional  tests to assess whether the model is functioning as intended:</p><ul><li><strong>Test Data Reconstruction</strong>: Encode and decode a separate, unseen test  dataset to see if the reconstructed data closely resembles the original.</li><li><strong>Latent Space Validation</strong>: Verify that all latent variables in our trained  VAE act as statistically independent random variables following a standard  normal distribution (zero mean and unit variance).</li></ul><p>For our given example, we can easily test the ability of our trained model to  reconstruct some inputted data by simply calling  <code>GenerativeModelProtocols.encode</code> and <code>GenerativeModelProtocols.decode</code> as  follows</p><pre><code class="language-julia hljs">x_test, y_test = make_data(800)
 test_data = collect(transpose(hcat(x_test,y_test)))
@@ -70,4 +71,4 @@ z_test_data = GenerativeModelProtocols.encode(model,test_data)</code></pre><p><i
 
 pearson_corr = cor(z_test_data[1,:],z_test_data[2,:])
 spearman_corr = corspearman(z_test_data[1,:],z_test_data[2,:])</code></pre><p><img src="../../../../assets/examples/getting_started/gan/intro_example_latents_corr.svg" alt="intro_example_latents_corr"/></p><p>the resulting correlations, visible in the illustration above, are close enough  to zero to confirm that the latent variables are effectively independent.</p><h2 id="Source-code"><a class="docs-heading-anchor" href="#Source-code">Source code</a><a id="Source-code-1"></a><a class="docs-heading-anchor-permalink" href="#Source-code" title="Permalink"></a></h2><p>The scripts used to create and train the VAE, and to produce all the plots shown  in this page are included in the <code>examples</code> folder of this module.</p><pre><code class="language-bash hljs">cd /path/to/GenerativeModelProtocols.jl/examples/intro_example/gan_example
-julia intro_example.jl</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../dm/getting_started/">« Diffusion Model</a><a class="docs-footer-nextpage" href="../../nf/getting_started/">Normalizing Flow »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Saturday 3 October 2026 08:54">Saturday 3 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+julia intro_example.jl</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../dm/getting_started/">« Diffusion Model</a><a class="docs-footer-nextpage" href="../../nf/getting_started/">Normalizing Flow »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.19.0 on <span class="colophon-date" title="Monday 5 October 2026 08:50">Monday 5 October 2026</span>. Using Julia version 1.13.1.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
