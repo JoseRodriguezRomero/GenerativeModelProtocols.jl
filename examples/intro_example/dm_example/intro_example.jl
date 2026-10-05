@@ -2,6 +2,10 @@ using GenerativeModelProtocols
 using Lux, Plots, StatsBase, Optimisers
 using LaTeXStrings
 
+data = rand(Float32, 3, 100)
+model = GenerativeModelProtocols.DiffusionModel(3, 250)
+protocol = GenerativeModelProtocol(model, data)
+
 function make_data(num_samples)
     t = (2.0*π) .* rand(Float64,num_samples)
 
@@ -19,19 +23,19 @@ x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 
 model = GenerativeModelProtocols.DiffusionModel(2, 250)
-protocol = GenerativeModelProtocol(model,train_data;
-    batchsize   = 256,
-    epochs      = 1500,
-    optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
-    device      = cpu_device()
+protocol = GenerativeModelProtocol(model,train_data)
+train!(protocol; 
+    batchsize = 256,
+    epochs    = 1500,
+    optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+    device    = cpu_device()
 )
-train!(protocol)
 
 ## Compare Distributions
 synthetic_data = protocol(num_samples)
 
-p11 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
-p22 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false,frame=:box)
+p11 = scatter(x_train, y_train, title="Training data", label=false, frame=:box)
+p22 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false, frame=:box)
 pp = plot(p11,p22; layout=(2,1))
 
 function plot_model_density(protocol)

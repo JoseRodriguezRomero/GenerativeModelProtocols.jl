@@ -51,15 +51,16 @@ with
 L = [1, 2]
 
 models = [GenerativeModelProtocols.VariationalAutoencoder(2, 2, l) for l in L]
-protocols = [GenerativeModelProtocol(model, train_data;
-    batchsize = 256,
-    epochs = 3500,
-    optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-    device = cpu_device()
-) for model in models]
+protocols = [GenerativeModelProtocol(model, train_data) for model in models]
 
 for i in eachindex(protocols)
-    train!(protocols[i]; β = 0.1)
+    train!(protocols[i]; 
+        β         = 0.1,
+        batchsize = 256,
+        epochs    = 3500,
+        optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
+        device    = cpu_device()
+    )
 end
 ```
 and finally we can make synthetic data with both trained models with

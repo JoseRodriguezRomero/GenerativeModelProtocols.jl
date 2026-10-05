@@ -222,6 +222,10 @@ function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_laye
     )
 end
 
+function _default_optimiser(::VariationalAutoencoder)
+    return Adam(; eta = 1.0E-4, beta = (0.95,0.999))
+end
+
 function Base.display(model::VariationalAutoencoder)
     println("$(Base.typename(typeof(model)).wrapper):")
 
@@ -396,22 +400,26 @@ function _vae_elbo(
     return recon_loss + β * kl_loss, _st
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder, β::AbstractFloat; print_log::Bool = true)
-    T = eltype(protocol.training_data)
+function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; 
+    β::AbstractFloat = 1.0, print_log::Bool, epochs::Int, batchsize::Int, 
+    shuffle::Bool, optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, 
+    precision::Function)
+    
+    T = eltype(precision([1.0]))
 
-    ps = protocol.precision(model._ps[]) |> protocol.device
-    st = protocol.precision(model._st[]) |> protocol.device
+    ps = precision(model._ps[]) |> device
+    st = precision(model._st[]) |> device
 
     encoders = model.encoders
     decoders = model.decoders
 
-    β_device = T(β) |> protocol.device
+    β_device = T(β) |> device
     latent_dim = _latent_size(model)
     num_latent_layers = length(model.encoders)
 
-    loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
+    loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
 
-    protocol._log["Mean ELBO"] = zeros(T, protocol.epochs)
+    protocol._log["Mean ELBO"] = zeros(T, epochs)
     
     function _vae_train_step!(x, p_current, s_current, o_current, rng)
         rng_trace = Lux.replicate(rng)
@@ -448,15 +456,15 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         return loss, p_updated, s_updated, o_updated, rng_trace
     end
 
-    opt_state = _initial_step(model, ps, st, protocol.optimiser)
-    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _vae_train_step!, loader, opt_state)
+    opt_state = _initial_step(model, ps, st, optimiser)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(device, _vae_train_step!, loader, opt_state)
 
     if print_log; println("Training VAE... (β = $β)") end
-    for epoch in 1:protocol.epochs
+    for epoch in 1:epochs
         epoch_loss = T(0.0)
 
-        if epoch % 100 == 0 && protocol.shuffle
-            loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
+        if epoch % 100 == 0 && shuffle
+            loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
         end
 
         for x_batch in loader
@@ -477,15 +485,6 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     model._st[] = opt_state.states |> cpu_device()
 
     return protocol._log
-end
-
-function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; β::Union{Vector{<:AbstractFloat}, AbstractFloat} = 1.0, print_log::Bool = true)
-    training_log = nothing
-    for i in eachindex(β)
-        training_log = _train!(protocol, model, β[i]; print_log = print_log)
-    end
-
-    return training_log
 end
 
 function _vae_encode(encoders, ps, st, x, rng = Random.default_rng())
@@ -514,7 +513,8 @@ function _vae_encode(encoders, ps, st, x, rng = Random.default_rng())
 end
 
 function _encode(model::VariationalAutoencoder, x::Matrix)
-    return first(_vae_encode(model.encoders, model._ps[], model._st[], x))
+    T = eltype(model._ps[].encoders[1].layer_1.weight)
+    return first(_vae_encode(model.encoders, model._ps[], model._st[], T.(x)))
 end
 
 function _encode(model::VariationalAutoencoder, x::Vector)
@@ -546,7 +546,8 @@ function _vae_decode(decoders, ps, st, z, rng = Random.default_rng())
 end
 
 function _decode(model::VariationalAutoencoder, z::Matrix)
-    return first(_vae_decode(model.decoders, model._ps[], model._st[], z))
+    T = eltype(model._ps[].decoders[1].layer_1.weight)
+    return first(_vae_decode(model.decoders, model._ps[], model._st[], T.(z)))
 end
 
 function _decode(model::VariationalAutoencoder, z::Vector)

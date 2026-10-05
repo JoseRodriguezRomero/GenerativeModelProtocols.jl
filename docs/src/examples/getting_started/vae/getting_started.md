@@ -37,13 +37,14 @@ model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
 ```
 thus, our trainable generative model protocol is defined, and trained, as
 ```julia
-protocol = GenerativeModelProtocol(model, train_data;
-    batchsize   = 256,
-    epochs      = 1500,
-    optimiser   = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-    device      = cpu_device()
+protocol = GenerativeModelProtocol(model, train_data)
+train!(protocol; 
+   β         = 0.1,
+   batchsize = 256,
+   epochs    = 1500,
+   optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+   device    = cpu_device()
 )
-train!(protocol; β = 0.1)
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia
@@ -59,14 +60,11 @@ structures that users can need. We can easily read the configuration of
 `protocol` from the REPL by inputting
 ```julia-repl
 julia> protocol
-GenerativeModelProtocol{GenerativeModelProtocols.VariationalAutoencoder, Adam{Float64, Tuple{Float64, Float64}, Float64}}:
-training_data = 2×5000 Matrix{Float64}
-epochs        = 1500
-batchsize     = 256
-shuffle       = true
-optimiser     = Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GenerativeModelProtocols.VariationalAutoencoder
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.VariationalAutoencoder
 ```
 likewise, we can also read the configuration of `model` from the REPL by
 inputting

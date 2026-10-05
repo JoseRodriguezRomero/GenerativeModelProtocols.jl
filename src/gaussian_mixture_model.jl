@@ -124,6 +124,10 @@ function GaussianMixtureModel(saved_model::String;
     return @load_gaussian_mixture_parameters(saved_model, main_group_name, generative_model_group_name)
 end
 
+function _default_optimiser(::GaussianMixtureModel)
+    return Adam(; eta = 1.0E-4, beta = (0.95,0.999))
+end
+
 function Base.display(model::GaussianMixtureModel)
     print_padding = @_default_print_padding
     println("$(summary(model)):")
@@ -166,27 +170,28 @@ function log_gaussian_pdf_matrix(X, μ, log_σ²)
     return log_P
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel; print_log::Bool = true)
-    batchsize_device = protocol.batchsize |> protocol.device
-    training_data_device = protocol.training_data |> protocol.device
-    shuffle_device = protocol.shuffle |> protocol.device
+function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel; 
+    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
+    device::MLDataDevices.AbstractDevice, precision::Function)
 
-    model_μ_device = model.μ |> protocol.device
-    model_log_σ²_device = model.log_σ² |> protocol.device
+    T = eltype(precision([1.0]))
+    training_data_device = T.(protocol.training_data) |> device
+    model_μ_device = model.μ |> device
+    model_log_σ²_device = model.log_σ² |> device
     
-    T = eltype(protocol.training_data)
-    K = _latent_size(model) |> protocol.device
+    T = eltype(precision([1.0]))
+    K = _latent_size(model) |> device
 
     predictor = model.predictor_network
-    ps = protocol.precision(model._ps[]) |> protocol.device
-    st = protocol.precision(model._st[]) |> protocol.device
+    ps = precision(model._ps[]) |> device
+    st = precision(model._st[]) |> device
 
-    protocol._log["Mean Log-Likelihood"] = zeros(T, protocol.epochs)
+    protocol._log["Mean Log-Likelihood"] = zeros(T, epochs)
 
     function _compute_gaussian_kernels(μ, log_σ², ps, st)
         pred_out, st_pred = predictor(training_data_device, ps.predictor_network, st.predictor_network)
         π_network_all = softmax(pred_out, dims=1) 
-        log_P_all = log_gaussian_pdf_matrix(training_data_device, μ, log_σ²)
+        log_P_all = precision(log_gaussian_pdf_matrix(training_data_device, μ, log_σ²))
         
         log_joint_all = log.(π_network_all .+ T(1.0E-8)) .+ log_P_all 
         
@@ -216,8 +221,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     end
 
     function _predictor_train_step!(data_batch, p_current, s_current, o_current, rng)
-        x_batch = data_batch[1]
-        γ_batch = data_batch[2]
+        x_batch = precision(data_batch[1])
+        γ_batch = precision(data_batch[2])
 
         logitcrossentropy = CrossEntropyLoss(; logits=Val(true))
 
@@ -244,20 +249,20 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         return loss_val, p_updated, s_updated, o_updated, next_rng
     end
 
-    compute_gaussian_kernels = _function_device_dispatch(protocol.device, _compute_gaussian_kernels, model_μ_device, model_log_σ²_device, ps, st)
+    compute_gaussian_kernels = _function_device_dispatch(device, _compute_gaussian_kernels, model_μ_device, model_log_σ²_device, ps, st)
     _, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
-    opt_state = _initial_step(model.predictor_network, ps, st, protocol.optimiser)
-    loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize_device, shuffle_device) |> protocol.device
+    opt_state = _initial_step(model.predictor_network, ps, st, optimiser)
+    loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize, shuffle) |> device
 
-    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _predictor_train_step!, loader, opt_state)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(device, _predictor_train_step!, loader, opt_state)
 
     if print_log; println("Training GMM via Global EM...") end
-    for epoch in 1:protocol.epochs
+    for epoch in 1:epochs
         epoch_loss, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
-        if epoch == 1 || (epoch % 100 == 0 && protocol.shuffle)
-            loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize_device, shuffle_device) |> protocol.device
+        if epoch == 1 || (epoch % 100 == 0 && shuffle)
+            loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize, shuffle) |> device
         end
 
         for (x_batch, γ_batch) in loader
@@ -283,7 +288,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     model._ps[] = opt_state.parameters |> cpu_device()
     model._st[] = opt_state.states |> cpu_device()
 
-    p = first(model.predictor_network(protocol.training_data, model._ps[].predictor_network, model._st[].predictor_network))
+    p = first(model.predictor_network(T.(protocol.training_data), model._ps[].predictor_network, model._st[].predictor_network))
     p = mean(softmax(transpose(p)),dims=1)
     model.p[:] = p[:]
 
@@ -338,10 +343,12 @@ function _eval(model::GaussianMixtureModel)
 end
 
 function _categorize(model::GaussianMixtureModel, x::Matrix)::Matrix 
-    return first(model.predictor_network(x, model._ps[].predictor_network, model._st[].predictor_network))
+    T = eltype(model._ps[].predictor_network[1].weight)
+    return first(model.predictor_network(T.(x), model._ps[].predictor_network, model._st[].predictor_network))
 end
 
 function _categorize(model::GaussianMixtureModel, x::Vector)::Vector 
-    return first(model.predictor_network(x, model._ps[].predictor_network, model._st[].predictor_network))
+    T = eltype(model._ps[].predictor_network[1].weight)
+    return first(model.predictor_network(T.(x), model._ps[].predictor_network, model._st[].predictor_network))
 end
 

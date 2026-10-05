@@ -87,6 +87,10 @@ function NormalizingFlow(saved_model::String;
     return @load_normalizing_flow_parameters(saved_model, main_group_name, generative_model_group_name)
 end
 
+function _default_optimiser(::NormalizingFlow)
+    return Adam(; eta = 1.0E-4, beta = (0.95,0.999))
+end
+
 function Base.display(model::NormalizingFlow)
     print_padding = @_default_print_padding
     println("$(Base.typename(typeof(model)).wrapper):")
@@ -98,68 +102,72 @@ function _generative_model(::NormalizingFlow)::GenerativeModel
     return normalizing_flow
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; print_log::Bool = true)
-    loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
+function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; 
+    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
+    device::MLDataDevices.AbstractDevice, precision::Function)
 
-    ps = protocol.precision(model._ps[]) |> protocol.device
-    st = protocol.precision(model._st[]) |> protocol.device
+    loader = load_data(precision(protocol.training_data), batchsize, shuffle) |> device
+
+    ps = precision(model._ps[]) |> device
+    st = precision(model._st[]) |> device
 
     FP = eltype(protocol.training_data)
 
     velocity_field = model.velocity_field
 
     function _nf_train_step!(x, p_current, s_current, o_current, rng)
-        rng_trace = Lux.replicate(rng)
-        batch_size = size(x, 2)
+        _objective = (p, s, rng) -> begin
+            rng_trace = Lux.replicate(rng)
+            batch_size = size(x, 2)
 
-        x₁ = x
-        x₀ = similar(x₁)
-        t = similar(x₁, (1, batch_size))
+            x₁ = x
+            x₀ = similar(x₁)
+            t = similar(x₁, (1, batch_size))
 
-        randn!(rng_trace, x₀)
-        rand!(rng_trace, t)
+            randn!(rng_trace, x₀)
+            rand!(rng_trace, t)
 
-        xₜ = (FP(1.0) .- t) .* x₀ .+ t .* x₁
-        vₜ = x₁ .- x₀
+            xₜ = (FP(1.0) .- t) .* x₀ .+ t .* x₁
+            vₜ = x₁ .- x₀
 
-        vcat_buffer = vcat(xₜ, t)
-        
-        _objective = (p, s) -> begin
+            vcat_buffer = precision(vcat(xₜ, t))
+
             ps_vf = p.velocity_field
             st_vf = s.velocity_field
 
             v̂ₜ, st_vf = velocity_field(vcat_buffer, ps_vf, st_vf)
             
-            return mean(abs2, v̂ₜ - vₜ), (velocity_field = st_vf,)
+            return mean(abs2, v̂ₜ - vₜ), (velocity_field = st_vf,), rng_trace
         end
 
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const((p, s) -> _objective(p, s)[1]),
+            Enzyme.Const((p, s, rng) -> _objective(p, s, rng)[1]),
             Enzyme.Active,
             Enzyme.Duplicated(p_current, loss_grads),
-            Enzyme.Const(s_current)
+            Enzyme.Const(s_current),
+            Enzyme.Const(rng)
         )
 
-        loss_val, s_updated = _objective(p_current, s_current)
+        loss_val, s_updated, rng_updated = _objective(p_current, s_current, rng)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
-        return loss_val, p_updated, s_updated, o_updated, rng_trace
+        return loss_val, p_updated, s_updated, o_updated, rng_updated
     end
 
-    protocol._log["Mean MSE"] = zeros(FP, protocol.epochs)
+    protocol._log["Mean MSE"] = zeros(FP, epochs)
 
-    opt_state = _initial_step(model, ps, st, protocol.optimiser)
-    _train_step!, opt_state, rng = _train_step_device_dispatch(protocol.device, _nf_train_step!, loader, opt_state)
+    opt_state = _initial_step(model, ps, st, optimiser)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(device, _nf_train_step!, loader, opt_state)
 
     if print_log; println("Training Diffusion Model...") end
-    for epoch in 1:protocol.epochs
+    for epoch in 1:epochs
         epoch_loss = FP(0.0)
 
-        if (epoch % 100 == 0) && protocol.shuffle
-            loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
+        if (epoch % 100 == 0) && shuffle
+            loader = load_data(precision(protocol.training_data), batchsize, shuffle) |> device
         end
 
         for x_batch in loader
@@ -190,7 +198,8 @@ function _latent_size(model::NormalizingFlow)
 end
 
 function _encode(model::NormalizingFlow, x::Matrix; ode_solver = nothing, t_final::AbstractFloat = 0.0)
-    return _normalizing_flow_ode_solve_reverse(x, model, ode_solver, t_final)
+    T = eltype(model._ps[].velocity_field.layer_1.weight)
+    return _normalizing_flow_ode_solve_reverse(T.(x), model, ode_solver, T(t_final))
 end
 
 function _encode(model::NormalizingFlow, x::Vector; ode_solver = nothing, t_final::AbstractFloat = 0.0)
@@ -198,7 +207,8 @@ function _encode(model::NormalizingFlow, x::Vector; ode_solver = nothing, t_fina
 end
 
 function _decode(model::NormalizingFlow, z::Matrix; ode_solver = nothing, t_final::AbstractFloat = 1.0)
-    return _normalizing_flow_ode_solve_forward(z, model, ode_solver, t_final)
+    T = eltype(model._ps[].velocity_field.layer_1.weight)
+    return _normalizing_flow_ode_solve_forward(T.(z), model, ode_solver, T(t_final))
 end
 
 function _decode(model::NormalizingFlow, z::Vector; ode_solver = nothing, t_final::AbstractFloat = 1.0)

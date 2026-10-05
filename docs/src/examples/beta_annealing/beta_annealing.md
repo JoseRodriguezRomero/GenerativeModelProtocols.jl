@@ -36,57 +36,54 @@ VAE model
 ```julia-repl
 julia> protocol
 GenerativeModelProtocol:
-training_data = 2×5000 Matrix{Float32}
-epochs        = 40
-batchsize     = 256
-shuffle       = true
-optimiser     = Adam(eta=0.0001, beta=(0.95f0, 0.999f0), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GenerativeModelProtocols.VariationalAutoencoder
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.VariationalAutoencoder
 ```
 Since the `protocol.model` is a 
 `GenerativeModelProtocols.VariationalAutoencoder`, we can, for example, 
 train our VAE model with $\beta = 0.1$ by invoking
 ```julia-repl
-julia> train!(protocol; β = 0.1);
+julia> train!(protocol; β = 0.1, batchsize = 256, epochs = 50);
 Training VAE... (β = 0.1)
-Epoch        1 | Avg. ELBO:   1.01004767e+00 
-Epoch        5 | Avg. ELBO:   1.00131965e+00 
-Epoch       10 | Avg. ELBO:   9.75843072e-01 
-Epoch       15 | Avg. ELBO:   7.83954382e-01 
-Epoch       20 | Avg. ELBO:   7.06776321e-01 
-Epoch       25 | Avg. ELBO:   4.49170738e-01 
-Epoch       30 | Avg. ELBO:   3.74058574e-01 
-Epoch       35 | Avg. ELBO:   3.50416392e-01 
-Epoch       40 | Avg. ELBO:   3.42971653e-01 
+Epoch        1 | Avg. ELBO:  -9.97973323e-01 
+Epoch        5 | Avg. ELBO:  -9.65876400e-01 
+Epoch       10 | Avg. ELBO:  -8.33865821e-01 
+Epoch       15 | Avg. ELBO:  -7.56704390e-01 
+Epoch       20 | Avg. ELBO:  -7.27888465e-01 
+Epoch       25 | Avg. ELBO:  -7.23917782e-01 
+Epoch       30 | Avg. ELBO:  -6.97996140e-01 
+Epoch       35 | Avg. ELBO:  -6.12449586e-01 
+Epoch       40 | Avg. ELBO:  -3.84669602e-01 
+Epoch       45 | Avg. ELBO:  -3.42154860e-01 
+Epoch       50 | Avg. ELBO:  -3.32174629e-01 
 Training complete!
+Training took 5 seconds.
 ```
-Likewise, we can train our VAE model with a $\beta$ annealing schedule in which 
-$\beta = 0$ for the first 40 epochs, since `protocol.epochs` is in this example
-equal to 40, and $\beta = 0.1$ for the last 40 epochs by invoking
+Likewise, we can continue training our VAE model with a different $\beta$, in
+this example $\beta = 0.5$, for another 80 epochs by simply invoking
 ```julia-repl
-julia> train!(protocol; β = [0.0, 0.1]);
-Training VAE... (β = 0.0)
-Epoch        1 | Avg. ELBO:   1.09802745e-01 
-Epoch        5 | Avg. ELBO:   4.43852916e-02 
-Epoch       10 | Avg. ELBO:   2.08726693e-02 
-Epoch       15 | Avg. ELBO:   1.05176121e-02 
-Epoch       20 | Avg. ELBO:   6.07344974e-03 
-Epoch       25 | Avg. ELBO:   3.92770581e-03 
-Epoch       30 | Avg. ELBO:   2.74951989e-03 
-Epoch       35 | Avg. ELBO:   2.13511358e-03 
-Epoch       40 | Avg. ELBO:   1.71649177e-03 
+julia> train!(protocol; β = 0.5, batchsize = 256, epochs = 80);
+Training VAE... (β = 0.5)
+Epoch        1 | Avg. ELBO:  -1.11497259e+00 
+Epoch        5 | Avg. ELBO:  -8.73123646e-01 
+Epoch       10 | Avg. ELBO:  -8.45595360e-01 
+Epoch       15 | Avg. ELBO:  -8.35553467e-01 
+Epoch       20 | Avg. ELBO:  -8.19539189e-01 
+Epoch       25 | Avg. ELBO:  -8.32773864e-01 
+Epoch       30 | Avg. ELBO:  -8.15521598e-01 
+Epoch       35 | Avg. ELBO:  -8.19420218e-01 
+Epoch       40 | Avg. ELBO:  -8.29790711e-01 
+Epoch       45 | Avg. ELBO:  -8.17085862e-01 
+Epoch       50 | Avg. ELBO:  -8.24123561e-01 
+Epoch       55 | Avg. ELBO:  -8.17595303e-01 
+Epoch       60 | Avg. ELBO:  -8.21818233e-01 
+Epoch       65 | Avg. ELBO:  -8.20839107e-01 
+Epoch       70 | Avg. ELBO:  -8.20317924e-01 
+Epoch       75 | Avg. ELBO:  -8.22621346e-01 
+Epoch       80 | Avg. ELBO:  -8.23238373e-01 
 Training complete!
-Training VAE... (β = 0.1)
-Epoch        1 | Avg. ELBO:   1.04711866e+00 
-Epoch        5 | Avg. ELBO:   5.83685338e-01 
-Epoch       10 | Avg. ELBO:   3.77804756e-01 
-Epoch       15 | Avg. ELBO:   3.37563813e-01 
-Epoch       20 | Avg. ELBO:   3.28588426e-01 
-Epoch       25 | Avg. ELBO:   3.21542203e-01 
-Epoch       30 | Avg. ELBO:   3.17488939e-01 
-Epoch       35 | Avg. ELBO:   3.18278909e-01 
-Epoch       40 | Avg. ELBO:   3.11614692e-01 
-Training complete!
+Training took 4 seconds.
 ```
 

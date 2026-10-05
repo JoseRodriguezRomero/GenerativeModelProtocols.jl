@@ -20,18 +20,15 @@ train_data = collect(transpose(hcat(x_train,y_train)))
 
 k = [15, 65, 120]
 models = [GenerativeModelProtocols.GaussianMixtureModel(2, ki) for ki in k]
-protocols = [
-    GenerativeModelProtocol(model, copy(train_data);
-        batchsize = 256,
-        epochs = 1500,
-        optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
-        device = cpu_device()
-    )
-    for model in models
-]
+protocols = [GenerativeModelProtocol(model, copy(train_data)) for model in models]
 
 for i in eachindex(protocols)
-    train!(protocols[i])
+    train!(protocols[i];
+        batchsize = 256,
+        epochs    = 1500,
+        optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+        device    = cpu_device()
+    )
 end
 
 ## Compare Synthetic Data

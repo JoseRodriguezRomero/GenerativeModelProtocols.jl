@@ -112,6 +112,12 @@ function GenerativeAdversarialNetwork(saved_model::String;
     return @load_generative_adversarial_network_parameters(saved_model, main_group_name, generative_model_group_name)
 end
 
+function _default_optimiser(::GenerativeAdversarialNetwork)
+    critic_optimiser = Adam(; eta = 1.0E-4, beta = (0.0,0.9))
+    vae_optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999))
+    return (critic_optimiser, vae_optimiser)
+end
+
 function Base.display(model::GenerativeAdversarialNetwork)
     print_padding = @_default_print_padding
     println("$(summary(model)):")
@@ -224,10 +230,13 @@ function _gan_vae_loss(
     return loss, st_vae
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork, 
-    β::AbstractFloat, γ_vae::AbstractFloat, γ_wgan::AbstractFloat; 
-    print_log::Bool, n_critic::Int, grad_penalty::Bool, λ::AbstractFloat, a::AbstractFloat,
-    weight_clipping::Bool, clip_value::AbstractFloat)
+function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork;
+    n_critic::Int = 5, β::AbstractFloat = 1.0, γ_vae::AbstractFloat = 1.0, 
+    γ_wgan::AbstractFloat = 1.0, grad_penalty::Bool = false, λ::AbstractFloat = 10.0, 
+    a::AbstractFloat = 1.0, weight_clipping::Bool = false, clip_value::AbstractFloat = 1.0,
+    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, 
+    optimiser::Tuple{<:AbstractRule, <:AbstractRule}, 
+    device::MLDataDevices.AbstractDevice, precision::Function)
 
     if !grad_penalty && !weight_clipping
         @warn "Training a WGAN with neither gradient penalty nor weight clipping active is not recommended."
@@ -235,22 +244,22 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         @warn "Training a WGAN with gradient penalty and weight clipping simultaneously active is not recommended."
     end
 
-    ps_vae = protocol.precision(model.vae_model._ps[]) |> protocol.device
-    st_vae = protocol.precision(model.vae_model._st[]) |> protocol.device
+    ps_vae = precision(model.vae_model._ps[]) |> device
+    st_vae = precision(model.vae_model._st[]) |> device
 
-    ps_disc = protocol.precision(model._ps_discriminator[]) |> protocol.device
-    st_disc = protocol.precision(model._st_discriminator[]) |> protocol.device
+    ps_disc = precision(model._ps_discriminator[]) |> device
+    st_disc = precision(model._st_discriminator[]) |> device
 
-    T = eltype(protocol.training_data)
-    β_device = T(β) |> protocol.device
-    λ_device = T(λ) |> protocol.device
-    a_device = T(a) |> protocol.device
-    clip_value_device = T(clip_value) |> protocol.device
-    γ_vae_device = T(γ_vae) |> protocol.device
-    γ_wgan_device = T(γ_wgan) |> protocol.device
-    grad_penalty_device = grad_penalty |> protocol.device
-    weight_clipping_device = weight_clipping |> protocol.device
-    n_critic_device = n_critic |> protocol.device
+    T = eltype(precision([1.0]))
+    β_device = T(β) |> device
+    λ_device = T(λ) |> device
+    a_device = T(a) |> device
+    clip_value_device = T(clip_value) |> device
+    γ_vae_device = T(γ_vae) |> device
+    γ_wgan_device = T(γ_wgan) |> device
+    grad_penalty_device = grad_penalty |> device
+    weight_clipping_device = weight_clipping |> device
+    n_critic_device = n_critic |> device
     latent_dim = _latent_size(model)
     num_latent_layers = length(model.vae_model.encoders)
 
@@ -258,21 +267,16 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     decoders = model.vae_model.decoders
     discriminator = model.discriminator
 
-    protocol._log["Mean Critic Loss"] = zeros(T, protocol.epochs)
-    protocol._log["Mean VAE Loss"] = zeros(T, protocol.epochs)
+    protocol._log["Mean Critic Loss"] = zeros(T, epochs)
+    protocol._log["Mean VAE Loss"] = zeros(T, epochs)
 
     opt_disc = nothing
     opt_vae_model = nothing
 
-    if isa(protocol.optimiser, Tuple)
-        opt_disc = protocol.optimiser[1]
-        opt_vae_model = protocol.optimiser[2]
-    else
-        opt_disc = protocol.optimiser
-        opt_vae_model = protocol.optimiser
-    end
+    opt_disc = optimiser[1]
+    opt_vae_model = optimiser[2]
 
-    loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
+    loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
 
     function _disc_train_step!(real_data, p_current, s_current, o_current, rng)
         local loss_val, p_updated, s_updated, o_updated, rng_next = T(0.0), p_current, s_current, o_current, rng
@@ -371,12 +375,12 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     opt_state_disc = _initial_step(model.discriminator, ps_disc, st_disc, opt_disc)
     opt_state_vae = _initial_step(model.vae_model, ps_vae, st_vae, opt_vae_model)
 
-    _train_step_disc!, opt_state_disc, _ = _train_step_device_dispatch(protocol.device, _disc_train_step!, loader, opt_state_disc)
-    _train_step_vae!, opt_state_vae, rng = _train_step_device_dispatch(protocol.device, _vae_train_step!, loader, opt_state_vae)
+    _train_step_disc!, opt_state_disc, _ = _train_step_device_dispatch(device, _disc_train_step!, loader, opt_state_disc)
+    _train_step_vae!, opt_state_vae, rng = _train_step_device_dispatch(device, _vae_train_step!, loader, opt_state_vae)
 
-    for epoch in 1:protocol.epochs
-        if epoch % 100 == 0 && protocol.shuffle
-            loader = load_data(protocol.training_data, protocol.batchsize, protocol.shuffle) |> protocol.device
+    for epoch in 1:epochs
+        if epoch % 100 == 0 && shuffle
+            loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
         end
 
         running_loss_critic = T(0.0)
@@ -412,24 +416,6 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     return protocol._log
 end
 
-function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarialNetwork; 
-    print_log::Bool = true, n_critic::Int = 5, 
-    β::Union{AbstractFloat, Vector{<:AbstractFloat}} = 1.0,
-    γ_vae::AbstractFloat = 1.0, γ_wgan::AbstractFloat = 1.0,
-    grad_penalty::Bool = false, λ::AbstractFloat = 10.0, a::AbstractFloat = 1.0,
-    weight_clipping::Bool = false, clip_value::AbstractFloat = 1.0)
-
-    for i in eachindex(β)
-        _train!(protocol, model, β[i], γ_vae, γ_wgan; 
-            print_log = print_log, n_critic = n_critic,
-            grad_penalty = grad_penalty, λ = λ, a = a, 
-            weight_clipping = weight_clipping, clip_value = clip_value
-        )
-    end
-
-    return protocol._log
-end
-
 function _eval(model::GenerativeAdversarialNetwork, n_samples::Int)
     return _eval(model.vae_model, n_samples)
 end
@@ -439,26 +425,32 @@ function _eval(model::GenerativeAdversarialNetwork)
 end
 
 function _categorize(model::GenerativeAdversarialNetwork, x::Matrix)::Matrix
-    return model.discriminator_network(x)
+    T = eltype(model._ps_discriminator[].discriminator.weight)
+    return model.discriminator_network(T.(x))
 end
 
 function _categorize(model::GenerativeAdversarialNetwork, x::Vector)::Vector
-    return _categorize(model, reshape(x, :, 1))[:]
+    T = eltype(model._ps_discriminator[].discriminator.weight)
+    return _categorize(model, reshape(T.(x), :, 1))[:]
 end
 
 function _encode(model::GenerativeAdversarialNetwork, x::Matrix)::Matrix
-    return _encode(model.vae_model, x)
+    T = eltype(model.vae_model._ps[].encoders[1].layer_1.weight)
+    return _encode(model.vae_model, T.(x))
 end
 
 function _encode(model::GenerativeAdversarialNetwork, x::Vector)::Vector
-    return _encode(model, reshape(x, :, 1))[:]
+    T = eltype(model.vae_model._ps[].encoders[1].layer_1.weight)
+    return _encode(model, reshape(T.(x), :, 1))[:]
 end
 
 function _decode(model::GenerativeAdversarialNetwork, z::Matrix)::Matrix
-    return _decode(model.vae_model, z)
+    T = eltype(model.vae_model._ps[].decoders[1].layer_1.weight)
+    return _decode(model.vae_model, T.(z))
 end
 
 function _decode(model::GenerativeAdversarialNetwork, z::Vector)::Vector
-    return _decode(model, reshape(z, :, 1))[:]
+    T = eltype(model.vae_model._ps[].decoders[1].layer_1.weight)
+    return _decode(model, reshape(T.(z), :, 1))[:]
 end
 

@@ -19,13 +19,14 @@ x_train, y_train = make_data(num_samples)
 train_data = collect(transpose(hcat(x_train,y_train)))
 
 model = GenerativeModelProtocols.VariationalAutoencoder(2, 2)
-protocol = GenerativeModelProtocol(model, train_data;
+protocol = GenerativeModelProtocol(model, train_data)
+train!(protocol; 
+    β         = 0.1,
     batchsize = 256,
-    epochs = 3500,
-    optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-    device = cpu_device()
+    epochs    = 3500,
+    optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+    device    = cpu_device()
 )
-train!(protocol; β = 0.1)
 
 synthetic_data = protocol(num_samples)
 

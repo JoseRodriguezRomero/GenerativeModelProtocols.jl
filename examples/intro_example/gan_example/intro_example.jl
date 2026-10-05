@@ -22,22 +22,27 @@ critic_optimiser = Adam(; eta = 1.0E-4, beta = (0.0,0.9))
 vae_optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999))
 
 model = GenerativeModelProtocols.GenerativeAdversarialNetwork(2, 2)
-protocol = GenerativeModelProtocol(model,train_data;
-    batchsize   = 256,
-    epochs      = 3500,
-    optimiser   = (critic_optimiser, vae_optimiser),
-    device      = cpu_device()
-)
-train!(protocol; β = 0.1, γ_vae = 1.0, γ_wgan = 0.1,
-    grad_penalty = true, λ = 10.0, a = 1.0,
-    weight_clipping = false, clip_value = 0.05
+protocol = GenerativeModelProtocol(model,train_data)
+train!(protocol; 
+    β               = 0.1, 
+    γ_vae           = 1.0, 
+    γ_wgan          = 0.1,
+    grad_penalty    = true, 
+    λ               = 10.0, 
+    a               = 1.0,
+    weight_clipping = false, 
+    clip_value      = 0.05,
+    batchsize       = 256,
+    epochs          = 3500,
+    optimiser       = (critic_optimiser, vae_optimiser),
+    device          = cpu_device()
 )
 
 ## Compare Distributions
 synthetic_data = protocol(num_samples)
 
-p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
-p2 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false,frame=:box)
+p1 = scatter(x_train, y_train, title="Training data", label=false, frame=:box)
+p2 = scatter(synthetic_data[1,:], synthetic_data[2,:], title="Synthetic data", label=false, frame=:box)
 
 function plot_model_density(protocol)
     data = protocol(50000)

@@ -18,13 +18,10 @@ finally, we can save an already trained model
 ```julia-repl
 julia> protocol
 GenerativeModelProtocol:
-training_data = Nothing
-epochs        = 100
-batchsize     = 32
-shuffle       = true
-optimiser     = Optimisers.Adam(eta=0.01, beta=(0.9f0, 0.999f0), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GenerativeModelProtocols.NormalizingFlow
+training_data      = 0×0 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float32, Float32}
+var_training_data  = Tuple{Float32, Float32}
+model              = GenerativeModelProtocols.NormalizingFlow
 
 julia> protocol.model
 GenerativeModelProtocols.NormalizingFlow:

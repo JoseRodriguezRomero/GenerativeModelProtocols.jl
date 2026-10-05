@@ -21,23 +21,24 @@ train_data = collect(transpose(hcat(x_train,y_train)))
 L = [1, 2]
 
 models = [GenerativeModelProtocols.VariationalAutoencoder(2, 2, l) for l in L]
-protocols = [GenerativeModelProtocol(model, train_data;
-    batchsize = 256,
-    epochs = 3500,
-    optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-    device = cpu_device()
-) for model in models]
+protocols = [GenerativeModelProtocol(model, train_data) for model in models]
 
 for i in eachindex(protocols)
-    train!(protocols[i]; β = 0.1)
+    train!(protocols[i]; 
+        β         = 0.1,
+        batchsize = 256,
+        epochs    = 3500,
+        optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
+        device    = cpu_device()
+    )
 end
 
 ## Compare density
 synthetic_data = [protocol(num_samples) for protocol in protocols]
 
-p1 = scatter(x_train, y_train, title="Training data", label=false,frame=:box)
-p2 = scatter(synthetic_data[1][1,:], synthetic_data[1][2,:], title="Synthetic data", label=false,frame=:box)
-p3 = scatter(synthetic_data[2][1,:], synthetic_data[2][2,:], title="Synthetic data", label=false,frame=:box)
+p1 = scatter(x_train, y_train, title="Training data", label=false, frame=:box)
+p2 = scatter(synthetic_data[1][1,:], synthetic_data[1][2,:], title="Synthetic data", label=false, frame=:box)
+p3 = scatter(synthetic_data[2][1,:], synthetic_data[2][2,:], title="Synthetic data", label=false, frame=:box)
 
 function plot_model_density(protocol, L)
     data = protocol(50000)
@@ -79,7 +80,7 @@ p11 = plot_real_density()
 p22 = plot_model_density(protocols[1], L[1])
 p33 = plot_model_density(protocols[2], L[2])
 
-p = plot(p1,p11,p2,p22,p3,p33; layout=(3,2), size = (900, 1200), link = :x)
+p = plot(p1,p11,p2,p22,p3,p33; layout=(3,2), size = (900, 1200), link = :x, left_margin = 6mm)
 savefig(p, "hvae_example.svg")
 
 ## Compare latents
@@ -115,5 +116,5 @@ plot!(ylabel="Probability density")
 plot!(xlabel="Latent variable")
 plot_reference_gaussian!()
 
-p = plot(p1,p11,p2,p22, layout=(2,2), size = (900, 500), left_margin = 4mm, bottom_margin = 4mm)
+p = plot(p1,p11,p2,p22, layout=(2,2), size = (900, 500), left_margin = 6mm, bottom_margin = 4mm)
 savefig(p, "hvae_example_latent_comp.svg")

@@ -37,13 +37,13 @@ model = GenerativeModelProtocols.DiffusionModel(2, 250)
 ```
 thus, our trainable generative model protocol is defined, and trained, as
 ```julia
-protocol = GenerativeModelProtocol(model, train_data;
-    batchsize   = 256,
-    epochs      = 1500,
-    optimiser   = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
-    device      = cpu_device()
+protocol = GenerativeModelProtocol(model, train_data)
+train!(protocol;
+  batchsize = 256,
+  epochs    = 1500,
+  optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+  device    = cpu_device()
 )
-train!(protocol)
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia
@@ -59,13 +59,10 @@ structures that users can need. We can easily read the configuration of
 ```julia-repl
 julia> protocol
 GenerativeModelProtocol:
-training_data = 2×5000 Matrix{Float32}
-epochs        = 1500
-batchsize     = 256
-shuffle       = true
-optimiser     = Adam(eta=0.001, beta=(0.95f0, 0.999f0), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GenerativeModelProtocols.DiffusionModel
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.DiffusionModel
 
 ```
 likewise, we can also read the configuration of `model` from the REPL by

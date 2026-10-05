@@ -23,7 +23,7 @@ function compatible_generative_protocol(
     var_training_data::Tuple{Vararg{AbstractFloat}}
     )
 
-    ϵ = 1.0E-9
+    ϵ = 100.0 * eps(eltype(training_data))
     if !isnothing(training_data)
         if maximum(abs.(mean(training_data, dims = 2))) > ϵ
             return false
@@ -54,27 +54,6 @@ macro default_generative_model_group_name()
     return "generative_model"
 end
 
-_cast_to_precision(FP, m::AbstractArray{<:AbstractFloat}) = FP(m)
-_cast_to_precision(FP, m::AbstractFloat) = eltype(FP([1.0]))(m)
-
-_cast_to_precision(FP, m::Ref{T}) where {T} = Ref{T}(_cast_to_precision(FP, m[]))
-
-_cast_to_precision(FP, m::Tuple) = map(x -> _cast_to_precision(FP, x), m)
-_cast_to_precision(FP, m::NamedTuple) = map(x -> _cast_to_precision(FP, x), m)
-
-function _cast_to_precision(FP, m::AbstractGenerativeModel)
-    T = typeof(m)
-    fields = fieldnames(T)
-    
-    mapped_fields = map(fields) do f
-        return _cast_to_precision(FP, getfield(m, f))
-    end
-    
-    return T.name.wrapper(mapped_fields...)
-end
-
-_cast_to_precision(FP, m) = m
-
 """
 $TYPEDEF
 
@@ -88,63 +67,33 @@ $TYPEDFIELDS
 """
 @kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
     """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
-    training_data::Union{Matrix, Nothing} = nothing
+    training_data::Matrix{AbstractFloat} = zeros(Float32, 0, 0)
     """Mean of the raw (unshifted and unscaled) training data."""
-    mean_training_data::Tuple
+    mean_training_data::Tuple{Vararg{AbstractFloat}}
     """Variance of the raw (unshifted and unscaled) training data."""
-    var_training_data::Tuple
-    """Number of training epochs for the generative model."""
-    epochs::Int = 100
-    """Batch size for training the generative model."""
-    batchsize::Int = 32
-    """Flag indicating whether to shuffle the training data during training."""
-    shuffle::Bool = true
+    var_training_data::Tuple{Vararg{AbstractFloat}}
     """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
     normalize_data::Bool = true
-    """Optimizer used to train the generative model."""
-    optimiser::Union{Any, Tuple} = Adam(0.01)
-    """Hardware device (CPU or GPU) on which to perform training and inference."""
-    device::Lux.MLDataDevices.AbstractDevice = cpu_device()
     """Generative model architecture to be used."""
     model::M
-    """Floating point precision to be used"""
-    precision::Function = f32
     """Stores the time-series data generated while training the generative model."""
     _log::Dict{String,Vector} = Dict{String,Vector}()
 
     function GenerativeModelProtocol(
-    training_data::Union{Matrix, Nothing},
-    mean_training_data::Tuple,
-    var_training_data::Tuple,
-    epochs::Int,
-    batchsize::Int,
-    shuffle::Bool,
+    training_data::Matrix{<:AbstractFloat},
+    mean_training_data::Tuple{Vararg{AbstractFloat}},
+    var_training_data::Tuple{Vararg{AbstractFloat}},
     normalize_data::Bool,
-    optimiser::Union{Any, Tuple},
-    device::Lux.MLDataDevices.AbstractDevice,
     model::M,
-    precision::Function,
     _log::Dict{String,Vector},
     ) where {M<:AbstractGenerativeModel}
 
         if normalize_data && !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
-            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, normalize_data, optimiser, device, model, precision, _log)))
+            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, normalize_data, model, _log)))
         end
 
-        training_data = _cast_to_precision(precision, training_data)
-        mean_training_data = _cast_to_precision(precision, mean_training_data)
-        var_training_data = _cast_to_precision(precision, var_training_data)
-        if optimiser isa Tuple
-            optimiser = Tuple(_cast_to_precision(precision, opt) for opt in optimiser)
-        else
-            optimiser = _cast_to_precision(precision, optimiser)
-        end
-        model = _cast_to_precision(precision, model)
-
-        M_c = typeof(model)
-
-        return new{M_c}(training_data, mean_training_data, var_training_data, epochs, batchsize, shuffle, normalize_data, optimiser, device, model, precision, _log)
+        return new{M}(training_data, mean_training_data, var_training_data, normalize_data, model, _log)
     end
 end
 
@@ -169,9 +118,9 @@ function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat
     copy_training_data = copy(training_data)
 
     mean_training_data = mean(copy_training_data, dims = 2)
-    var_training_data = var(copy_training_data, dims = 2)
-
     copy_training_data .-= mean_training_data
+
+    var_training_data = var(copy_training_data, dims = 2)
     copy_training_data ./= sqrt.(var_training_data)
 
     if normalize_data
@@ -187,6 +136,20 @@ function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat
         kwargs...
     )
 end
+
+"""
+    GenerativeModelProtocols.default_optimiser(protocol::GenerativeModelProtocol)
+
+Return the default optimiser for the generative model in the protocol.
+
+# Arguments
+ - `protocol::GenerativeModelProtocol`: The generative model protocol.
+"""
+function default_optimiser(protocol::GenerativeModelProtocol)
+    return _default_optimiser(protocol.model)
+end
+
+@compat public default_optimiser
 
 function _read_metadata end
 
@@ -241,8 +204,17 @@ function GenerativeModelProtocol(saved_protocol::String;
     )
 end
 
-macro _train!(protocol, model, print_log, kwargs...)
-    :(_train!($(esc(protocol)), $(esc(model)); $(print_log = esc(print_log)), $(esc(kwargs...))))
+macro _train!(protocol, model, print_log, epochs, batchsize, shuffle, optimiser, device, precision, kwargs...)
+    :(_train!($(esc(protocol)), $(esc(model)); 
+        $(print_log = esc(print_log)), 
+        $(epochs = esc(epochs)),
+        $(batchsize = esc(batchsize)),
+        $(shuffle = esc(shuffle)),
+        $(optimiser = esc(optimiser)),
+        $(device = esc(device)),
+        $(precision = esc(precision)),
+        $(esc(kwargs...)))
+    )
 end
 
 """
@@ -256,12 +228,21 @@ method can be called again after it finishes to resume training.
 
 # Keyword Arguments (All Models)
  - `print_log::Bool`: Whether to print training logs (default is `true`).
+ - `epochs::Int`: The number of epochs to train for (default is `100`).
+ - `batchsize::Int`: The batch size for training (default is `32`).
+ - `shuffle::Bool`: Whether to shuffle the training data (default is `true`).
+ - `optimiser::Optimisers.AbstractRule`: The optimiser to use for training (default is `GenerativeModelProtocols.default_optimiser(protocol)`).
+ - `device::Lux.MLDataDevices.AbstractDevice`: The device to use for training (default is `cpu_device()`).
+ - `precision::Function`: The precision function for training (default is `f32`).
 
 # Keyword Arguments (VariationalAutoencoder)
- - `β::Union{Vector{<:AbstractFloat}, AbstractFloat}`: The β parameter for the VAE ELBO function (default is `1.0`).
+ - `β::AbstractFloat`: The β parameter for the VAE ELBO function (default is `1.0`).
 
 # Keyword Arguments (GenerativeAdversarialNetwork)
- - `β::Union{Vector{<:AbstractFloat}, AbstractFloat}`: The β parameter for the VAE ELBO function (default is `1.0`).
+
+ **Attention**: Unlike all other generative models, `GenerativeAdversarialNetwork` needs a 2-element tuple of optimisers.
+
+ - `β::AbstractFloat`: The β parameter for the VAE ELBO function (default is `1.0`).
  - `n_critic::Int`: The number of subiterations to train the critic in each training step (default is `5`).
  - `γ_vae::AbstractFloat`: The weight of the VAE ELBO in the VAE loss function (default is `1.0`).
  - `γ_wgan::AbstractFloat`: The weight of the Wasserstein distance in the VAE loss function (default is `1.0`).
@@ -270,12 +251,20 @@ method can be called again after it finishes to resume training.
  - `a::AbstractFloat`: The gradient norm target in the gradient penalty (default is `1.0`).
  - `weight_clipping::Bool`: Whether to use weight clipping in the WGAN loss function (default is `false`).
  - `clip_value::AbstractFloat`: The value to clip the weights and biases of the critic at each training step (default is `1.0`).
+ - `optimiser::Tuple{<:Optimisers.AbstractRule, <:Optimisers.AbstractRule}`: The optimisers for the generator and critic for training.
+
 """
-function train!(protocol::GenerativeModelProtocol; print_log::Bool = true, kwargs...)
+function train!(protocol::GenerativeModelProtocol; 
+    print_log::Bool = true, epochs::Int = 100, batchsize::Int = 32, 
+    shuffle::Bool = true, optimiser::Union{AbstractRule, 
+    Tuple{Vararg{AbstractRule}}} = default_optimiser(protocol),
+    device::MLDataDevices.AbstractDevice = cpu_device(), 
+    precision::Function = f32, kwargs...)
     empty!(protocol._log)
 
     t₀ = time()
-    train_log = @_train!(protocol, protocol.model, print_log, kwargs...)
+    train_log = @_train!(protocol, protocol.model, print_log, epochs, 
+        batchsize, shuffle, optimiser, device, precision, kwargs...)
     t₁ = time()
 
     Δt = t₁ - t₀
@@ -351,7 +340,7 @@ cluster.
  - `x::Matrix`: The input matrix for which to compute the posterior probability distributions.
 """
 function categorize(protocol::GenerativeModelProtocol, x::Matrix)::Matrix
-    return _categorize(protocol.model, protocol.precision(_shift_and_scale(protocol, x)))
+    return _categorize(protocol.model, _shift_and_scale(protocol, x))
 end
 
 """
@@ -368,7 +357,7 @@ Encodes the data space variable `x` into a latent space variable.
  - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function encode(protocol::GenerativeModelProtocol, x::Matrix; kwargs...)::Matrix
-    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)); kwargs...)
+    return _encode(protocol.model, _shift_and_scale(protocol, x); kwargs...)
 end
 
 """
@@ -385,7 +374,7 @@ Encodes the data space variable `x` into a latent space variable.
  - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function encode(protocol::GenerativeModelProtocol, x::Vector; kwargs...)::Vector
-    return _encode(protocol.model, protocol.precision(_shift_and_scale(protocol, x)); kwargs...)
+    return _encode(protocol.model, _shift_and_scale(protocol, x); kwargs...)
 end
 
 """
@@ -402,7 +391,7 @@ Decodes the latent space representations `z` back into the data space.
  - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function decode(protocol::GenerativeModelProtocol, z::Matrix; kwargs...)::Matrix
-    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z; kwargs...)))
+    return _unscale_and_unshift(protocol, _decode(protocol.model, z; kwargs...))
 end
 
 """
@@ -419,7 +408,7 @@ Decodes the latent space representations `z` back into the data space.
  - `t_final::AbstractFloat`: The final time for the ODE solver.
 """
 function decode(protocol::GenerativeModelProtocol, z::Vector; kwargs...)::Vector
-    return _unscale_and_unshift(protocol, protocol.precision(_decode(protocol.model, z; kwargs...)))
+    return _unscale_and_unshift(protocol, _decode(protocol.model, z; kwargs...))
 end
 
 """
@@ -476,13 +465,10 @@ end
 
 function Base.display(protocol::GenerativeModelProtocol)
     println("$(Base.typename(typeof(protocol)).wrapper):")
-    println("training_data = $(summary(protocol.training_data))")
-    println("epochs        = $(protocol.epochs)")
-    println("batchsize     = $(protocol.batchsize)")
-    println("shuffle       = $(protocol.shuffle)")
-    println("optimiser     = $(protocol.optimiser)")
-    println("device        = $(nameof(protocol.device))")
-    println("model         = $(Base.typename(typeof(protocol.model)).wrapper)")
+    println("training_data      = $(summary(protocol.training_data))")
+    println("mean_training_data = $(summary(protocol.mean_training_data))")
+    println("var_training_data  = $(summary(protocol.var_training_data))")
+    println("model              = $(Base.typename(typeof(protocol.model)).wrapper)")
 end
 
 # Auxiliary scripts

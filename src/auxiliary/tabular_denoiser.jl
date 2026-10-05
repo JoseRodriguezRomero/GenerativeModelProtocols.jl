@@ -250,7 +250,9 @@ function compute_sinusoidal_frequencies(t, T::Int, max_period::AbstractFloat)
     return vcat(sin_components, cos_components)[1:T,:]
 end
 
-function _to_named_tuple(m::TabularDenoiser)
+function _to_named_tuple(m::TabularDenoiser; precision::Function = f32)
+    T = eltype(precision([1.0]))
+
     return (
         T                      = m.T,
         time_embedding_mlp     = m.time_embedding_mlp,
@@ -258,13 +260,13 @@ function _to_named_tuple(m::TabularDenoiser)
         residual_layers        = m.residual_layers,
         time_projection_layers = m.time_projection_layers,
         output_projection      = m.output_projection,
-        max_period             = m.max_period
+        max_period             = T(m.max_period)
     )
 end
 
 function _eval_base_tabular_denoiser(m::NamedTuple, x, t, ps, st)
     static_time_features = compute_sinusoidal_frequencies(t, m.T, m.max_period)
-    
+
     learned_time_context, new_time_st = m.time_embedding_mlp(static_time_features, ps.time_embedding_mlp, st.time_embedding_mlp)
     hidden_features, new_input_st = m.input_projection(x, ps.input_projection, st.input_projection)
     
@@ -294,7 +296,7 @@ function _eval_base_tabular_denoiser(m::NamedTuple, x, t, ps, st)
     current_hidden = hidden_features
     for i in 1:N
         next_hidden, feat_st, time_st = step_layer(i, current_hidden)
-        feat_states[i] = feat_st
+        feat_states[i] = feat_st 
         time_states[i] = time_st
         current_hidden = next_hidden
     end

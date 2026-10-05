@@ -115,7 +115,8 @@ function make_empty_data_prot(model::GenerativeModelProtocols.AbstractGenerative
     return GenerativeModelProtocol(; 
         model              = model,
         mean_training_data = Tuple(zeros(Float32, input_size)), 
-        var_training_data  = Tuple(ones(Float32, input_size))
+        var_training_data  = Tuple(ones(Float32, input_size)),
+        normalize_data     = false
     )
 end
 
@@ -125,8 +126,8 @@ function test_train_model_no_data(model::GenerativeModelProtocols.AbstractGenera
 end
 
 function _base_test_train_model(model, train_data, device; kwargs...)
-    protocol = GenerativeModelProtocol(model, train_data; epochs = 20, device = device)
-    train!(protocol; kwargs...)
+    protocol = GenerativeModelProtocol(model, train_data)
+    train!(protocol; epochs = 20, device = device, kwargs...)
 
     @test !isempty(protocol._log)
 end
@@ -198,11 +199,7 @@ end
 
 function test_model_display(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
     train_data = rand(Float32, input_size, 100)
-    protocol = GenerativeModelProtocol(;
-        model              = model, 
-        mean_training_data = Tuple(mean(train_data, dims = 2)), 
-        var_training_data  = Tuple(var(train_data, dims = 2))
-    )
+    protocol = GenerativeModelProtocol(model, train_data)
 
     test_display(protocol)
     test_display(model)

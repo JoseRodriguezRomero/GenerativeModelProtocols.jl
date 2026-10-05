@@ -38,16 +38,16 @@ models = [GenerativeModelProtocols.GaussianMixtureModel(2, ki) for ki in k]
 ```
 thus, our trainable generative model protocols are defined, and trained, as
 ```julia
-protocols = [
-    GenerativeModelProtocol(model, train_data;
+protocols = [GenerativeModelProtocol(model, train_data) for model in models]
+
+for i in eachindex(protocols)
+    train!(protocols[i];
         batchsize = 256,
-        epochs = 1500,
-        optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
-        device = cpu_device()
+        epochs    = 1500,
+        optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+        device    = cpu_device()
     )
-    for model in models
-]
-train!(protocol)
+end
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
 ```julia
@@ -65,14 +65,11 @@ structures that users can need. We can easily read the configuration of
 `protocol` from the REPL by inputting
 ```julia-repl
 julia> protocols[1]
-GenerativeModelProtocol{GenerativeModelProtocols.GaussianMixtureModel, Adam{Float64, Tuple{Float64, Float64}, Float64}}:
-training_data = 2×5000 Matrix{Float64}
-epochs        = 1500
-batchsize     = 256
-shuffle       = true
-optimiser     = Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GaussianMixtureModel
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.GaussianMixtureModel
 ```
 likewise, we can also read the configuration of `model` from the REPL by
 inputting

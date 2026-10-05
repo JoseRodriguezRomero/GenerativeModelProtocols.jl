@@ -46,14 +46,18 @@ vae_optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999))
 ```
 thus, our trainable generative model protocol is defined, and trained, as
 ```julia
-protocol = GenerativeModelProtocol(model,train_data;
-    batchsize   = 256,
-    epochs      = 1500,
-    optimiser   = (critic_optimiser, vae_optimiser),
-    device      = cpu_device()
-)
-train!(protocol; β = 0.1, γ_vae = 1.0, γ_wgan = 0.1,
-    grad_penalty = true, λ = 10.0, a = 1.0
+protocol = GenerativeModelProtocol(model,train_data)
+train!(protocol; 
+   β            = 0.1, 
+   γ_vae        = 1.0, 
+   γ_wgan       = 0.1,
+   grad_penalty = true, 
+   λ            = 10.0, 
+   a            = 1.0,
+   batchsize    = 256,
+   epochs       = 1500,
+   optimiser    = (critic_optimiser, vae_optimiser),
+   device       = cpu_device()
 )
 ```
 finally, we can generate synthetic data by simply invoking our trained protocol
@@ -69,14 +73,11 @@ structures that users can need. We can easily read the configuration of
 `protocol` from the REPL by inputting
 ```julia-repl
 julia> protocol
-GenerativeModelProtocol{GenerativeModelProtocols.GenerativeAdversarialNetwork, Adam{Float64, Tuple{Float64, Float64}, Float64}}:
-training_data = 2×5000 Matrix{Float64}
-epochs        = 1500
-batchsize     = 256
-shuffle       = true
-optimiser     = (Adam(eta=0.0001, beta=(0.0, 0.9), epsilon=1.0e-8), Adam(eta=0.0001, beta=(0.95, 0.999), epsilon=1.0e-8))
-device        = CPUDevice
-model         = GenerativeModelProtocols.GenerativeAdversarialNetwork
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.GenerativeAdversarialNetwork
 ```
 likewise, we can also read the configuration of `model` from the REPL by
 inputting
@@ -85,31 +86,31 @@ julia> model
 GenerativeModelProtocols.GenerativeAdversarialNetwork:
 discriminator: 
    Chain(
-      Dense(2 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
+      Dense(2 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
       Dense(32 => 1)
    )
 
 encoders: 
    Chain(
-      Dense(2 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
+      Dense(2 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
       Dense(32 => 4)
    )
 
 decoders: 
    Chain(
-      Dense(2 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
-      Dense(32 => 32, leakyrelu)
+      Dense(2 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
+      Dense(32 => 32, elu)
       Dense(32 => 2)
    )
 ```
