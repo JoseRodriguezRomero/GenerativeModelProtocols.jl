@@ -153,32 +153,83 @@ function _gan_discriminate(discriminator, x, ps, st)
     return disc_val, (discriminator = st_val,)
 end
 
-function _gan_grad_penalty(discriminator, real_data, fake_data, a::AbstractFloat, ps, st, ϵ)
-    T = eltype(real_data)
+function _gan_penalty_model(discriminator::Chain)
+    layers = ()
 
-    interpolates = ϵ .* real_data .+ (T(1.0) .- ϵ) .* fake_data
+    for layer in values(discriminator.layers)
 
-    _objective = (x, p, s) -> begin
-        disc_val, s = _gan_discriminate(discriminator, x, p, s)
-        return sum(disc_val), s
+        if layer isa Dense && layer.activation !== identity
+            linear_layer = Dense(
+                layer.in_dims => layer.out_dims,
+                identity;
+                use_bias=layer.use_bias
+            )
+            activation_layer = Lux.WrappedFunction(
+                Base.Fix1(broadcast, layer.activation)
+            )
+
+            layers = (layers..., linear_layer, activation_layer)
+        else
+            layers = (layers..., layer)
+        end
     end
 
-    grads, = Enzyme.gradient(
-        Enzyme.set_runtime_activity(Enzyme.Reverse),
-        Enzyme.Const((x, p, s) -> _objective(x, p, s)[1]),
-        interpolates,
-        Enzyme.Const(ps),
-        Enzyme.Const(st)
+    return Chain(layers...)
+end
+
+function _gan_penalty_parameters(discriminator::Chain, penalty_model::Chain, ps, st)
+    layer_ps = ()
+    layer_st = ()
+
+    for (layer_name, layer) in zip(keys(discriminator.layers), values(discriminator.layers))
+        ps_layer = getproperty(ps.discriminator, layer_name)
+        st_layer = getproperty(st.discriminator, layer_name)
+
+        if layer isa Dense && layer.activation !== identity
+            layer_ps = (layer_ps..., ps_layer, NamedTuple())
+            layer_st = (layer_st..., st_layer, NamedTuple())
+        else
+            layer_ps = (layer_ps..., ps_layer)
+            layer_st = (layer_st..., st_layer)
+        end
+    end
+
+    return (
+        NamedTuple{keys(penalty_model.layers)}(layer_ps),
+        NamedTuple{keys(penalty_model.layers)}(layer_st)
     )
-    
+end
+
+function _gan_grad_penalty(
+    discriminator, penalty_model, real_data, fake_data, a::AbstractFloat, ps, st, ϵ
+)
+    T = eltype(real_data)
+    interpolates = ϵ .* real_data .+ (T(1.0) .- ϵ) .* fake_data
+
+    penalty_ps, penalty_st = _gan_penalty_parameters(discriminator, penalty_model, ps, st)
+    stateful_discriminator = Lux.StatefulLuxLayer(
+        penalty_model,
+        penalty_ps,
+        penalty_st
+    )
+    objective = x -> sum(stateful_discriminator(x))
+
+    grads, = Enzyme.gradient(
+        Enzyme.Reverse,
+        Enzyme.Const(objective),
+        interpolates
+    )
+
     grad_norms = sqrt.(sum(abs2, grads, dims=1) .+ T(1.0E-8))
-    _, st = _objective(interpolates, ps, st)
+    _, st = _gan_discriminate(discriminator, interpolates, ps, st)
+
     penalty_elements = abs2.(grad_norms .- a)
     finite_mask = isfinite.(penalty_elements)
     finite_penalty_sum = sum(ifelse.(finite_mask, penalty_elements, zero(T)))
     finite_penalty_count = sum(finite_mask)
+    penalty = finite_penalty_sum / finite_penalty_count
 
-    return finite_penalty_sum / finite_penalty_count, st
+    return penalty, st
 end
 
 function _gan_make_fake_recon_data(encoders, decoders, ps_vae, st_vae, real_data, rng)
@@ -193,7 +244,7 @@ function _gan_make_fake_recon_data(encoders, decoders, ps_vae, st_vae, real_data
 end
 
 function _gan_disc_loss(
-    discriminator, ps_disc, st_disc, 
+    discriminator, penalty_model, ps_disc, st_disc,
     real_data, fake_data, recon_data,
     grad_penalty::Bool, λ::AbstractFloat, a::AbstractFloat, ϵ)
     
@@ -206,8 +257,12 @@ function _gan_disc_loss(
     w_loss = T(0.5) .* (mean(disc_fake_data) + mean(disc_recon_data)) - mean(disc_real_data)
 
     if grad_penalty
-        fake_data_grad_penalty, st_disc = _gan_grad_penalty(discriminator, real_data, fake_data, a, ps_disc, st_disc, ϵ)
-        recon_data_grad_penalty, st_disc = _gan_grad_penalty(discriminator, real_data, recon_data, a, ps_disc, st_disc, ϵ)
+        fake_data_grad_penalty, st_disc = _gan_grad_penalty(
+            discriminator, penalty_model, real_data, fake_data, a, ps_disc, st_disc, ϵ
+        )
+        recon_data_grad_penalty, st_disc = _gan_grad_penalty(
+            discriminator, penalty_model, real_data, recon_data, a, ps_disc, st_disc, ϵ
+        )
 
         w_loss += T(0.5) * λ * (fake_data_grad_penalty + recon_data_grad_penalty)
     end
@@ -297,6 +352,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         real_data_init, latent_data_init, ps_vae.encoders, st_vae.encoders
     )
 
+    penalty_discriminator = _gan_penalty_model(discriminator)
+
     decode_vae = _function_device_dispatch(
         device, _decode_vae(decoders, latent_dim),
         latent_data_init, ps_vae.decoders, st_vae.decoders
@@ -317,11 +374,11 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
             )
 
             _objective = (ps_disc, st_disc) -> _gan_disc_loss(
-                discriminator, ps_disc, st_disc, 
+                discriminator, penalty_discriminator, ps_disc, st_disc,
                 real_data, fake_data, recon_data,
                 do_grad_penalty, λ_device, a_device, ϵ
             )
-            
+
             loss_grads = Enzyme.make_zero(p_updated)
 
             Enzyme.autodiff(
@@ -330,7 +387,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
                 Enzyme.Active,
                 Enzyme.Duplicated(p_updated, loss_grads),
                 Enzyme.Const(s_updated)
-            )
+            ) # crash happens here
 
             loss_val, s_updated = _objective(p_updated, s_current)
             o_updated, p_updated = Optimisers.update(o_updated, p_updated, loss_grads)
@@ -371,11 +428,9 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
             discriminator, recon_data, ps_disc, st_disc
         )
         
-        wgan_loss = T(-0.5) .* (
-            mean(disc_fake_data) + mean(disc_recon_data)
-        )
+        wgan_loss = T(-0.5) .* (mean(disc_fake_data) + mean(disc_recon_data))
 
-        _objective = (ps_vae, st_vae, ps_disc, st_disc) -> begin
+        _objective = (ps_vae, st_vae) -> begin
             latent_data = make_latent_variables(real_data, ϵ, ps_vae, st_vae)
 
             return _gan_vae_loss(
@@ -388,15 +443,13 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const((ps_vae, st_vae, ps_disc, st_disc) -> _objective(ps_vae, st_vae, ps_disc, st_disc)[1]),
+            Enzyme.Const((p, s) -> _objective(p, s)[1]),
             Enzyme.Active,
             Enzyme.Duplicated(p_current, loss_grads),
-            Enzyme.Const(s_current),
-            Enzyme.Const(ps_disc),
-            Enzyme.Const(st_disc)
+            Enzyme.Const(s_current)
         )
 
-        loss_val, s_updated = _objective(p_current, s_current, ps_disc, st_disc)
+        loss_val, s_updated = _objective(p_current, s_current)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
         return loss_val, p_updated, s_updated, o_updated, rng_trace

@@ -10,19 +10,8 @@ function GenerativeModelProtocols._function_device_dispatch(::Lux.ReactantDevice
     return (call_args...) -> _function_device_dispatch_call(_train_function, compiled_function, call_args...)
 end
 
-_function_device_dispatch_call(train_function, _, x::Reactant.TracedRArray, args...) =
-    train_function(x, args...)
-
-_function_device_dispatch_call(train_function, compiled_function, x::Tuple, args...) =
-    _contains_traced_array(x) ? train_function(x, args...) : compiled_function(x, args...)
-
-_function_device_dispatch_call(_, compiled_function, args...) =
-    compiled_function(args...)
-
-_contains_traced_array(::Tuple{}) = false
-_contains_traced_array(::Reactant.TracedRArray) = true
-_contains_traced_array(x::Tuple) = _contains_traced_array(first(x)) || _contains_traced_array(Base.tail(x))
-_contains_traced_array(x) = false
+_function_device_dispatch_call(train_function, compiled_function, args...) =
+    Reactant.ReactantCore.is_traced(args) ? train_function(args...) : compiled_function(args...)
 
 function GenerativeModelProtocols._train_step_device_dispatch(::Lux.ReactantDevice, train_step_func!::Function, loader, opt_state)
     first_batch = first(loader)
@@ -69,4 +58,3 @@ function GenerativeModelProtocols._train_step_device_dispatch(::Lux.ReactantDevi
 end
 
 end
-
