@@ -282,122 +282,133 @@ function _sample_vae_latent_variables(x, latent_dim::Int, num_latent_layers::Int
     return ϵ, rng
 end
 
-function _make_vae_latent_variables(encoders, x, latent_dim, num_latent_layers, batch_size, ps, st, ϵ)
-    T = eltype(x)
-    z = similar(x, T, latent_dim, num_latent_layers, batch_size)
+@inline function _make_vae_latent_variables_layers(::Val{I}, ::Val{N}, encoders, x, z, ϵ, p, s, latent_dim, T) where {I, N}
 
-    k = keys(encoders)
-
-    enc_out, _ = encoders[k[1]](x, ps[k[1]], st[k[1]])
-    μ = enc_out[1:latent_dim, :]
-    logσ² = enc_out[(latent_dim + 1):end, :]
-    σ = exp.(logσ² .* T(0.5))
-    z[:, 1, :] .= μ .+ σ .* ϵ[1]
-
-    for i in 2:num_latent_layers
-        enc_out, _ = encoders[k[i]](
-            z[:, i - 1, :],
-            ps[k[i]],
-            st[k[i]]
+    if I <= N
+        encoder_names = keys(encoders)
+        encoder_name = encoder_names[I]
+        input = I == 1 ? x : z[I - 1]
+        enc_out, _ = encoders[encoder_name](
+            input, p.encoders[encoder_name], s.encoders[encoder_name]
         )
-
         μ = enc_out[1:latent_dim, :]
         logσ² = enc_out[(latent_dim + 1):end, :]
         σ = exp.(logσ² .* T(0.5))
+        zᵢ = μ .+ σ .* ϵ[I]
 
-        z[:, i, :] .= μ .+ σ .* ϵ[i]
+        return _make_vae_latent_variables_layers(
+            Val(I + 1), Val(N), encoders, x, (z..., zᵢ), ϵ, p, s, latent_dim, T
+        )
     end
 
     return z
 end
 
-function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, 
-    x, z, latent_dim::Int, num_latent_layers::Int, ps, st) where {LayerNames}
-    
-    T = eltype(x)
-
-    batch_size = size(x,2)
-    μ = similar(x, T, latent_dim, num_latent_layers, batch_size)
-    σ = similar(x, T, latent_dim, num_latent_layers, batch_size)
-    logσ² = similar(x, T, latent_dim, num_latent_layers, batch_size)
-
-    st_encoders_list = Any[st...]
-
-    k1 = LayerNames[1]
-    enc_out, st_new = encoders[k1](x, ps[k1], st[k1])
-    st_encoders_list[1] = st_new 
-
-    μ[:, 1, :] .= enc_out[1:latent_dim, :]
-    logσ²[:, 1, :] .= enc_out[(latent_dim+1):end, :]
-    σ[:, 1, :] .= exp.(logσ²[:, 1, :] .* T(0.5f0))
-
-    for i in 2:num_latent_layers
-        ki = LayerNames[i]
-        enc_out, st_new = encoders[ki](z[:, i-1, :], ps[ki], st[ki])
-        st_encoders_list[i] = st_new 
-        
-        μ[:, i, :] .= enc_out[1:latent_dim, :]
-        logσ²[:, i, :] .= enc_out[(latent_dim+1):end, :]
-        σ[:, i, :] .= exp.(logσ²[:, i, :] .* T(0.5f0))
+function _make_vae_latent_variables(encoders, latent_dim::Int, num_latent_layers::Int)
+    return function (x, ϵ, p, s)
+        T = eltype(x)
+        return _make_vae_latent_variables_layers(
+            Val(1), Val(num_latent_layers), encoders, x, (), ϵ, p, s, latent_dim, T
+        )
     end
-
-    return μ, σ, logσ², NamedTuple{keys(st)}(st_encoders_list)
 end
 
-function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, 
-    z, latent_dim::Int, num_latent_layers::Int, ps, st) where {LayerNames}
-    
-    T = eltype(z)
+@inline function _encode_vae_layers(::Val{I}, ::Val{N}, encoders, x, z, latent_dim, T, ps, st, st_encoders_list) where {I, N}
+    if I <= N
+        input = I == 1 ? x : z[I - 1]
+        enc_out, st_new = encoders[I](input, ps[I], st[I])
+        st_encoders_list[I] = st_new
+        μ = enc_out[1:latent_dim, :]
+        logσ² = enc_out[(latent_dim + 1):end, :]
+        σ = exp.(logσ² .* T(0.5f0))
 
-    batch_size = size(z,3)
-    μ = zeros(T, latent_dim, num_latent_layers, batch_size)
-    σ = ones(T, latent_dim, num_latent_layers, batch_size)
-    logσ² = zeros(T, latent_dim, num_latent_layers, batch_size)
-
-    st_decoders_list = Any[st...]
-
-    for i in 2:num_latent_layers
-        idx = num_latent_layers - i + 1
-        
-        z_slice = z[:, idx+1, :]
-
-        ki = LayerNames[idx + 1]
-        dec_out, st_new = decoders[ki](z_slice, ps[ki], st[ki])
-        st_decoders_list[idx + 1] = st_new
-        
-        μ[:, idx, :] .= dec_out[1:latent_dim, :] # crashes here
-        logσ²[:, idx, :] .= dec_out[(latent_dim+1):end, :]
-        σ[:, idx, :] .= exp.(logσ²[:, idx, :] .* T(0.5))
+        μ_rest, σ_rest, logσ²_rest = _encode_vae_layers(
+            Val(I + 1), Val(N), encoders, x, z, latent_dim, T, ps, st,
+            st_encoders_list
+        )
+        return (μ, μ_rest...), (σ, σ_rest...), (logσ², logσ²_rest...)
     end
 
-    k1 = LayerNames[1]
-    z_slice = z[:, 1, :]
-    x̂, st_new = decoders[k1](z_slice, ps[k1], st[k1])
-    st_decoders_list[1] = st_new 
-
-    return μ, σ, logσ², x̂, NamedTuple{keys(st)}(st_decoders_list)
+    return (), (), ()
 end
 
-function _vae_elbo(
-    encoders::NamedTuple, 
-    decoders::NamedTuple, 
-    β::AbstractFloat, 
-    latent_dim::Int, 
-    num_latent_layers::Int,
-    x, z, ps, st)
+function _encode_vae(encoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, latent_dim::Int) where {LayerNames}
+    return function (x, z, ps, st)
+        T = eltype(x)
+        st_encoders_list = Any[st...]
 
+        μ, σ, logσ² = _encode_vae_layers(
+            Val(1), Val(length(LayerNames)), encoders, x, z, latent_dim, T, ps,
+            st, st_encoders_list
+        )
+
+        return μ, σ, logσ², NamedTuple{keys(st)}(st_encoders_list)
+    end
+end
+
+@inline function _decode_vae_layers(::Val{I}, decoders, z, latent_dim, T, ps, st, st_decoders_list) where {I}
+    if I > 1
+        dec_out, st_new = decoders[I](z[I], ps[I], st[I])
+        st_decoders_list[I] = st_new
+        μ = dec_out[1:latent_dim, :]
+        logσ² = dec_out[(latent_dim + 1):end, :]
+        σ = exp.(logσ² .* T(0.5))
+
+        μ_rest, σ_rest, logσ²_rest = _decode_vae_layers(
+            Val(I - 1), decoders, z, latent_dim, T, ps, st,
+            st_decoders_list
+        )
+        return (μ, μ_rest...), (σ, σ_rest...), (logσ², logσ²_rest...)
+    end
+
+    return (), (), ()
+end
+
+function _decode_vae(decoders::NamedTuple{LayerNames, <:Tuple{Vararg{Chain}}}, latent_dim::Int) where {LayerNames}
+    return function (z, ps, st)
+        T = eltype(first(z))
+        st_decoders_list = Any[st...]
+
+        μ_rev, σ_rev, logσ²_rev = _decode_vae_layers(
+            Val(length(LayerNames)), decoders, z, latent_dim, T, ps, st,
+            st_decoders_list
+        )
+        μ = (reverse(μ_rev)..., zero.(z[end]))
+        σ = (reverse(σ_rev)..., one.(z[end]))
+        logσ² = (reverse(logσ²_rev)..., zero.(z[end]))
+
+        x̂, st_new = decoders[1](z[1], ps[1], st[1])
+        st_decoders_list[1] = st_new
+
+        return μ, σ, logσ², x̂, NamedTuple{keys(st)}(st_decoders_list)
+    end
+end
+
+function _vae_elbo( encode_vae, decode_vae, β::AbstractFloat, x, z, ps, st)
     T = eltype(x)
-    μ_enc, σ_enc, logσ²_enc, _st_enc = _encode_vae(encoders, x, z, latent_dim, num_latent_layers, ps.encoders, st.encoders)
-    μ_dec, σ_dec, logσ²_dec, x̂, _st_dec = _decode_vae(decoders, z, latent_dim, num_latent_layers, ps.decoders, st.decoders)
+    μ_enc, σ_enc, logσ²_enc, _st_enc = encode_vae(x, z, ps.encoders, st.encoders)
+    μ_dec, σ_dec, logσ²_dec, x̂, _st_dec = decode_vae(z, ps.decoders, st.decoders)
 
     recon_loss = T(0.5) * mean(sum((x .- x̂) .^ 2, dims = 1))
-    
-    kl_elements = logσ²_dec .- logσ²_enc .+ (σ_enc.^2 .+ (μ_enc .- μ_dec).^2) ./ σ_dec.^2 .- T(1.0)
-    kl_loss = T(0.5) * mean(sum(kl_elements, dims = 1))
+
+    kl_sum = zero(T)
+    for i in eachindex(μ_enc)
+        kl_elements = logσ²_dec[i] .- logσ²_enc[i] .+
+            (σ_enc[i].^2 .+ (μ_enc[i] .- μ_dec[i]).^2) ./ σ_dec[i].^2 .- T(1.0)
+        kl_sum += sum(kl_elements)
+    end
+    kl_loss = T(0.5) * kl_sum / (size(x, 2) * length(μ_enc))
 
     _st = (encoders = _st_enc, decoders = _st_dec)
 
     return recon_loss + β * kl_loss, _st
+end
+
+function _vae_objective(make_latent_variables, encode_vae, decode_vae, β)
+    return function (x, ϵ, p, s)
+        z = make_latent_variables(x, ϵ, p, s)
+        return _vae_elbo(encode_vae, decode_vae, β, x, z, p, s)
+    end
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; 
@@ -418,6 +429,39 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     num_latent_layers = length(model.encoders)
 
     loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
+    x_init = first(loader)
+    z_init = ntuple(
+        _ -> fill!(
+            similar(x_init, T, latent_dim, size(x_init, 2)), zero(T)
+        ),
+        num_latent_layers
+    )
+    ϵ_init = ntuple(
+        _ -> fill!(similar(x_init, T, latent_dim, size(x_init, 2)), zero(T)),
+        num_latent_layers
+    )
+
+    make_latent_variables = _function_device_dispatch(
+        device, _make_vae_latent_variables(encoders, latent_dim, num_latent_layers),
+        x_init, ϵ_init, ps, st
+    )
+
+    decode_vae = _function_device_dispatch(
+        device, _decode_vae(decoders, latent_dim), 
+        z_init, ps.decoders, st.decoders
+    )
+
+    encode_vae = _function_device_dispatch(
+        device, _encode_vae(encoders, latent_dim),
+        x_init, z_init, ps.encoders, st.encoders
+    )
+
+    vae_objective = _function_device_dispatch(
+        device, _vae_objective(
+            make_latent_variables, encode_vae, decode_vae, β_device
+        ),
+        x_init, ϵ_init, ps, st
+    )
 
     protocol._log["Mean ELBO"] = zeros(T, epochs)
     
@@ -427,37 +471,27 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
             x, latent_dim, num_latent_layers, size(x, 2), rng_trace
         )
 
-        _objective = (p, s, ϵ) -> begin
-            z = _make_vae_latent_variables(
-                encoders, x, latent_dim, num_latent_layers, size(x, 2),
-                p.encoders, s.encoders, ϵ
-            )
-
-            return _vae_elbo(
-                encoders, decoders, β_device, latent_dim, num_latent_layers,
-                x, z, p, s
-            )
-        end
-
         loss_grads = Enzyme.make_zero(p_current)
 
         Enzyme.autodiff(
             Enzyme.set_runtime_activity(Enzyme.Reverse),
-            Enzyme.Const((p, s, ϵ) -> _objective(p, s, ϵ)[1]),
+            Enzyme.Const((x, ϵ, p, s) -> vae_objective(x, ϵ, p, s)[1]),
             Enzyme.Active,
+            Enzyme.Const(x),
+            Enzyme.Const(ϵ),
             Enzyme.Duplicated(p_current, loss_grads),
             Enzyme.Const(s_current),
-            Enzyme.Const(ϵ),
         )
 
-        loss, s_updated = _objective(p_current, s_current, ϵ)
+        loss, s_updated = vae_objective(x, ϵ, p_current, s_current)
         o_updated, p_updated = Optimisers.update(o_current, p_current, loss_grads)
 
         return loss, p_updated, s_updated, o_updated, rng_trace
     end
 
     opt_state = _initial_step(model, ps, st, optimiser)
-    _train_step!, opt_state, rng = _train_step_device_dispatch(device, _vae_train_step!, loader, opt_state)
+    _train_step!, opt_state, rng = _train_step_device_dispatch(
+        device, _vae_train_step!, loader, opt_state)
 
     if print_log; println("Training VAE... (β = $β)") end
     for epoch in 1:epochs

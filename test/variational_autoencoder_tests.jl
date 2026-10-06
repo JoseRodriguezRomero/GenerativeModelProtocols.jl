@@ -36,9 +36,6 @@ include("utility_utils/tests_base_utils.jl")
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
         test_train_model(model, train_data; β = 0.1)
         test_train_model_no_data(model, input_size; β = 0.1)
-
-        # Hierarchical VAEs are currently too slow using the reactant backend.
-        model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim)
         test_train_model_reactant(model, train_data; β = 0.1)
     end
 

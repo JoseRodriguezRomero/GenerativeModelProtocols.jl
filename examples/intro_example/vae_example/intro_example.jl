@@ -24,7 +24,7 @@ train!(protocol;
     β         = 0.1,
     batchsize = 256,
     epochs    = 3500,
-    optimiser = Adam(; eta = 1.0E-3, beta = (0.95,0.999)),
+    optimiser = Adam(; eta = 1.0E-4, beta = (0.95,0.999)),
     device    = cpu_device()
 )
 

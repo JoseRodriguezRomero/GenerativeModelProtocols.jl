@@ -1,5 +1,5 @@
 macro _gan_default_activation_function()
-    return elu
+    return swish
 end
 
 function _gan_default_discriminator_network(input_size::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
@@ -173,8 +173,12 @@ function _gan_grad_penalty(discriminator, real_data, fake_data, a::AbstractFloat
     
     grad_norms = sqrt.(sum(abs2, grads, dims=1) .+ T(1.0E-8))
     _, st = _objective(interpolates, ps, st)
+    penalty_elements = abs2.(grad_norms .- a)
+    finite_mask = isfinite.(penalty_elements)
+    finite_penalty_sum = sum(ifelse.(finite_mask, penalty_elements, zero(T)))
+    finite_penalty_count = sum(finite_mask)
 
-    return mean(abs2.(grad_norms .- a)), st
+    return finite_penalty_sum / finite_penalty_count, st
 end
 
 function _gan_make_fake_recon_data(encoders, decoders, ps_vae, st_vae, real_data, rng)
@@ -212,19 +216,13 @@ function _gan_disc_loss(
 end
 
 function _gan_vae_loss(
-    encoders, decoders, discriminator, 
-    ps_disc, st_disc, ps_vae, st_vae,
-    latent_size, num_latent_layers, 
-    real_data, latent_data, fake_data, recon_data,
+    encode_vae, decode_vae, ps_vae, st_vae,
+    real_data, latent_data, wgan_loss,
     β::AbstractFloat, γ_vae::AbstractFloat, γ_wgan::AbstractFloat)
 
-    T = eltype(real_data)
-
-    disc_fake_data, _ = _gan_discriminate(discriminator, fake_data, ps_disc, st_disc)
-    disc_recon_data, _ = _gan_discriminate(discriminator, recon_data, ps_disc, st_disc)
-
-    vae_elbo, st_vae = _vae_elbo(encoders, decoders, β, latent_size, num_latent_layers, real_data, latent_data, ps_vae, st_vae)
-    wgan_loss = T(-0.5) .* (mean(disc_fake_data) + mean(disc_recon_data))
+    vae_elbo, st_vae = _vae_elbo(
+        encode_vae, decode_vae, β, real_data, latent_data, ps_vae, st_vae
+    )
     loss = γ_vae * vae_elbo + γ_wgan * wgan_loss
 
     return loss, st_vae
@@ -270,16 +268,42 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     protocol._log["Mean Critic Loss"] = zeros(T, epochs)
     protocol._log["Mean VAE Loss"] = zeros(T, epochs)
 
-    opt_disc = nothing
-    opt_vae_model = nothing
-
     opt_disc = optimiser[1]
     opt_vae_model = optimiser[2]
 
     loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
+    real_data_init = first(loader)
+    latent_data_init = ntuple(
+        _ -> fill!(
+            similar(real_data_init, T, latent_dim, size(real_data_init, 2)), zero(T)
+        ),
+        num_latent_layers
+    )
+    
+    ϵ_init = ntuple(
+        _ -> fill!(
+            similar(real_data_init, T, latent_dim, size(real_data_init, 2)), zero(T)
+        ),
+        num_latent_layers
+    )
+
+    make_latent_variables = _function_device_dispatch(
+        device, _make_vae_latent_variables(encoders, latent_dim, num_latent_layers),
+        real_data_init, ϵ_init, ps_vae, st_vae
+    )
+
+    encode_vae = _function_device_dispatch(
+        device, _encode_vae(encoders, latent_dim),
+        real_data_init, latent_data_init, ps_vae.encoders, st_vae.encoders
+    )
+
+    decode_vae = _function_device_dispatch(
+        device, _decode_vae(decoders, latent_dim),
+        latent_data_init, ps_vae.decoders, st_vae.decoders
+    )
 
     function _disc_train_step!(real_data, p_current, s_current, o_current, rng)
-        local loss_val, p_updated, s_updated, o_updated, rng_next = T(0.0), p_current, s_current, o_current, rng
+        local loss_val, p_updated, s_updated, o_updated = T(0.0), p_current, s_current, o_current
 
         rng_trace = Lux.replicate(rng)
         ϵ = similar(real_data)
@@ -339,18 +363,24 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
             real_data, latent_dim, num_latent_layers, batch_size, rng_trace
         )
 
+        disc_fake_data, _ = _gan_discriminate(
+            discriminator, fake_data, ps_disc, st_disc
+        )
+
+        disc_recon_data, _ = _gan_discriminate(
+            discriminator, recon_data, ps_disc, st_disc
+        )
+        
+        wgan_loss = T(-0.5) .* (
+            mean(disc_fake_data) + mean(disc_recon_data)
+        )
+
         _objective = (ps_vae, st_vae, ps_disc, st_disc) -> begin
-            latent_data = _make_vae_latent_variables(
-                encoders, real_data, latent_dim, num_latent_layers, batch_size,
-                ps_vae.encoders, st_vae.encoders, ϵ
-            )
+            latent_data = make_latent_variables(real_data, ϵ, ps_vae, st_vae)
 
             return _gan_vae_loss(
-                encoders, decoders, discriminator, 
-                ps_disc, st_disc, ps_vae, st_vae,
-                latent_dim, num_latent_layers, 
-                real_data, latent_data, fake_data, recon_data, 
-                β_device, γ_vae_device, γ_wgan_device
+                encode_vae, decode_vae, ps_vae, st_vae, real_data, latent_data,
+                wgan_loss, β_device, γ_vae_device, γ_wgan_device
             )
         end
         
@@ -453,4 +483,3 @@ function _decode(model::GenerativeAdversarialNetwork, z::Vector)::Vector
     T = eltype(model.vae_model._ps[].decoders[1].layer_1.weight)
     return _decode(model, reshape(T.(z), :, 1))[:]
 end
-
