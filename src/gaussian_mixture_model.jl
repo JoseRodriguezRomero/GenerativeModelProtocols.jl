@@ -171,8 +171,8 @@ function log_gaussian_pdf_matrix(X, μ, log_σ²)
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel; 
-    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
-    device::MLDataDevices.AbstractDevice, precision::Function)
+    print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
+    optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, precision::Function)
 
     T = eltype(precision([1.0]))
     training_data_device = T.(protocol.training_data) |> device
@@ -272,7 +272,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         mean_loss = T(-1.0) * epoch_loss
         protocol._log["Mean Log-Likelihood"][epoch] = mean_loss
 
-        if print_log && (epoch % 5 == 0 || epoch == 1)
+        if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch %8d | Mean Log-Likelihood: %16.8e \n", epoch, mean_loss)
         end
     end

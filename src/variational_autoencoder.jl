@@ -412,9 +412,9 @@ function _vae_objective(make_latent_variables, encode_vae, decode_vae, β)
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; 
-    β::AbstractFloat = 1.0, print_log::Bool, epochs::Int, batchsize::Int, 
-    shuffle::Bool, optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, 
-    precision::Function)
+    β::AbstractFloat = 1.0, print_log::Bool, epochs::Int, print_epochs::Int, 
+    batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
+    device::MLDataDevices.AbstractDevice, precision::Function)
     
     T = eltype(precision([1.0]))
 
@@ -509,7 +509,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         mean_elbo = -epoch_loss / length(loader)
         protocol._log["Mean ELBO"][epoch] = mean_elbo
 
-        if print_log && (epoch % 5 == 0 || epoch == 1)
+        if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch %8d | Avg. ELBO: %16.8e \n", epoch, mean_elbo)
         end
     end

@@ -178,8 +178,8 @@ function forward_diffusion(model::DiffusionModel, x₀, t::Int, rng)
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; 
-    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
-    device::MLDataDevices.AbstractDevice, precision::Function)
+    print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
+    optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, precision::Function)
 
     T = eltype(precision([1.0]))
     training_data_device = T.(protocol.training_data) |> device
@@ -252,7 +252,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
         mean_loss = epoch_loss / length(loader)
         protocol._log["Mean MSE"][epoch] = mean_loss
 
-        if print_log && (epoch % 5 == 0 || epoch == 1)
+        if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch: %8d | Mean MSE Loss: %-15.8f \n", epoch, mean_loss)
         end
     end

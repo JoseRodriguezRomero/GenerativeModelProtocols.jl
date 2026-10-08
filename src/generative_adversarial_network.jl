@@ -287,7 +287,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     n_critic::Int = 5, β::AbstractFloat = 1.0, γ_vae::AbstractFloat = 1.0, 
     γ_wgan::AbstractFloat = 1.0, grad_penalty::Bool = false, λ::AbstractFloat = 10.0, 
     a::AbstractFloat = 1.0, weight_clipping::Bool = false, clip_value::AbstractFloat = 1.0,
-    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, 
+    print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
     optimiser::Tuple{<:AbstractRule, <:AbstractRule}, 
     device::MLDataDevices.AbstractDevice, precision::Function)
 
@@ -483,7 +483,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         protocol._log["Mean Critic Loss"][epoch] = avg_loss_critic
         protocol._log["Mean VAE Loss"][epoch] = avg_loss_vae
         
-        if print_log && (epoch % 5 == 0 || epoch == 1)    
+        if print_log && (epoch % print_epochs == 0 || epoch == 1)    
             @printf("Epoch %5d", epoch)
             @printf(" | Avg. Critic Loss: %15.6E", avg_loss_critic)
             @printf(" | Avg. VAE Loss: %15.6E \n", avg_loss_vae)

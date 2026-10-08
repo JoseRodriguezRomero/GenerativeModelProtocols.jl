@@ -103,8 +103,8 @@ function _generative_model(::NormalizingFlow)::GenerativeModel
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; 
-    print_log::Bool, epochs::Int, batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
-    device::MLDataDevices.AbstractDevice, precision::Function)
+    print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
+    optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, precision::Function)
 
     loader = load_data(precision(protocol.training_data), batchsize, shuffle) |> device
 
@@ -178,7 +178,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
         mean_loss = epoch_loss / length(loader)
         protocol._log["Mean MSE"][epoch] = mean_loss
 
-        if print_log && (epoch % 5 == 0 || epoch == 1)
+        if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch %8d | Mean MSE: %16.8e \n", epoch, mean_loss)
         end
     end

@@ -16,26 +16,33 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Linux runner configurations
+          # Linux runner configuration
           - os: ubuntu-latest
             arch: x64
             threads: '4'
             num-jobs: 2
-            julia-version: '1'
+            julia-version: '1.13'
 
-          # Windows runner configurations
+          # Linux runner configuration (Google Colab version)
+          - os: ubuntu-latest
+            arch: x64
+            threads: '4'
+            num-jobs: 2
+            julia-version: '1.12'
+
+          # Windows runner configuration
           - os: windows-latest
             arch: x64
             threads: '4'
             num-jobs: 2
-            julia-version: '1'
+            julia-version: '1.13'
           
-          # Native Apple Silicon configurations
+          # Native Apple Silicon configuration
           - os: macOS-latest
             arch: aarch64
             threads: '3'
             num-jobs: 2
-            julia-version: '1'
+            julia-version: '1.13'
     steps:
       - uses: actions/checkout@v7
       - uses: julia-actions/setup-julia@v3
