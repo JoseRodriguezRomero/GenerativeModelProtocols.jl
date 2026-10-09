@@ -2,13 +2,16 @@ using Aqua
 
 using GenerativeModelProtocols
 
+is_apple_silicon = Sys.isapple() && Sys.ARCH === :aarch64
+
 @testset "Aqua.jl" begin
-    Aqua.test_all(
-    GenerativeModelProtocols;
-    ambiguities=(exclude=[], broken=false),
-    stale_deps=(ignore=Symbol[],),
-    deps_compat=(ignore=Symbol[],),
-    piracies=true,
+  Aqua.test_all(
+  GenerativeModelProtocols;
+  ambiguities=(exclude=[], broken=false),
+  stale_deps=(ignore=Symbol[],),
+  deps_compat=(ignore=Symbol[],),
+  piracies=true,
+  persistent_tasks = !is_apple_silicon
   )
 end
 
