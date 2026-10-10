@@ -134,13 +134,16 @@ include("utility_utils/tests_base_utils.jl")
         input_size = 3
         latent_dim = 2
         latent_layers = 2
+
+        dummy_test_data = randn(Float32, input_size, 100)
+
         model = GenerativeModelProtocols.VariationalAutoencoder(input_size, latent_dim, latent_layers)
         randomize_variational_autoencoder!(model)
 
         save_path = joinpath(@__DIR__(), "test_vae_model.h5")
         test_model_save(save_path, model, input_size)
         
-        loaded_protocol = GenerativeModelProtocol(save_path)
+        loaded_protocol = GenerativeModelProtocol(save_path, dummy_test_data)
         loaded_model = loaded_protocol.model
         test_compare_models(model, loaded_model)
 

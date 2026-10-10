@@ -169,6 +169,25 @@ macro _read_metadata(saved_protocol, main_group_name, metadata_group_name)
     )) 
 end
 
+"""
+    GenerativeModelProtocol(saved_protocol::String;
+        main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+        metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+        generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name
+    )
+
+Load a generative model protocol from the specified saved protocol file.
+
+**Attention**: To use this constructor first load `FileIO` and `HDF5` modules.
+
+# Arguments
+ - `saved_protocol::String`: The path to the saved protocol file.
+
+# Keyword Arguments
+ - `main_group_name::String`: The name of the main group in the saved protocol.
+ - `metadata_group_name::String`: The name of the metadata group in the saved protocol.
+ - `generative_model_group_name::String`: The name of the generative model group in the saved protocol.
+"""
 function GenerativeModelProtocol(saved_protocol::String;
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
@@ -201,6 +220,43 @@ function GenerativeModelProtocol(saved_protocol::String;
         mean_training_data = mean_training_data,
         var_training_data  = var_training_data,
         normalize_data     = normalize_data
+    )
+end
+
+"""
+    GenerativeModelProtocol(saved_protocol::String, training_data::Matrix{<:AbstractFloat};
+        main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+        metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+        generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name
+    )
+
+Load a generative model protocol from the specified saved protocol file and 
+initialize it with the provided training data.
+
+**Attention**: To use this constructor first load `FileIO` and `HDF5` modules.
+
+# Arguments
+ - `saved_protocol::String`: The path to the saved protocol file.
+ - `training_data::Matrix{<:AbstractFloat}`: The training data to initialize the model with.
+
+# Keyword Arguments
+ - `main_group_name::String`: The name of the main group in the saved protocol.
+ - `metadata_group_name::String`: The name of the metadata group in the saved protocol.
+ - `generative_model_group_name::String`: The name of the generative model group in the saved protocol.
+"""
+function GenerativeModelProtocol(saved_protocol::String, training_data::Matrix{<:AbstractFloat};
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    loaded_protocol = GenerativeModelProtocol(saved_protocol;
+        main_group_name             = main_group_name,
+        metadata_group_name         = metadata_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
+
+    return GenerativeModelProtocol(loaded_protocol.model, training_data; 
+        normalize_data = loaded_protocol.normalize_data
     )
 end
 
@@ -242,7 +298,7 @@ method can be called again after it finishes to resume training.
 
 # Keyword Arguments (GenerativeAdversarialNetwork)
 
- **Attention**: Unlike all other generative models, `GenerativeAdversarialNetwork` needs a 2-element tuple of optimisers.
+**Attention**: Unlike all other generative models, `GenerativeAdversarialNetwork` needs a 2-element tuple of optimisers.
 
  - `β::AbstractFloat`: The β parameter for the VAE ELBO function (default is `1.0`).
  - `n_critic::Int`: The number of subiterations to train the critic in each training step (default is `5`).

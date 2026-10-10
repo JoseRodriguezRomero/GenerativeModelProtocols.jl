@@ -94,13 +94,15 @@ include("utility_utils/tests_base_utils.jl")
     @testset "Save and Load Test" begin
         input_size = 3
 
+        dummy_test_data = randn(Float32, input_size, 100)
+
         model = GenerativeModelProtocols.NormalizingFlow(input_size)
         randomize_normalizing_flow!(model)
 
         save_path = joinpath(@__DIR__(), "test_nf_model.h5")
         test_model_save(save_path, model, input_size)
         
-        loaded_protocol = GenerativeModelProtocol(save_path)
+        loaded_protocol = GenerativeModelProtocol(save_path, dummy_test_data)
         loaded_model = loaded_protocol.model
         test_compare_models(model, loaded_model)
 

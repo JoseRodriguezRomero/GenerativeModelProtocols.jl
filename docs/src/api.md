@@ -48,6 +48,8 @@ GenerativeModelProtocols.energy_distance(::GenerativeModelProtocol)
 # Convenience Constructors
 ```@docs
 GenerativeModelProtocols.GenerativeModelProtocol(::GenerativeModelProtocols.AbstractGenerativeModel, ::Matrix{<:AbstractFloat})
+GenerativeModelProtocols.GenerativeModelProtocol(::String)
+GenerativeModelProtocols.GenerativeModelProtocol(::String, ::Matrix{<:AbstractFloat})
 GenerativeModelProtocols.VariationalAutoencoder(::Tuple{Vararg{Lux.Chain}}, ::Tuple{Vararg{Lux.Chain}})
 GenerativeModelProtocols.VariationalAutoencoder(::NamedTuple{Any, <:Tuple{Vararg{Lux.Chain}}}, ::NamedTuple{Any, <:Tuple{Vararg{Lux.Chain}}})
 GenerativeModelProtocols.VariationalAutoencoder(::Int, ::Int, ::Int)
