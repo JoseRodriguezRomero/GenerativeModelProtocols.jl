@@ -103,8 +103,9 @@ function _generative_model(::NormalizingFlow)::GenerativeModel
 end
 
 function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow; 
-    print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
-    optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, precision::Function)
+    print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool,
+    shuffle_epochs::Int, optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, 
+    precision::Function)
 
     loader = load_data(precision(protocol.training_data), batchsize, shuffle) |> device
 
@@ -166,7 +167,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
     for epoch in 1:epochs
         epoch_loss = FP(0.0)
 
-        if (epoch % 100 == 0) && shuffle
+        if (epoch % shuffle_epochs == 0) && shuffle
             loader = load_data(precision(protocol.training_data), batchsize, shuffle) |> device
         end
 

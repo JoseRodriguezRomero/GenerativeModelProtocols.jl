@@ -413,7 +413,7 @@ end
 
 function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencoder; 
     β::AbstractFloat = 1.0, print_log::Bool, epochs::Int, print_epochs::Int, 
-    batchsize::Int, shuffle::Bool, optimiser::AbstractRule, 
+    batchsize::Int, shuffle::Bool, shuffle_epochs::Int, optimiser::AbstractRule, 
     device::MLDataDevices.AbstractDevice, precision::Function)
     
     T = eltype(precision([1.0]))
@@ -497,7 +497,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     for epoch in 1:epochs
         epoch_loss = T(0.0)
 
-        if epoch % 100 == 0 && shuffle
+        if (epoch % shuffle_epochs == 0) && shuffle
             loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
         end
 

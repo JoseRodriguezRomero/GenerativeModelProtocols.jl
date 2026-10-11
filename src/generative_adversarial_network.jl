@@ -288,7 +288,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     γ_wgan::AbstractFloat = 1.0, grad_penalty::Bool = false, λ::AbstractFloat = 10.0, 
     a::AbstractFloat = 1.0, weight_clipping::Bool = false, clip_value::AbstractFloat = 1.0,
     print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
-    optimiser::Tuple{<:AbstractRule, <:AbstractRule}, 
+    shuffle_epochs::Int, optimiser::Tuple{<:AbstractRule, <:AbstractRule}, 
     device::MLDataDevices.AbstractDevice, precision::Function)
 
     if !grad_penalty && !weight_clipping
@@ -462,7 +462,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     _train_step_vae!, opt_state_vae, rng = _train_step_device_dispatch(device, _vae_train_step!, loader, opt_state_vae)
 
     for epoch in 1:epochs
-        if epoch % 100 == 0 && shuffle
+        if (epoch % shuffle_epochs == 0) && shuffle
             loader = load_data(T.(protocol.training_data), batchsize, shuffle) |> device
         end
 

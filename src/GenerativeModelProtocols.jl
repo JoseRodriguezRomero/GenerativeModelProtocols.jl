@@ -260,13 +260,14 @@ function GenerativeModelProtocol(saved_protocol::String, training_data::Matrix{<
     )
 end
 
-macro _train!(protocol, model, print_log, epochs, print_epochs, batchsize, shuffle, optimiser, device, precision, kwargs...)
+macro _train!(protocol, model, print_log, epochs, print_epochs, batchsize, shuffle, shuffle_epochs, optimiser, device, precision, kwargs...)
     :(_train!($(esc(protocol)), $(esc(model)); 
         $(print_log = esc(print_log)), 
         $(epochs = esc(epochs)),
         $(print_epochs = esc(print_epochs)),
         $(batchsize = esc(batchsize)),
         $(shuffle = esc(shuffle)),
+        $(shuffle_epochs = esc(shuffle_epochs)),
         $(optimiser = esc(optimiser)),
         $(device = esc(device)),
         $(precision = esc(precision)),
@@ -289,6 +290,7 @@ method can be called again after it finishes to resume training.
  - `print_epochs::Int`: The number of epochs between each print of the training log (default is `5`).
  - `batchsize::Int`: The batch size for training (default is `32`).
  - `shuffle::Bool`: Whether to shuffle the training data (default is `true`).
+ - `shuffle_epochs::Int`: The number of epochs between each shuffle of the training data (default is `100`).
  - `optimiser::Optimisers.AbstractRule`: The optimiser to use for training (default is `GenerativeModelProtocols.default_optimiser(protocol)`).
  - `device::Lux.MLDataDevices.AbstractDevice`: The device to use for training (default is `cpu_device()`).
  - `precision::Function`: The precision function for training (default is `f32`).
@@ -314,7 +316,8 @@ method can be called again after it finishes to resume training.
 """
 function train!(protocol::GenerativeModelProtocol; 
     print_log::Bool = true, epochs::Int = 100, print_epochs::Int = 5,
-    batchsize::Int = 32, shuffle::Bool = true, optimiser::Union{AbstractRule, 
+    batchsize::Int = 32, shuffle::Bool = true, shuffle_epochs::Int = 100,
+    optimiser::Union{AbstractRule, 
     Tuple{Vararg{AbstractRule}}} = default_optimiser(protocol),
     device::MLDataDevices.AbstractDevice = cpu_device(), 
     precision::Function = f32, kwargs...)
@@ -322,7 +325,7 @@ function train!(protocol::GenerativeModelProtocol;
 
     t₀ = time()
     train_log = @_train!(protocol, protocol.model, print_log, epochs, 
-        print_epochs, batchsize, shuffle, optimiser, device, precision, kwargs...)
+        print_epochs, batchsize, shuffle, shuffle_epochs, optimiser, device, precision, kwargs...)
     t₁ = time()
 
     Δt = t₁ - t₀

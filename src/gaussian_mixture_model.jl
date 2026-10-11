@@ -172,7 +172,8 @@ end
 
 function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel; 
     print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
-    optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, precision::Function)
+    shuffle_epochs::Int, optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, 
+    precision::Function)
 
     T = eltype(precision([1.0]))
     training_data_device = T.(protocol.training_data) |> device
@@ -261,7 +262,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
     for epoch in 1:epochs
         epoch_loss, γ_all, model_μ_device, model_log_σ²_device, st = compute_gaussian_kernels(model_μ_device, model_log_σ²_device, ps, st)
 
-        if epoch == 1 || (epoch % 100 == 0 && shuffle)
+        if (epoch % shuffle_epochs == 0) && shuffle
             loader = load_data((training_data_device, γ_all) |> cpu_device(), batchsize, shuffle) |> device
         end
 

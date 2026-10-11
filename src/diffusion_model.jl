@@ -179,7 +179,8 @@ end
 
 function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel; 
     print_log::Bool, epochs::Int, print_epochs::Int, batchsize::Int, shuffle::Bool, 
-    optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, precision::Function)
+    shuffle_epochs::Int, optimiser::AbstractRule, device::MLDataDevices.AbstractDevice, 
+    precision::Function)
 
     T = eltype(precision([1.0]))
     training_data_device = T.(protocol.training_data) |> device
@@ -240,7 +241,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
     for epoch in 1:epochs
         epoch_loss = T(0.0)
 
-        if epoch % 100 == 0 && shuffle
+        if (epoch % shuffle_epochs == 0) && shuffle
             loader = load_data(training_data_device, batchsize, shuffle) |> device
         end
 
