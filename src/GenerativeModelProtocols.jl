@@ -19,7 +19,7 @@ abstract type AbstractGenerativeModel end
 abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 
 function compatible_generative_protocol(
-    training_data::Union{Matrix{<:AbstractFloat}, Nothing},
+    training_data::Matrix{<:AbstractFloat},
     var_training_data::Tuple{Vararg{AbstractFloat}}
     )
 
@@ -87,7 +87,7 @@ $TYPEDFIELDS
     _log::Dict{String,Vector},
     ) where {M<:AbstractGenerativeModel}
 
-        if normalize_data && !compatible_generative_protocol(training_data, var_training_data)
+        if normalize_data && !isempty(training_data) && !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
             throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, normalize_data, model, _log)))
         end
