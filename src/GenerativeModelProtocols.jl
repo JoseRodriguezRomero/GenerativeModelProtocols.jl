@@ -23,7 +23,7 @@ function compatible_generative_protocol(
     var_training_data::Tuple{Vararg{AbstractFloat}}
     )
 
-    ϵ = 100.0 * eps(eltype(training_data))
+    ϵ = 1.0E-6
     if !isnothing(training_data)
         if maximum(abs.(mean(training_data, dims = 2))) > ϵ
             return false
@@ -35,7 +35,6 @@ function compatible_generative_protocol(
     end
 
     if minimum(var_training_data) < ϵ
-        println(minimum(var_training_data))
         return false
     end
 
