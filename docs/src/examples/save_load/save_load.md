@@ -78,7 +78,7 @@ mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
 model              = GenerativeModelProtocols.NormalizingFlow
 
-julia> train!(protocol; epochs = 50);
+julia> train!(loaded_protocol; epochs = 50);
 Training Diffusion Model...
 Epoch        1 | Mean MSE:   1.48582902e+00 
 Epoch        5 | Mean MSE:   1.43085193e+00 
