@@ -18,7 +18,7 @@ finally, we can save an already trained model
 ```julia-repl
 julia> protocol
 GenerativeModelProtocol:
-training_data      = 0×0 Matrix{AbstractFloat}
+training_data      = 2×5000 Matrix{AbstractFloat}
 mean_training_data = Tuple{Float32, Float32}
 var_training_data  = Tuple{Float32, Float32}
 model              = GenerativeModelProtocols.NormalizingFlow
@@ -50,13 +50,10 @@ Likewise, we can load our saved model again with a single function call
 ```julia-repl
 julia> loaded_protocol = GenerativeModelProtocol("file_name.h5")
 GenerativeModelProtocol:
-training_data = Nothing
-epochs        = 100
-batchsize     = 32
-shuffle       = true
-optimiser     = Optimisers.Adam(eta=0.01, beta=(0.9f0, 0.999f0), epsilon=1.0e-8)
-device        = CPUDevice
-model         = GenerativeModelProtocols.NormalizingFlow
+training_data      = 0×0 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.NormalizingFlow
 
 julia> loaded_protocol.model
 GenerativeModelProtocols.NormalizingFlow:
@@ -69,4 +66,31 @@ velocity_field:
       Dense(32 => 32, swish)
       Dense(32 => 2)
    )
+```
+It is worth pointing out that saved models/protocols are stripped of their 
+training data. Thus, to continue traning a saved model, `train_data` must be 
+supplied separately by the user with
+```julia-repl
+julia> loaded_protocol = GenerativeModelProtocol("file_name.h5", train_data)
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{AbstractFloat}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.NormalizingFlow
+
+julia> train!(protocol; epochs = 50);
+Training Diffusion Model...
+Epoch        1 | Mean MSE:   1.48582902e+00 
+Epoch        5 | Mean MSE:   1.43085193e+00 
+Epoch       10 | Mean MSE:   1.44327017e+00 
+Epoch       15 | Mean MSE:   1.43267012e+00 
+Epoch       20 | Mean MSE:   1.43097105e+00 
+Epoch       25 | Mean MSE:   1.43716303e+00 
+Epoch       30 | Mean MSE:   1.41456013e+00 
+Epoch       35 | Mean MSE:   1.42213919e+00 
+Epoch       40 | Mean MSE:   1.45697769e+00 
+Epoch       45 | Mean MSE:   1.40971190e+00 
+Epoch       50 | Mean MSE:   1.40970298e+00 
+Training complete!
+Training took 37 seconds.
 ```
