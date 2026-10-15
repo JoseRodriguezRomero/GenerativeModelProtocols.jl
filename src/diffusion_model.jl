@@ -155,11 +155,22 @@ function _latent_size(model::DiffusionModel)::Int
     return _input_size(model)
 end 
 
-function forward_diffusion(ᾱ::Tuple{Vararg{AbstractFloat}}, x₀, t, rng)
+function forward_diffusion(ᾱ, x₀, t, rng)
     FP = eltype(ᾱ)
     ϵ = randn_like(rng, x₀, FP, size(x₀))
-    
-    ᾱₜ = reshape(collect(ᾱ)[t], 1, :)
+
+    ᾱ_values = if ᾱ isa AbstractArray
+        ᾱ
+    else
+        schedule = similar(t, FP, (length(ᾱ),))
+        schedule .= collect(ᾱ)
+        schedule
+    end
+
+    step_indices = similar(t, eltype(t), (length(ᾱ_values),))
+    step_indices .= eltype(t).(1:length(ᾱ_values))
+    timestep_mask = reshape(t, 1, :) .== reshape(step_indices, :, 1)
+    ᾱₜ = reshape(sum(reshape(ᾱ_values, :, 1) .* timestep_mask, dims = 1), 1, :)
     xₜ = sqrt.(ᾱₜ) .* x₀ + sqrt.(FP(1.0) .- ᾱₜ) .* ϵ
     
     return xₜ, ϵ, rng
@@ -183,8 +194,8 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
     precision::Function)
 
     T = eltype(precision([1.0]))
-    training_data_device = T.(protocol.training_data) |> device
-    loader = load_data(training_data_device, batchsize, shuffle) |> device
+    training_data = T.(protocol.training_data)
+    loader = load_data(training_data, batchsize, shuffle) |> device
 
     model.denoiser_model._ps[] = precision(model.denoiser_model._ps[]) |> device
     model.denoiser_model._st[] = precision(model.denoiser_model._st[]) |> device
@@ -192,7 +203,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
     β = T.(model.β)
     α = T(1.0) .- β
     ᾱ = cumprod(α)
-    ᾱ_device = T.(ᾱ) |> device
+    ᾱ_device = collect(T.(ᾱ)) |> device
 
     protocol._log["Mean MSE"] = zeros(T, epochs)
     num_steps = model.denoiser_model.T |> device
@@ -242,7 +253,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
         epoch_loss = T(0.0)
 
         if (epoch % shuffle_epochs == 0) && shuffle
-            loader = load_data(training_data_device, batchsize, shuffle) |> device
+            loader = load_data(training_data, batchsize, shuffle) |> device
         end
 
         for x₀ in loader
@@ -312,4 +323,3 @@ end
 function _eval(model::DiffusionModel)
     return _eval(model, 1)[:]
 end
-
