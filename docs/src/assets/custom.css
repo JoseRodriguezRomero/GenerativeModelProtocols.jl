@@ -4,10 +4,15 @@
     border-radius: 6px;
     display: block;
     margin: 1rem auto;
-    
+
     /* Sets the width to 85% of the text container */
     width: 85% !important;
     max-width: 85% !important;
     height: auto !important;
 }
 
+table {
+    display: table !important;
+    width: fit-content !important;
+    margin-inline: auto !important;
+}

@@ -205,7 +205,8 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
     ᾱ = cumprod(α)
     ᾱ_device = collect(T.(ᾱ)) |> device
 
-    protocol._log["Mean MSE"] = zeros(T, epochs)
+    log_trace = Dict{String,Vector}()
+    log_trace["Mean MSE"] = zeros(T, epochs)
     num_steps = model.denoiser_model.T |> device
 
     denoiser_model = _to_named_tuple(model.denoiser_model; precision = precision)
@@ -262,7 +263,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
         end
 
         mean_loss = epoch_loss / length(loader)
-        protocol._log["Mean MSE"][epoch] = mean_loss
+        log_trace["Mean MSE"][epoch] = mean_loss
 
         if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch: %8d | Mean MSE Loss: %-15.8f \n", epoch, mean_loss)
@@ -273,7 +274,7 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
     model.denoiser_model._ps[] = opt_state.parameters |> cpu_device()
     model.denoiser_model._st[] = opt_state.states |> cpu_device()
 
-    return protocol._log
+    return log_trace
 end
 
 function _encode(model::DiffusionModel, x::Matrix)::Matrix

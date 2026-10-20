@@ -320,8 +320,9 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     decoders = model.vae_model.decoders
     discriminator = model.discriminator
 
-    protocol._log["Mean Critic Loss"] = zeros(T, epochs)
-    protocol._log["Mean VAE Loss"] = zeros(T, epochs)
+    log_trace = Dict{String,Vector}()
+    log_trace["Mean Critic Loss"] = zeros(T, epochs)
+    log_trace["Mean VAE Loss"] = zeros(T, epochs)
 
     opt_disc = optimiser[1]
     opt_vae_model = optimiser[2]
@@ -480,8 +481,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         avg_loss_critic = running_loss_critic / length(loader)
         avg_loss_vae = running_loss_vae / length(loader)
 
-        protocol._log["Mean Critic Loss"][epoch] = avg_loss_critic
-        protocol._log["Mean VAE Loss"][epoch] = avg_loss_vae
+        log_trace["Mean Critic Loss"][epoch] = avg_loss_critic
+        log_trace["Mean VAE Loss"][epoch] = avg_loss_vae
         
         if print_log && (epoch % print_epochs == 0 || epoch == 1)    
             @printf("Epoch %5d", epoch)
@@ -496,7 +497,7 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
     model._ps_discriminator[] = opt_state_disc.parameters |> cpu_device()
     model._st_discriminator[] = opt_state_disc.states |> cpu_device()
 
-    return protocol._log
+    return log_trace
 end
 
 function _eval(model::GenerativeAdversarialNetwork, n_samples::Int)

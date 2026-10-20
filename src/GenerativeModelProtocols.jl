@@ -75,8 +75,6 @@ $TYPEDFIELDS
     normalize_data::Bool = true
     """Generative model architecture to be used."""
     model::M
-    """Stores the time-series data generated while training the generative model."""
-    _log::Dict{String,Vector} = Dict{String,Vector}()
 
     function GenerativeModelProtocol(
     training_data::Matrix{<:AbstractFloat},
@@ -84,15 +82,14 @@ $TYPEDFIELDS
     var_training_data::Tuple{Vararg{AbstractFloat}},
     normalize_data::Bool,
     model::M,
-    _log::Dict{String,Vector},
     ) where {M<:AbstractGenerativeModel}
 
         if normalize_data && !isempty(training_data) && !compatible_generative_protocol(training_data, var_training_data)
             @error "Incompatible GenerativeModelProtocol parameters!"
-            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, normalize_data, model, _log)))
+            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, normalize_data, model)))
         end
 
-        return new{M}(training_data, mean_training_data, var_training_data, normalize_data, model, _log)
+        return new{M}(training_data, mean_training_data, var_training_data, normalize_data, model)
     end
 end
 
@@ -320,10 +317,9 @@ function train!(protocol::GenerativeModelProtocol;
     Tuple{Vararg{AbstractRule}}} = default_optimiser(protocol),
     device::MLDataDevices.AbstractDevice = cpu_device(), 
     precision::Function = f32, kwargs...)
-    empty!(protocol._log)
 
     t₀ = time()
-    train_log = @_train!(protocol, protocol.model, print_log, epochs, 
+    trace = @_train!(protocol, protocol.model, print_log, epochs,
         print_epochs, batchsize, shuffle, shuffle_epochs, optimiser, device, precision, kwargs...)
     t₁ = time()
 
@@ -331,7 +327,7 @@ function train!(protocol::GenerativeModelProtocol;
     elapsed = canonicalize(Second(round(Int, Δt)))
     println("Training took $elapsed.")
 
-    return (trace = train_log, elapsed = Δt)
+    return (trace = trace, elapsed = Δt)
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Matrix)

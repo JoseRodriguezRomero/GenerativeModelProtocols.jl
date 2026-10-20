@@ -127,9 +127,9 @@ end
 
 function _base_test_train_model(model, train_data, device; kwargs...)
     protocol = GenerativeModelProtocol(model, train_data)
-    train!(protocol; epochs = 20, device = device, kwargs...)
+    train_log = train!(protocol; epochs = 20, device = device, kwargs...)
 
-    @test !isempty(protocol._log)
+    @test !isempty(train_log.trace)
 end
 
 function test_train_model(model, train_data; kwargs...)
