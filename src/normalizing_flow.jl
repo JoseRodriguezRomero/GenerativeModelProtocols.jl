@@ -158,7 +158,8 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
         return loss_val, p_updated, s_updated, o_updated, rng_updated
     end
 
-    protocol._log["Mean MSE"] = zeros(FP, epochs)
+    log_trace = Dict{String,Vector}()
+    log_trace["Mean MSE"] = zeros(FP, epochs)
 
     opt_state = _initial_step(model, ps, st, optimiser)
     _train_step!, opt_state, rng = _train_step_device_dispatch(device, _nf_train_step!, loader, opt_state)
@@ -177,7 +178,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
         end
 
         mean_loss = epoch_loss / length(loader)
-        protocol._log["Mean MSE"][epoch] = mean_loss
+        log_trace["Mean MSE"][epoch] = mean_loss
 
         if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch %8d | Mean MSE: %16.8e \n", epoch, mean_loss)
@@ -188,7 +189,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
     model._ps[] = opt_state.parameters |> cpu_device()
     model._st[] = opt_state.states |> cpu_device()
 
-    return protocol._log
+    return log_trace
 end
 
 function _normalizing_flow_ode_solve_forward end

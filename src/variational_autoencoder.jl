@@ -463,8 +463,9 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         x_init, ϵ_init, ps, st
     )
 
-    protocol._log["Mean ELBO"] = zeros(T, epochs)
-    
+    log_trace = Dict{String,Vector}()
+    log_trace["Mean ELBO"] = zeros(T, epochs)
+
     function _vae_train_step!(x, p_current, s_current, o_current, rng)
         rng_trace = Lux.replicate(rng)
         ϵ, rng_trace = _sample_vae_latent_variables(
@@ -507,7 +508,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         end
 
         mean_elbo = -epoch_loss / length(loader)
-        protocol._log["Mean ELBO"][epoch] = mean_elbo
+        log_trace["Mean ELBO"][epoch] = mean_elbo
 
         if print_log && (epoch % print_epochs == 0 || epoch == 1)
             @printf("Epoch %8d | Avg. ELBO: %16.8e \n", epoch, mean_elbo)
@@ -518,7 +519,7 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
     model._ps[] = opt_state.parameters |> cpu_device()
     model._st[] = opt_state.states |> cpu_device()
 
-    return protocol._log
+    return log_trace
 end
 
 function _vae_encode(encoders, ps, st, x, rng = Random.default_rng())
