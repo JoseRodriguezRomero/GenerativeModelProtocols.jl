@@ -158,9 +158,8 @@ respective computational costs.
 ## Inference Walltime Comparisons
 
 The final relevant comparison between models is their inference time. That is,
-how long do they take at making new synthetic data. For example, we can test
-how long it takes of a `protocol` to produce 50 new synthetic data points
-with
+how long do they take at making new synthetic data. For example, we can test how
+long it takes of a `protocol` to produce 50 new synthetic data points with
 ```julia
 t0 = time()
 protocol(50)
@@ -198,4 +197,3 @@ julia train_models.jl
 julia compare_models.jl
 julia plot_comparisons.jl
 ```
-
