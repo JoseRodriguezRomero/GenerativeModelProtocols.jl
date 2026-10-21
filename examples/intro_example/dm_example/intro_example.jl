@@ -2,10 +2,6 @@ using GenerativeModelProtocols
 using Lux, Plots, StatsBase, Optimisers
 using LaTeXStrings
 
-data = rand(Float32, 3, 100)
-model = GenerativeModelProtocols.DiffusionModel(3, 250)
-protocol = GenerativeModelProtocol(model, data)
-
 function make_data(num_samples)
     t = (2.0*π) .* rand(Float64,num_samples)
 
