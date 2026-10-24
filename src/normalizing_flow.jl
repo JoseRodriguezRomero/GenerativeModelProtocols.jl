@@ -195,8 +195,12 @@ end
 function _normalizing_flow_ode_solve_forward end
 function _normalizing_flow_ode_solve_reverse end
 
-function _latent_size(model::NormalizingFlow)
-    return size(model._ps[].velocity_field[end].weight,1)
+function _input_size(model::NormalizingFlow)::Int
+    return _output_size(model.velocity_field)
+end
+
+function _latent_size(model::NormalizingFlow)::Int
+    return _output_size(model.velocity_field)
 end
 
 function _encode(model::NormalizingFlow, x::Matrix; ode_solver = nothing, t_final::AbstractFloat = 0.0)
