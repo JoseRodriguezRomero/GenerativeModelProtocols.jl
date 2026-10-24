@@ -164,7 +164,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
     opt_state = _initial_step(model, ps, st, optimiser)
     _train_step!, opt_state, rng = _train_step_device_dispatch(device, _nf_train_step!, loader, opt_state)
 
-    if print_log; println("Training Diffusion Model...") end
+    if print_log; println("Training Normalizing Flow...") end
     for epoch in 1:epochs
         epoch_loss = FP(0.0)
 
