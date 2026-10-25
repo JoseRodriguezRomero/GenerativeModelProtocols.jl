@@ -14,3 +14,18 @@ Distances = "b4f34e82-e78d-54a5-968a-f98e89d6e8f7"
 OptimalTransport = "7e02d93a-ae51-4f58-b602-d97af76e3b33"
 Tulip = "6dd1b50a-3aae-11e9-10b5-ef983d2400fa"
 
+
+[compat]
+Aqua = "0.8.18"
+DifferentialEquations = "8.1.1"
+Distances = "0.10.12"
+FileIO = "1.20.0"
+HDF5 = "0.17.4"
+JET = "0.12.3"
+Lux = "1.31.4"
+OptimalTransport = "0.3.20"
+ParallelTestRunner = "2.9.3"
+Reactant = "0.2.297"
+StatsBase = "0.34.13"
+Test = "<0.0.1, 1"
+Tulip = "0.9.8"
