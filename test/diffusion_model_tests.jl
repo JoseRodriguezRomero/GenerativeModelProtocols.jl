@@ -13,6 +13,11 @@ include("utility_utils/tests_base_utils.jl")
         @test isa(model2, GenerativeModelProtocols.DiffusionModel)
     end
 
+    @testset "Data Normalization" begin
+        model = GenerativeModelProtocols.DiffusionModel(3, 10)
+        test_data_normalization(model)
+    end
+
     @testset "Train Test" begin
         train_data = make_test_train_data(50)
 
@@ -132,4 +137,3 @@ include("utility_utils/tests_base_utils.jl")
         remove_file(save_path)
     end
 end
-

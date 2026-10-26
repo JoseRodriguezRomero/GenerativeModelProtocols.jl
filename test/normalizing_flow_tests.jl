@@ -8,6 +8,11 @@ include("utility_utils/tests_base_utils.jl")
         @test isa(model, GenerativeModelProtocols.NormalizingFlow)
     end
 
+    @testset "Data Normalization" begin
+        model = GenerativeModelProtocols.NormalizingFlow(3)
+        test_data_normalization(model)
+    end
+
     @testset "Train Test" begin
         train_data = make_test_train_data(50)
 
@@ -109,4 +114,3 @@ include("utility_utils/tests_base_utils.jl")
         remove_file(save_path)
     end
 end
-
