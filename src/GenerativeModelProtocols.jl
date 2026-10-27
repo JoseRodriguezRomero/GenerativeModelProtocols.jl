@@ -65,6 +65,8 @@ end
     hybrid_normalization = 3
 end
 
+@compat public DataNormalization
+
 """
 $TYPEDEF
 
