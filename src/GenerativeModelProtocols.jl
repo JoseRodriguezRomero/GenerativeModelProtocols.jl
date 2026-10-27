@@ -130,27 +130,33 @@ training parameters, optimiser and compute device.
  - `hybrid_normalization_threshold::AbstractFloat`: Threshold value used for hybrid mode training data normalization (default is `1.0E-6`).
  - `kwargs...`: Additional keyword arguments for the generative model protocol.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat};
+function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat} = zeros(Float32, 0, 0);
     normalize_data::Union{Bool,Tuple{Vararg{Bool}},DataNormalization} = hybrid_normalization,
     hybrid_normalization_threshold::AbstractFloat = 1.0E-6,
     kwargs...) where {M<:AbstractGenerativeModel}
+
     copy_training_data = deepcopy(training_data)
+
+    if isempty(copy_training_data)
+        copy_training_data = zeros(Float32, _input_size(model), 0)
+    end
+
     mean_training_data = vec(mean(copy_training_data, dims = 2))
     var_training_data = vec(var(copy_training_data, dims = 2))
 
     if normalize_data isa DataNormalization
-        if normalize_data == no_normalization || isempty(training_data)
-            normalize_mask = ntuple(_ -> false, size(training_data, 1))
+        if normalize_data == no_normalization
+            normalize_mask = ntuple(_ -> false, size(copy_training_data, 1))
         elseif normalize_data == full_normalization
-            normalize_mask = ntuple(_ -> true, size(training_data, 1))
+            normalize_mask = ntuple(_ -> true, size(copy_training_data, 1))
         else
-            normalize_mask = ntuple(i -> var_training_data[i] >= hybrid_normalization_threshold, size(training_data, 1))
+            normalize_mask = ntuple(i -> var_training_data[i] >= hybrid_normalization_threshold, size(copy_training_data, 1))
         end
     elseif normalize_data isa Bool
-        normalize_mask = ntuple(_ -> normalize_data, size(training_data, 1))
+        normalize_mask = ntuple(_ -> normalize_data, size(copy_training_data, 1))
     else
         normalize_mask = normalize_data
-        length(normalize_mask) == size(training_data, 1) || throw(ArgumentError("normalize_data must have one value per data feature"))
+        length(normalize_mask) == size(copy_training_data, 1) || throw(ArgumentError("normalize_data must have one value per data feature"))
     end
 
     for i in eachindex(normalize_mask)
