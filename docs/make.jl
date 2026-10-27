@@ -65,6 +65,7 @@ makedocs(;
             "Comparing Models" => "examples/comparing_models/comparing_models.md",
             "Using Reactant.jl" => "examples/using_reactant/using_reactant.md",
             "Customizing Models" => "examples/customizing_models/customizing_models.md",
+            "Data Normalization" => "examples/data_normalization/data_normalization.md",
             "Saving and Loading Models" => "examples/save_load/save_load.md"
         ],
         "References" => "references.md"

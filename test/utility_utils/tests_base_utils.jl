@@ -142,6 +142,44 @@ function test_train_model_reactant(model, train_data; kwargs...)
     _base_test_train_model(model, train_data, reactant_device(); kwargs...)
 end
 
+function test_data_normalization(model)
+    training_data = Matrix(transpose(hcat(randn(5), randn(5), ones(5))))
+
+    hybrid_protocol = GenerativeModelProtocol(model, training_data)
+    @test hybrid_protocol.normalize_data == (true, true, false)
+    @test Float64.(vec(mean(hybrid_protocol.training_data, dims = 2))) ≈ [0, 0, 1] atol = 1e-6
+    @test Float64.(var(hybrid_protocol.training_data[[1, 2], :], dims = 2)) ≈ ones(2, 1)
+
+    shifted = GenerativeModelProtocols._shift_and_scale(hybrid_protocol, training_data)
+    @test shifted ≈ Float64.(hybrid_protocol.training_data)
+    @test GenerativeModelProtocols._unscale_and_unshift(hybrid_protocol, shifted) ≈ training_data
+    @test training_data[3, :] == ones(5)
+
+    no_normalization_protocol = GenerativeModelProtocol(
+        model,
+        training_data;
+        normalize_data = GenerativeModelProtocols.no_normalization,
+    )
+    @test no_normalization_protocol.normalize_data == (false, false, false)
+    @test no_normalization_protocol.training_data == training_data
+
+    @test_throws Exception GenerativeModelProtocol(
+        model,
+        training_data;
+        normalize_data = GenerativeModelProtocols.full_normalization,
+    )
+
+    variable_training_data = training_data[[1, 2], :]
+    full_normalization_protocol = GenerativeModelProtocol(
+        model,
+        variable_training_data;
+        normalize_data = GenerativeModelProtocols.full_normalization,
+    )
+    @test full_normalization_protocol.normalize_data == (true, true)
+    @test Float64.(vec(mean(full_normalization_protocol.training_data, dims = 2))) ≈ zeros(2) atol = 1e-6
+    @test Float64.(var(full_normalization_protocol.training_data, dims = 2)) ≈ ones(2, 1)
+end
+
 function test_model_make_synthetic_data(model::GenerativeModelProtocols.AbstractGenerativeModel, input_size::Int)
     protocol = make_empty_data_prot(model, input_size)
 
@@ -396,4 +434,3 @@ end
 function test_compare_models(model_a::GenerativeModelProtocols.NormalizingFlow, model_b::GenerativeModelProtocols.NormalizingFlow)
     @test compare_chains(model_a._ps[].velocity_field, model_b._ps[].velocity_field)
 end
-

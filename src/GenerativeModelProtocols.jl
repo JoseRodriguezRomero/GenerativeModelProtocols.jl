@@ -20,21 +20,27 @@ abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 
 function compatible_generative_protocol(
     training_data::Matrix{<:AbstractFloat},
-    var_training_data::Tuple{Vararg{AbstractFloat}}
+    var_training_data::Tuple{Vararg{AbstractFloat}},
+    normalize_data::Tuple{Vararg{Bool}}
     )
 
+    if length(normalize_data) != size(training_data, 1)
+        return false
+    end
+
     ϵ = 1.0E-6
-    if !isnothing(training_data)
-        if maximum(abs.(mean(training_data, dims = 2))) > ϵ
+    normalized_indices = findall(collect(normalize_data))
+    if !isempty(normalized_indices)
+        if maximum(abs.(mean(training_data[normalized_indices, :], dims = 2))) > ϵ
             return false
         end
 
-        if maximum(abs.(var(training_data, dims = 2) .- 1.0)) > ϵ
+        if maximum(abs.(var(training_data[normalized_indices, :], dims = 2) .- 1.0)) > ϵ
             return false
         end
     end
 
-    if minimum(var_training_data) < ϵ
+    if !isempty(normalized_indices) && minimum(collect(var_training_data)[normalized_indices]) < ϵ
         return false
     end
 
@@ -51,6 +57,12 @@ end
 
 macro default_generative_model_group_name()
     return "generative_model"
+end
+
+@enum DataNormalization begin
+    full_normalization   = 1
+    no_normalization     = 2
+    hybrid_normalization = 3
 end
 
 """
@@ -72,7 +84,7 @@ $TYPEDFIELDS
     """Variance of the raw (unshifted and unscaled) training data."""
     var_training_data::Tuple{Vararg{AbstractFloat}}
     """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
-    normalize_data::Bool = true
+    normalize_data::Tuple{Vararg{Bool}}
     """Generative model architecture to be used."""
     model::M
 
@@ -80,16 +92,18 @@ $TYPEDFIELDS
     training_data::Matrix{<:AbstractFloat},
     mean_training_data::Tuple{Vararg{AbstractFloat}},
     var_training_data::Tuple{Vararg{AbstractFloat}},
-    normalize_data::Bool,
+    normalize_data::Union{Bool,Tuple{Vararg{Bool}}},
     model::M,
     ) where {M<:AbstractGenerativeModel}
 
-        if normalize_data && !isempty(training_data) && !compatible_generative_protocol(training_data, var_training_data)
+        feature_count = isempty(training_data) ? length(mean_training_data) : size(training_data, 1)
+        normalize_mask = normalize_data isa Bool ? ntuple(_ -> normalize_data, feature_count) : normalize_data
+        if !isempty(training_data) && !compatible_generative_protocol(training_data, var_training_data, normalize_mask)
             @error "Incompatible GenerativeModelProtocol parameters!"
             throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, normalize_data, model)))
         end
 
-        return new{M}(training_data, mean_training_data, var_training_data, normalize_data, model)
+        return new{M}(training_data, mean_training_data, var_training_data, normalize_mask, model)
     end
 end
 
@@ -97,7 +111,12 @@ GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel
 
 """
     GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; 
-        normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
+        normalize_data::Union{
+            Bool,
+            Tuple{Vararg{Bool}},
+            GenerativeModelProtocols.DataNormalization
+        } = GenerativeModelProtocols.hybrid_normalization,
+        kwargs...) where {M<:AbstractGenerativeModel}
 
 Convenience constructor to create a `GenerativeModelProtocol` with default 
 training parameters, optimiser and compute device.
@@ -107,28 +126,45 @@ training parameters, optimiser and compute device.
  - `training_data::Matrix{<:AbstractFloat}`: The training data to use.
 
 # Keyword Arguments
- - `normalize_data::Bool = true`: Whether to normalize the training data.
+ - `normalize_data`: Normalization mode used to the training data (default is `hybrid_normalization`)
+ - `hybrid_normalization_threshold::AbstractFloat`: Threshold value used for hybrid mode training data normalization (default is `1.0E-6`).
  - `kwargs...`: Additional keyword arguments for the generative model protocol.
 """
-function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; normalize_data::Bool = true, kwargs...) where {M<:AbstractGenerativeModel}
-    copy_training_data = copy(training_data)
+function GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat};
+    normalize_data::Union{Bool,Tuple{Vararg{Bool}},DataNormalization} = hybrid_normalization,
+    hybrid_normalization_threshold::AbstractFloat = 1.0E-6,
+    kwargs...) where {M<:AbstractGenerativeModel}
+    copy_training_data = deepcopy(training_data)
+    mean_training_data = vec(mean(copy_training_data, dims = 2))
+    var_training_data = vec(var(copy_training_data, dims = 2))
 
-    mean_training_data = mean(copy_training_data, dims = 2)
-    copy_training_data .-= mean_training_data
+    if normalize_data isa DataNormalization
+        if normalize_data == no_normalization || isempty(training_data)
+            normalize_mask = ntuple(_ -> false, size(training_data, 1))
+        elseif normalize_data == full_normalization
+            normalize_mask = ntuple(_ -> true, size(training_data, 1))
+        else
+            normalize_mask = ntuple(i -> var_training_data[i] >= hybrid_normalization_threshold, size(training_data, 1))
+        end
+    elseif normalize_data isa Bool
+        normalize_mask = ntuple(_ -> normalize_data, size(training_data, 1))
+    else
+        normalize_mask = normalize_data
+        length(normalize_mask) == size(training_data, 1) || throw(ArgumentError("normalize_data must have one value per data feature"))
+    end
 
-    var_training_data = var(copy_training_data, dims = 2)
-    copy_training_data ./= sqrt.(var_training_data)
-
-    if normalize_data
-        training_data = copy_training_data
+    for i in eachindex(normalize_mask)
+        if normalize_mask[i]
+            copy_training_data[i, :] .= (copy_training_data[i, :] .- mean_training_data[i]) ./ sqrt(var_training_data[i])
+        end
     end
 
     return GenerativeModelProtocol(;
-        training_data      = training_data,
+        training_data      = copy_training_data,
         mean_training_data = Tuple(mean_training_data),
         var_training_data  = Tuple(var_training_data),
         model              = model,
-        normalize_data     = normalize_data,
+        normalize_data     = normalize_mask,
         kwargs...
     )
 end
@@ -331,11 +367,14 @@ function train!(protocol::GenerativeModelProtocol;
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Matrix)
-    if protocol.normalize_data
-        x = (x .- protocol.mean_training_data) ./ sqrt.(protocol.var_training_data)
+    result = copy(x)
+    for i in axes(result, 1)
+        if protocol.normalize_data[i]
+            result[i, :] .= (result[i, :] .- protocol.mean_training_data[i]) ./ sqrt(protocol.var_training_data[i])
+        end
     end
 
-    return x
+    return result
 end
 
 function _shift_and_scale(protocol::GenerativeModelProtocol, x::Vector)
@@ -343,11 +382,14 @@ function _shift_and_scale(protocol::GenerativeModelProtocol, x::Vector)
 end
 
 function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Matrix)
-    if protocol.normalize_data
-        x = (x .* sqrt.(protocol.var_training_data)) .+ protocol.mean_training_data
+    result = copy(x)
+    for i in axes(result, 1)
+        if protocol.normalize_data[i]
+            result[i, :] .= (result[i, :] .* sqrt(protocol.var_training_data[i])) .+ protocol.mean_training_data[i]
+        end
     end
 
-    return x
+    return result
 end
 
 function _unscale_and_unshift(protocol::GenerativeModelProtocol, x::Vector)
@@ -544,4 +586,3 @@ include("variational_autoencoder.jl")
 include("generative_adversarial_network.jl")
 
 end
-

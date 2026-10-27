@@ -22,6 +22,11 @@ include("utility_utils/tests_base_utils.jl")
         test_compare_models(model_1, model_2)
     end
 
+    @testset "Data Normalization" begin
+        model = GenerativeModelProtocols.GenerativeAdversarialNetwork(3, 2)
+        test_data_normalization(model)
+    end
+
     @testset "Train Test" begin
         train_data = make_test_train_data(50)
 
@@ -132,4 +137,3 @@ include("utility_utils/tests_base_utils.jl")
         remove_file(save_path)
     end
 end
-
