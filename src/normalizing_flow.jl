@@ -128,7 +128,7 @@ function _train!(protocol::GenerativeModelProtocol, model::NormalizingFlow;
             randn!(rng_trace, x₀)
             rand!(rng_trace, t)
 
-            xₜ = (FP(1.0) .- t) .* x₀ .+ t .* x₁
+            xₜ = (one(eltype(x₁)) .- t) .* x₀ .+ t .* x₁
             vₜ = x₁ .- x₀
 
             vcat_buffer = precision(vcat(xₜ, t))
@@ -229,4 +229,3 @@ end
 function _eval(model::NormalizingFlow; ode_solver = nothing)
     return _eval(model,1; ode_solver = ode_solver)[:]
 end
-

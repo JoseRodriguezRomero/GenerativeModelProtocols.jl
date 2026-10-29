@@ -51,11 +51,11 @@ $TYPEDFIELDS
 """
 @kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
     """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
-    training_data::Matrix{AbstractFloat} = zeros(Float32, 0, 0)
+    training_data::Matrix{<:AbstractFloat} = zeros(Float32, 0, 0)
     """Mean of the raw (unshifted and unscaled) training data."""
-    mean_training_data::Tuple{Vararg{AbstractFloat}}
+    mean_training_data::Tuple{Vararg{<:AbstractFloat}}
     """Variance of the raw (unshifted and unscaled) training data."""
-    var_training_data::Tuple{Vararg{AbstractFloat}}
+    var_training_data::Tuple{Vararg{<:AbstractFloat}}
     """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
     normalize_data::Tuple{Vararg{Bool}}
     """Generative model architecture to be used."""
@@ -335,9 +335,20 @@ function train!(protocol::GenerativeModelProtocol;
         throw(MethodError(Core.kwcall, (keyword_arguments, train!, protocol)))
     end
 
+    function _cast_obj(x)
+        T = typeof(x)
+        T((precision(getfield(x, i)) for i in 1:fieldcount(T))...)
+    end
+
+    if hasproperty(kwargs, :optimiser)
+        kwargs = merge(kwargs, (; optimiser = _cast_obj(kwargs.optimiser)))
+    end
+
+    casted_kwargs = (; (key => precision(value) for (key, value) in pairs(kwargs))...)
+
     t₀ = time()
     trace = @_train!(protocol, protocol.model, print_log, epochs,
-        print_epochs, batchsize, shuffle, shuffle_epochs, optimiser, device, precision, kwargs...)
+        print_epochs, batchsize, shuffle, shuffle_epochs, optimiser, device, precision, casted_kwargs...)
     t₁ = time()
 
     Δt = t₁ - t₀
