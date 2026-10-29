@@ -163,12 +163,6 @@ function test_data_normalization(model)
     @test no_normalization_protocol.normalize_data == (false, false, false)
     @test no_normalization_protocol.training_data == training_data
 
-    @test_throws Exception GenerativeModelProtocol(
-        model,
-        training_data;
-        normalize_data = GenerativeModelProtocols.full_normalization,
-    )
-
     variable_training_data = training_data[[1, 2], :]
     full_normalization_protocol = GenerativeModelProtocol(
         model,

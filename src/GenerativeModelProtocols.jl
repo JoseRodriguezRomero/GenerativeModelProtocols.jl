@@ -18,35 +18,6 @@ export GenerativeModelProtocol, train!, categorize, encode, decode, input_size, 
 abstract type AbstractGenerativeModel end
 abstract type AbstractCategoricalGenerativeModel <: AbstractGenerativeModel end
 
-function compatible_generative_protocol(
-    training_data::Matrix{<:AbstractFloat},
-    var_training_data::Tuple{Vararg{AbstractFloat}},
-    normalize_data::Tuple{Vararg{Bool}}
-    )
-
-    if length(normalize_data) != size(training_data, 1)
-        return false
-    end
-
-    ϵ = 1.0E-6
-    normalized_indices = findall(collect(normalize_data))
-    if !isempty(normalized_indices)
-        if maximum(abs.(mean(training_data[normalized_indices, :], dims = 2))) > ϵ
-            return false
-        end
-
-        if maximum(abs.(var(training_data[normalized_indices, :], dims = 2) .- 1.0)) > ϵ
-            return false
-        end
-    end
-
-    if !isempty(normalized_indices) && minimum(collect(var_training_data)[normalized_indices]) < ϵ
-        return false
-    end
-
-    return true
-end
-
 macro default_main_group_name()
     return "generative_model_protocol"
 end
@@ -100,10 +71,6 @@ $TYPEDFIELDS
 
         feature_count = isempty(training_data) ? length(mean_training_data) : size(training_data, 1)
         normalize_mask = normalize_data isa Bool ? ntuple(_ -> normalize_data, feature_count) : normalize_data
-        if !isempty(training_data) && !compatible_generative_protocol(training_data, var_training_data, normalize_mask)
-            @error "Incompatible GenerativeModelProtocol parameters!"
-            throw(MethodError(GenerativeModelProtocol, (training_data, mean_training_data, var_training_data, normalize_data, model)))
-        end
 
         return new{M}(training_data, mean_training_data, var_training_data, normalize_mask, model)
     end
@@ -361,6 +328,12 @@ function train!(protocol::GenerativeModelProtocol;
     Tuple{Vararg{AbstractRule}}} = default_optimiser(protocol),
     device::MLDataDevices.AbstractDevice = cpu_device(), 
     precision::Function = f32, kwargs...)
+
+    if isempty(protocol.training_data)
+        keyword_arguments = (; print_log, epochs, print_epochs, batchsize,
+            shuffle, shuffle_epochs, optimiser, device, precision, kwargs...)
+        throw(MethodError(Core.kwcall, (keyword_arguments, train!, protocol)))
+    end
 
     t₀ = time()
     trace = @_train!(protocol, protocol.model, print_log, epochs,
