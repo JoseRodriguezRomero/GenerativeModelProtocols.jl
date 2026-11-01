@@ -1,3 +1,5 @@
+![GenerativeModelProtocols.jl logo](assets/logo/GenerativeModelProtocols_logo.svg)
+
 # GenerativeModelProtocols.jl
 
 A unified Julia framework for building, training, and deploying generative 
@@ -40,4 +42,3 @@ The currently built-in generative model architectures are:
 * [Diffusion Models](https://arxiv.org/abs/1503.03585)
 * [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)
 * [Normalizing Flows](https://arxiv.org/abs/1505.05770)
-

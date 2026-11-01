@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/src/assets/logo/GenerativeModelProtocols_logo.svg" alt="GenerativeModelProtocols.jl logo" width="600">
+</p>
+
 [![CI](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/ci.yml)
 [![docs](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/documentation.yml/badge.svg)](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/documentation.yml)
 [![codecov](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl/graph/badge.svg?token=3I64XP0CQ2)](https://codecov.io/gh/JoseRodriguezRomero/GenerativeModelProtocols.jl)
@@ -47,4 +51,3 @@ The currently built-in generative model architectures are:
 * [Diffusion Models](https://arxiv.org/abs/1503.03585)
 * [Generative Adversarial Networks](https://arxiv.org/abs/1406.2661)
 * [Normalizing Flows](https://arxiv.org/abs/1505.05770)
-
