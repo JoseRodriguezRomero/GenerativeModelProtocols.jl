@@ -275,7 +275,8 @@ function _train!(protocol::GenerativeModelProtocol, model::GaussianMixtureModel;
         log_trace["Mean Log-Likelihood"][epoch] = mean_loss
 
         if print_log && (epoch % print_epochs == 0 || epoch == 1)
-            @printf("Epoch %8d | Mean Log-Likelihood: %16.8e \n", epoch, mean_loss)
+            loss_tuple = ("Mean Log-Likelihood", mean_loss)
+            _print_trace_iter(epoch, epochs; loss = loss_tuple)
         end
     end
     if print_log; println("Training complete!") end
