@@ -484,10 +484,13 @@ function _train!(protocol::GenerativeModelProtocol, model::GenerativeAdversarial
         log_trace["Mean Critic Loss"][epoch] = avg_loss_critic
         log_trace["Mean VAE Loss"][epoch] = avg_loss_vae
         
-        if print_log && (epoch % print_epochs == 0 || epoch == 1)    
-            @printf("Epoch %5d", epoch)
-            @printf(" | Avg. Critic Loss: %15.6E", avg_loss_critic)
-            @printf(" | Avg. VAE Loss: %15.6E \n", avg_loss_vae)
+        if print_log && (epoch % print_epochs == 0 || epoch == 1)
+            vae_loss_tuple = ("Mean VAE Loss", avg_loss_vae)
+            crit_loss_tuple = ("Mean Critic Loss", avg_loss_critic)
+            _print_trace_iter(epoch, epochs; 
+                crit_loss = crit_loss_tuple,
+                vae_loss  = vae_loss_tuple
+            )
         end
     end
 

@@ -266,7 +266,8 @@ function _train!(protocol::GenerativeModelProtocol, model::DiffusionModel;
         log_trace["Mean MSE"][epoch] = mean_loss
 
         if print_log && (epoch % print_epochs == 0 || epoch == 1)
-            @printf("Epoch: %8d | Mean MSE Loss: %-15.8f \n", epoch, mean_loss)
+            loss_tuple = ("Mean MSE Loss", mean_loss)
+            _print_trace_iter(epoch, epochs; loss = loss_tuple)
         end
     end
     if print_log; println("Training complete!") end

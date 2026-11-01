@@ -511,7 +511,8 @@ function _train!(protocol::GenerativeModelProtocol, model::VariationalAutoencode
         log_trace["Mean ELBO"][epoch] = mean_elbo
 
         if print_log && (epoch % print_epochs == 0 || epoch == 1)
-            @printf("Epoch %8d | Avg. ELBO: %16.8e \n", epoch, mean_elbo)
+            elbo_tuple = ("Mean ELBO", mean_elbo)
+            _print_trace_iter(epoch, epochs; loss = elbo_tuple)
         end
     end
     if print_log; println("Training complete!") end
