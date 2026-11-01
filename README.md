@@ -1,5 +1,8 @@
 <p align="center">
-  <img src="docs/src/assets/logo.svg" alt="GenerativeModelProtocols.jl logo" width="600">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/src/assets/logo-dark.svg">
+    <img src="docs/src/assets/logo.svg" alt="GenerativeModelProtocols.jl logo" width="600">
+  </picture>
 </p>
 
 [![CI](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/JoseRodriguezRomero/GenerativeModelProtocols.jl/actions/workflows/ci.yml)
