@@ -1,5 +1,3 @@
-![GenerativeModelProtocols.jl logo](assets/logo/GenerativeModelProtocols_logo.svg)
-
 # GenerativeModelProtocols.jl
 
 A unified Julia framework for building, training, and deploying generative 
