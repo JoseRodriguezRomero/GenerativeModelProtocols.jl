@@ -33,7 +33,15 @@
      inkscape:window-maximized="1"
      inkscape:current-layer="g10" />
   <defs
-     id="defs1" />
+     id="defs1">
+    <style>
+      @media (prefers-color-scheme: dark) {
+        path, circle {
+          stroke: #ffffff !important;
+        }
+      }
+    </style>
+  </defs>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
