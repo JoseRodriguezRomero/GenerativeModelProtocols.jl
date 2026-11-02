@@ -18,7 +18,7 @@ function _print_chains(chains::NamedTuple{Names, <:Tuple{Vararg{Chain}}}, print_
 end
 
 function _print_layers(layers::NamedTuple{Names, <:Tuple{Vararg{Dense}}}, print_padding::String = @_default_print_padding) where {Names}
-    println(print_padding * "Tuple()")
+    println(print_padding * "Tuple(")
     _base_print_layers(layers)
     println(print_padding * ")")
 end

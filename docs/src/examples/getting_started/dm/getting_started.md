@@ -72,6 +72,36 @@ julia> model
 GenerativeModelProtocols.DiffusionModel:
 β              = NTuple{250, Float64}
 denoiser_model = GenerativeModelProtocols.TabularDenoiser
+
+julia> model.denoiser_model
+GenerativeModelProtocols.TabularDenoiser:
+T                 = 250
+max_period        = 10000.0
+input_projection  = Dense(2 => 32, swish)
+output_projection = Dense(32 => 2)
+
+time_embedding_mlp:
+   Chain(
+      Dense(250 => 32, swish)
+      Dense(32 => 32, swish)
+      Dense(32 => 32, swish)
+      Dense(32 => 32, swish)
+      Dense(32 => 32)
+   )
+
+residual_layers:
+   Tuple(
+      Dense(32 => 32, swish)
+      Dense(32 => 32, swish)
+      Dense(32 => 32, swish)
+   )
+
+time_projection_layers:
+   Tuple(
+      Dense(32 => 32, swish)
+      Dense(32 => 32, swish)
+      Dense(32 => 32, swish)
+   )
 ```
 
 ## Model validation
