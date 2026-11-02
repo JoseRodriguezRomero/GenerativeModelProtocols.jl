@@ -2,11 +2,11 @@
 
 To demonstrate how to use this module, we will train a Wasserstein Generative 
 Adversarial Network (WGAN) [Ian2014, Arjovsky2017](@cite), using a Variational 
-Autoencoder (VAE) as the generative model (VAE) [Diederik2013, 
-Larsen2015](@cite), to generate synthetic data that mirrors a two-dimensional 
-target distribution. The VAE must learn to mimic this distribution using only 
-the provided training samples, without direct access to the true underlying 
-distribution or the ability to sample additional data.
+Autoencoder (VAE) [Diederik2013, Larsen2015](@cite) as the generative model, to 
+generate synthetic data that mirrors a two-dimensional target distribution. The 
+VAE must learn to mimic this distribution using only the provided training 
+samples, without direct access to the true underlying distribution or the 
+ability to sample additional data.
 
 For this example we will need to load the following modules
 ```julia
