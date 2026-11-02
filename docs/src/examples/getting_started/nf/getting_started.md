@@ -103,8 +103,8 @@ follows
 ```julia
 x_test, y_test = make_data(800)
 test_data = collect(transpose(hcat(x_test,y_test)))
-z_test_data = GenerativeModelProtocols.encode(model,test_data)
-recon_test_data = GenerativeModelProtocols.decode(model,z_test_data)
+z_test_data = GenerativeModelProtocols.encode(protocol,test_data)
+recon_test_data = GenerativeModelProtocols.decode(protocol,z_test_data)
 ```
 however, unlike any of the other generative models provided in this module, 
 since the encoding and decoding of the implementation of NFs provided here is 
@@ -119,7 +119,7 @@ preferable to use a larger test dataset
 ```julia
 x_test, y_test = make_data(10000)
 test_data = collect(transpose(hcat(x_test,y_test)))
-z_test_data = GenerativeModelProtocols.encode(model,test_data)
+z_test_data = GenerativeModelProtocols.encode(protocol,test_data)
 ```
 
 ![intro_example_latents](../../../assets/examples/getting_started/nf/intro_example_latents.svg)
