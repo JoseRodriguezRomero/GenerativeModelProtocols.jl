@@ -42,9 +42,9 @@ end
 $TYPEDEF
 
 A protocol containing a user-specified generative model, and all of its 
-parameters needed to train it and evaluate it. By default the training and
-evaluation of the generative model is done in the CPU, however, this can be 
-changed by setting `device` to a GPU device of preference.
+parameters needed to train it and evaluate it. By default the training of the 
+generative model is done in the CPU, however, this can be changed by setting 
+`device` to a GPU device of preference.
 
 # Structure Fields
 $TYPEDFIELDS
