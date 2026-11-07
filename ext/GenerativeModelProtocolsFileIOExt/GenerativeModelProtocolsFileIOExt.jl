@@ -88,6 +88,25 @@ function GenerativeModelProtocols.load(file_name::String;
     return model, user_metadata
 end
 
+function GenerativeModelProtocols.load(file_name::String, training_data::Matrix{<:AbstractFloat};
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    model = GenerativeModelProtocols.GenerativeModelProtocol(file_name, training_data;
+        main_group_name = main_group_name,
+        metadata_group_name = metadata_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
+
+    _, user_metadata = GenerativeModelProtocols._read_metadata(file_name;
+        main_group_name = main_group_name,
+        metadata_group_name = metadata_group_name
+    )
+
+    return model, user_metadata
+end
+
 # Auxiliary scripts
 include("tabular_denoiser_FileIOExt.jl")
 

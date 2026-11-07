@@ -156,3 +156,41 @@ save("saved_protocol.h5", protocol;
     <img src="../../../assets/examples/save_load/hdfview_screenshot_metadata.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
 </div>
 ```
+
+Finally, users can retrieve the saved protocol and metadata with
+```julia-repl
+julia> saved_protocol, metadata = GenerativeModelProtocols.load("saved_protocol.h5";
+   main_group_name             = "customized_protocol",
+   metadata_group_name         = "customized_metadata",
+   generative_model_group_name = "customized_generative_model"
+);
+
+julia> saved_protocol
+GenerativeModelProtocol:
+training_data      = 2×0 Matrix{Float64}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.NormalizingFlow
+
+julia> metadata
+(A = 5.0, B = "32", C = [1, 3])
+```
+or, to continue training, with
+```julia-repl
+julia> saved_protocol, metadata = GenerativeModelProtocols.load("saved_protocol.h5", train_data;
+   main_group_name             = "customized_protocol",
+   metadata_group_name         = "customized_metadata",
+   generative_model_group_name = "customized_generative_model"
+);
+
+julia> saved_protocol
+GenerativeModelProtocol:
+training_data      = 2×5000 Matrix{Float64}
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.NormalizingFlow
+
+julia> metadata
+(A = 5.0, B = "32", C = [1, 3])
+```
+

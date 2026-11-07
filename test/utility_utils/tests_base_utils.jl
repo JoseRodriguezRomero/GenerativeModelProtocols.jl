@@ -250,6 +250,11 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
     loaded_protocol, loaded_metadata = GenerativeModelProtocols.load(save_path)
     @test loaded_protocol isa GenerativeModelProtocols.GenerativeModelProtocol
     @test Dict(pairs(loaded_metadata)) == Dict(Symbol(k) => v for (k, v) in pairs(metadata))
+
+    test_train_data = rand(Float64, input_size, 20)
+    loaded_protocol, loaded_metadata = GenerativeModelProtocols.load(save_path, test_train_data)
+    @test loaded_protocol isa GenerativeModelProtocols.GenerativeModelProtocol
+    @test Dict(pairs(loaded_metadata)) == Dict(Symbol(k) => v for (k, v) in pairs(metadata))
 end
 
 # DiffusionModel Utils
