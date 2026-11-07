@@ -63,7 +63,19 @@ function GenerativeModelProtocols._read_metadata(file::FileIO.File{FileIO.DataFo
         var_training_data = Tuple(read(metadata_group["var_training_data"]))
         normalize_data = Tuple(read(metadata_group["normalize_data"]))
         
-        return generative_model, mean_training_data, var_training_data, normalize_data
+        meta_attrs = HDF5.attributes(metadata_group)
+        user_metadata_dict = Dict{Symbol, Any}()
+        
+        for key in keys(meta_attrs)
+            if key != "generative_model"
+                user_metadata_dict[Symbol(key)] = read(meta_attrs[key])
+            end
+        end
+
+        user_metadata = (; user_metadata_dict...)
+        api_metadata = (; generative_model, mean_training_data, var_training_data, normalize_data)
+
+        return api_metadata, user_metadata
     end
 end
 
