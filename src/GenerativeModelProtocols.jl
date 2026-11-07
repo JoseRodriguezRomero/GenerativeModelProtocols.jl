@@ -49,34 +49,42 @@ generative model is done in the CPU, however, this can be changed by setting
 # Structure Fields
 $TYPEDFIELDS
 """
-@kwdef struct GenerativeModelProtocol{M<:AbstractGenerativeModel}
-    """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
-    training_data::Matrix{<:AbstractFloat} = zeros(Float32, 0, 0)
-    """Mean of the raw (unshifted and unscaled) training data."""
-    mean_training_data::Tuple{Vararg{<:AbstractFloat}}
-    """Variance of the raw (unshifted and unscaled) training data."""
-    var_training_data::Tuple{Vararg{<:AbstractFloat}}
-    """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
-    normalize_data::Tuple{Vararg{Bool}}
+struct GenerativeModelProtocol{M<:AbstractGenerativeModel, F<:AbstractFloat}
     """Generative model architecture to be used."""
     model::M
+    """Vector containing all the data, scaled and shifted to have zero mean and unit variance, that is to be used for training."""
+    training_data::Matrix{F}
+    """Mean of the raw (unshifted and unscaled) training data."""
+    mean_training_data::Tuple{Vararg{F}}
+    """Variance of the raw (unshifted and unscaled) training data."""
+    var_training_data::Tuple{Vararg{F}}
+    """Determines if the training data should be normalized to have zero mean and unit variance when passed to the generative model."""
+    normalize_data::Tuple{Vararg{Bool}}
 
     function GenerativeModelProtocol(
-    training_data::Matrix{<:AbstractFloat},
-    mean_training_data::Tuple{Vararg{AbstractFloat}},
-    var_training_data::Tuple{Vararg{AbstractFloat}},
-    normalize_data::Union{Bool,Tuple{Vararg{Bool}}},
     model::M,
-    ) where {M<:AbstractGenerativeModel}
+    training_data::Matrix{F},
+    mean_training_data::Tuple{Vararg{F}},
+    var_training_data::Tuple{Vararg{F}},
+    normalize_data::Union{Bool,Tuple{Vararg{Bool}}},
+    ) where {M<:AbstractGenerativeModel, F<:AbstractFloat}
 
         feature_count = isempty(training_data) ? length(mean_training_data) : size(training_data, 1)
         normalize_mask = normalize_data isa Bool ? ntuple(_ -> normalize_data, feature_count) : normalize_data
 
-        return new{M}(training_data, mean_training_data, var_training_data, normalize_mask, model)
+        return new{M,F}(model, training_data, mean_training_data, var_training_data, normalize_mask)
     end
 end
 
-GenerativeModelProtocol{M}(args...; kwargs...) where {M<:AbstractGenerativeModel} = GenerativeModelProtocol(args...; kwargs...)
+function GenerativeModelProtocol(;
+    model::M,
+    training_data::Matrix{F}                        = zeros(Float32, _input_size(model), 0),
+    mean_training_data::Tuple{Vararg{F}}            = ntuple(_ -> zero(Float32), _input_size(model)),
+    var_training_data::Tuple{Vararg{F}}             = ntuple(_ -> one(Float32), _input_size(model)),
+    normalize_data::Union{Bool,Tuple{Vararg{Bool}}} = ntuple(_ -> true, _input_size(model))
+) where {M<:AbstractGenerativeModel, F<:AbstractFloat}
+    return GenerativeModelProtocol(model, training_data, mean_training_data, var_training_data, normalize_data)
+end
 
 """
     GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; 
@@ -200,8 +208,7 @@ function GenerativeModelProtocol(saved_protocol::String;
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
-    model = nothing
-    generative_model, mean_training_data, var_training_data, normalize_data = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
+    api_metadata, _ = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
 
     function _gen_model(generative_model)
         if generative_model == variational_autoencoder
@@ -217,16 +224,20 @@ function GenerativeModelProtocol(saved_protocol::String;
         end
     end
 
-    model = _gen_model(generative_model)(saved_protocol;
+    model = _gen_model(api_metadata.generative_model)(saved_protocol;
         main_group_name             = main_group_name,
         generative_model_group_name = generative_model_group_name
     )
 
+    input_size = length(api_metadata.mean_training_data)
+    dummy_training_data = zeros(eltype(api_metadata.mean_training_data), input_size, 0)
+
     return GenerativeModelProtocol(;
         model              = model,
-        mean_training_data = mean_training_data,
-        var_training_data  = var_training_data,
-        normalize_data     = normalize_data
+        training_data      = dummy_training_data,
+        mean_training_data = api_metadata.mean_training_data,
+        var_training_data  = api_metadata.var_training_data,
+        normalize_data     = api_metadata.normalize_data
     )
 end
 
@@ -552,6 +563,12 @@ function _save(file::String, protocol::GenerativeModelProtocol;
     @_save_model(file, protocol.model, main_group_name, generative_model_group_name)
     @_save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
 end
+
+function save end
+function load end
+
+@compat public save
+@compat public load
 
 function Base.display(protocol::GenerativeModelProtocol)
     println("$(Base.typename(typeof(protocol)).wrapper):")

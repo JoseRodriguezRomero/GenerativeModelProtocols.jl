@@ -18,9 +18,9 @@ finally, we can save an already trained model
 ```julia-repl
 julia> protocol
 GenerativeModelProtocol:
-training_data      = 2×5000 Matrix{AbstractFloat}
-mean_training_data = Tuple{Float32, Float32}
-var_training_data  = Tuple{Float32, Float32}
+training_data      = 2×5000 Matrix{Float64}
+mean_training_data = Tuple{Float32, Float64}
+var_training_data  = Tuple{Float32, Float64}
 model              = GenerativeModelProtocols.NormalizingFlow
 
 julia> protocol.model
@@ -50,7 +50,7 @@ Likewise, we can load our saved model again with a single function call
 ```julia-repl
 julia> loaded_protocol = GenerativeModelProtocol("file_name.h5")
 GenerativeModelProtocol:
-training_data      = 0×0 Matrix{AbstractFloat}
+training_data      = 2×0 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
 model              = GenerativeModelProtocols.NormalizingFlow
@@ -73,7 +73,7 @@ supplied separately by the user with
 ```julia-repl
 julia> loaded_protocol = GenerativeModelProtocol("file_name.h5", train_data)
 GenerativeModelProtocol:
-training_data      = 2×5000 Matrix{AbstractFloat}
+training_data      = 2×5000 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
 model              = GenerativeModelProtocols.NormalizingFlow
@@ -93,4 +93,66 @@ Epoch       45 | Mean MSE:   1.40971190e+00
 Epoch       50 | Mean MSE:   1.40970298e+00 
 Training complete!
 Training took 37 seconds.
+```
+
+# HDF5 Group Names
+
+By default the main group name used for all saved `GenerativeModelProtocol` 
+instances is `generative_model_protocol`, the default group name for the trained
+parameters of its generative model is `generative_model` and the default group 
+name for all its metadata is `metadata`. However, users can easily modify all or 
+some of these names by simply using the corresponding key word arguments.
+
+For example, we can save our example `protocol` with customized HDF5 group 
+names as
+```julia
+save("saved_protocol.h5", protocol;
+   main_group_name             = "customized_protocol",
+   metadata_group_name         = "customized_metadata",
+   generative_model_group_name = "customized_generative_model"
+)
+```
+
+```@raw html
+<div style="text-align: center; margin: 0px 0;">
+    <img src="../../../assets/examples/save_load/hdfview_screenshot_customized.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
+</div>
+```
+
+# User Metadata
+
+Users can easily include additional metadata to any saved instance of a 
+`GenerativeModelProtocol` via the following keyword argument
+```julia
+A = 5.0
+B = "32"
+C = [1, 3]
+
+save("saved_protocol.h5", protocol;
+   main_group_name             = "customized_protocol",
+   metadata_group_name         = "customized_metadata",
+   generative_model_group_name = "customized_generative_model"
+   metadata                    = (; A, B, C)
+)
+```
+or equivalently
+```julia
+metadata = Dict(
+   "A" => 5.0,
+   "B" => "32",
+   "C" => [1, 3]
+)
+
+save("saved_protocol.h5", protocol;
+   main_group_name             = "customized_protocol",
+   metadata_group_name         = "customized_metadata",
+   generative_model_group_name = "customized_generative_model"
+   metadata                    = metadata
+)
+```
+
+```@raw html
+<div style="text-align: center; margin: 0px 0;">
+    <img src="../../../assets/examples/save_load/hdfview_screenshot_metadata.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
+</div>
 ```

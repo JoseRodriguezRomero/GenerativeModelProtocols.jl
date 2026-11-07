@@ -55,6 +55,39 @@ function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.Gener
     )
 end
 
+function GenerativeModelProtocols.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name,
+    metadata::Union{Dict{String,Any}, NamedTuple, Nothing} = nothing)
+
+    FileIO.save(file_name, protocol;
+        main_group_name = main_group_name,
+        metadata_group_name = metadata_group_name,
+        generative_model_group_name = generative_model_group_name,
+        metadata = metadata
+    )
+end
+
+function GenerativeModelProtocols.load(file_name::String;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    model = GenerativeModelProtocols.GenerativeModelProtocol(file_name;
+        main_group_name = main_group_name,
+        metadata_group_name = metadata_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
+
+    _, user_metadata = GenerativeModelProtocols._read_metadata(file_name;
+        main_group_name = main_group_name,
+        metadata_group_name = metadata_group_name
+    )
+
+    return model, user_metadata
+end
+
 # Auxiliary scripts
 include("tabular_denoiser_FileIOExt.jl")
 

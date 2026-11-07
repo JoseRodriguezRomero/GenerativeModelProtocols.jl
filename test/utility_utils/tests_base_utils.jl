@@ -244,8 +244,12 @@ function test_model_save(save_path::String, model::GenerativeModelProtocols.Abst
         "C" => [1.0, 2.0]
     )
 
-    save(save_path, make_empty_data_prot(model, input_size); metadata = metadata)
+    GenerativeModelProtocols.save(save_path, make_empty_data_prot(model, input_size); metadata = metadata)
     @test check_file_size(save_path)
+
+    loaded_protocol, loaded_metadata = GenerativeModelProtocols.load(save_path)
+    @test loaded_protocol isa GenerativeModelProtocols.GenerativeModelProtocol
+    @test Dict(pairs(loaded_metadata)) == Dict(Symbol(k) => v for (k, v) in pairs(metadata))
 end
 
 # DiffusionModel Utils

@@ -37,13 +37,12 @@ end
 _, t1_samples_train = make_samples(5000)
 
 model = GenerativeModelProtocols.NormalizingFlow(2)
-protocol = GenerativeModelProtocol(model, t1_samples_train;
+protocol = GenerativeModelProtocol(model, t1_samples_train; normalize_data = false)
+train!(protocol;
     batchsize      = 256,
     epochs         = 3500,
     optimiser      = Adam(; eta = 1.0E-4, beta = (0.95, 0.999)),
-    device         = cpu_device(),
-    normalize_data = false
+    device         = cpu_device()
 )
-train!(protocol)
 save("sample_nf_model.h5", protocol)
 
