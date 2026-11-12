@@ -110,7 +110,7 @@ and discriminator networks.
 """
 function GenerativeAdversarialNetwork(input_size::Int, latent_size::Int = 1, latent_layers::Int = 1;
     discriminator_hidden_layers::Int = 5, discriminator_hidden_layer_size::Int = 32, discriminator_activation_function::Function = @_gan_default_activation_function,
-    vae_hidden_layers::Int = 1, vae_hidden_layer_size::Int = 32, vae_activation_function::Function = @_vae_default_activation_function)
+    vae_hidden_layers::Int = 5, vae_hidden_layer_size::Int = 32, vae_activation_function::Function = @_vae_default_activation_function)
 
     return GenerativeAdversarialNetwork(;
         discriminator = _gan_default_discriminator_network(input_size, discriminator_hidden_layers, discriminator_hidden_layer_size, discriminator_activation_function),

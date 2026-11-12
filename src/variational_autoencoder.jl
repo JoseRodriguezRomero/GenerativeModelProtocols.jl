@@ -229,7 +229,7 @@ decoder network architectures.
  - `activation_function::Function`: The activation function (default is `@_vae_default_activation_function`).
 """
 function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1;
-    hidden_layers::Int = 1, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+    hidden_layers::Int = 5, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
 
     return VariationalAutoencoder(
         _vae_default_encoder_network(input_dim, latent_dim, latent_layers, hidden_layers, hidden_layer_size, activation_function),
