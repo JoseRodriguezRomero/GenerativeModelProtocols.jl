@@ -2,20 +2,25 @@ macro _gan_default_activation_function()
     return swish
 end
 
-function _gan_default_discriminator_network(input_size::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
-    return Chain(
-        Dense(input_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => 1)
-    )
+function _gan_default_discriminator_network(input_size::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
+
+    if hidden_layers == 0
+        return Chain(Dense(input_size => 1))
+    else
+        layers = (Dense(input_size => hidden_layer_size, activation_function),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+        end
+        layers = (layers..., Dense(hidden_layer_size => 1))
+        return Chain(layers...)
+    end
 end
 
-function _gan_default_vae_model(input_size::Int, latent_dim::Int, latent_layers::Int; hidden_layer_size::Int = 32, activation_function::Function = @_gan_default_activation_function)
-    default_encoders = _vae_default_encoder_network(input_size, latent_dim, latent_layers, hidden_layer_size, activation_function)
-    default_decoders = _vae_default_decoder_network(input_size, latent_dim, latent_layers, hidden_layer_size, activation_function)
+function _gan_default_vae_model(input_size::Int, latent_dim::Int, latent_layers::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
+    default_encoders = _vae_default_encoder_network(input_size, latent_dim, latent_layers, hidden_layers, hidden_layer_size, activation_function)
+    default_decoders = _vae_default_decoder_network(input_size, latent_dim, latent_layers, hidden_layers, hidden_layer_size, activation_function)
     
     return VariationalAutoencoder(default_encoders, default_decoders)
 end
@@ -78,7 +83,13 @@ end
 
 """
     GenerativeModelProtocols.GenerativeAdversarialNetwork(
-        input_size::Int, latent_size::Int = 1, latent_layers::Int = 1)
+        input_size::Int, latent_size::Int = 1, latent_layers::Int = 1;
+        discriminator_hidden_layers::Int = 5,
+        discriminator_hidden_layer_size::Int = 32,
+        discriminator_activation_function::Function = @_gan_default_activation_function,
+        vae_hidden_layers::Int = 1,
+        vae_hidden_layer_size::Int = 32,
+        vae_activation_function::Function = @_vae_default_activation_function)
 
 Convenience constructor that creates a 
 `GenerativeModelProtocols.GenerativeAdversarialNetwork` using default generator
@@ -88,11 +99,22 @@ and discriminator networks.
  - `input_size::Int`: The dimensionality of the input data.
  - `latent_size::Int`: The size of the latent space (default is 1).
  - `latent_layers::Int`: The number of layers in the latent space (default is 1).
+
+# Keyword Arguments
+ - `discriminator_hidden_layers::Int`: The number of hidden layers in the discriminator network.
+ - `discriminator_hidden_layer_size::Int`: The size of each hidden layer in the discriminator network.
+ - `discriminator_activation_function::Function`: The activation function used in the discriminator network.
+ - `vae_hidden_layers::Int`: The number of hidden layers in the VAE network.
+ - `vae_hidden_layer_size::Int`: The size of each hidden layer in the VAE network.
+ - `vae_activation_function::Function`: The activation function used in the VAE network.
 """
-function GenerativeAdversarialNetwork(input_size::Int, latent_size::Int = 1, latent_layers::Int = 1)
+function GenerativeAdversarialNetwork(input_size::Int, latent_size::Int = 1, latent_layers::Int = 1;
+    discriminator_hidden_layers::Int = 5, discriminator_hidden_layer_size::Int = 32, discriminator_activation_function::Function = @_gan_default_activation_function,
+    vae_hidden_layers::Int = 1, vae_hidden_layer_size::Int = 32, vae_activation_function::Function = @_vae_default_activation_function)
+
     return GenerativeAdversarialNetwork(;
-        discriminator = _gan_default_discriminator_network(input_size),
-        vae_model     = _gan_default_vae_model(input_size, latent_size, latent_layers)
+        discriminator = _gan_default_discriminator_network(input_size, discriminator_hidden_layers, discriminator_hidden_layer_size, discriminator_activation_function),
+        vae_model     = _gan_default_vae_model(input_size, latent_size, latent_layers, vae_hidden_layers, vae_hidden_layer_size, vae_activation_function)
     )
 end
 

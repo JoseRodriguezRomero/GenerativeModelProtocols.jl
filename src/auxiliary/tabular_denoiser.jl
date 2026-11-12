@@ -2,6 +2,17 @@ macro tabular_denoiser_default_max_period()
     return 10000.0
 end
 
+function default_time_embedding_mlp_tabular_denoiser(T::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
+
+    layers = (Dense(T => hidden_layer_size, activation_function),)
+    for _ in 1:(hidden_layers - 1)
+        layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+    end
+    layers = (layers..., Dense(hidden_layer_size => hidden_layer_size))
+    return Chain(layers...)
+end
+
 function compatible_tabular_denoiser(
     T::Int, 
     time_embedding_mlp::Chain, 
@@ -138,43 +149,35 @@ number of inputs specified by `num_inputs`.
  - `num_inputs::Int`: The dimensionality of the input data.
 
 # Keyword Arguments
- - `hidden_layer_size::Int`: The size of the hidden layers.
  - `T::Int`: The number of time steps.
+ - `res_net_layers::Int`: The number of residual layers.
+ - `hidden_layers::Int`: The number of hidden layers in the time embedding MLP.
+ - `hidden_layer_size::Int`: The size of the hidden layers.
  - `activation_function::Function`: The activation function to use.
  - `max_period::Float64`: The maximum period for the time embedding.
 """
-function TabularDenoiser(num_inputs::Int; 
-    hidden_layer_size::Int = 64, 
-    T::Int = 32, 
+function TabularDenoiser(num_inputs::Int;
+    T::Int = 32,
+    res_net_layers::Int = 3,
+    hidden_layers::Int = 5,
+    hidden_layer_size::Int = 32,
     activation_function::Function = swish,
-    max_period::AbstractFloat = @tabular_denoiser_default_max_period
-    )
+    max_period::AbstractFloat = @tabular_denoiser_default_max_period)
 
     function dense(in_size::Int, out_size::Int, activation::Function = identity)
         return Dense(in_size => out_size, activation; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32)
     end
 
-    time_embedding_mlp = Chain(
-        dense(T, hidden_layer_size, activation_function),
-        dense(hidden_layer_size, hidden_layer_size, activation_function),
-        dense(hidden_layer_size, hidden_layer_size, activation_function),
-        dense(hidden_layer_size, hidden_layer_size, activation_function),
-        dense(hidden_layer_size, hidden_layer_size),
-    )
+    time_embedding_mlp = default_time_embedding_mlp_tabular_denoiser(T, hidden_layers, hidden_layer_size, activation_function)
 
     input_projection = dense(num_inputs, hidden_layer_size, activation_function)
 
-    residual_layers = (
-        layer_1 = dense(hidden_layer_size, hidden_layer_size, activation_function),
-        layer_2 = dense(hidden_layer_size, hidden_layer_size, activation_function),
-        layer_3 = dense(hidden_layer_size, hidden_layer_size, activation_function)
-    )
-
-    time_projection_layers = (
-        layer_1 = dense(hidden_layer_size, hidden_layer_size, activation_function),
-        layer_2 = dense(hidden_layer_size, hidden_layer_size, activation_function),
-        layer_3 = dense(hidden_layer_size, hidden_layer_size, activation_function)
-    )
+    residual_layers = (dense(hidden_layer_size, hidden_layer_size, activation_function),)
+    time_projection_layers = (dense(hidden_layer_size, hidden_layer_size, activation_function),)
+    for _ in 1:(res_net_layers - 1)
+        residual_layers = (residual_layers..., dense(hidden_layer_size, hidden_layer_size, activation_function))
+        time_projection_layers = (time_projection_layers..., dense(hidden_layer_size, hidden_layer_size, activation_function))
+    end
 
     output_projection = dense(hidden_layer_size, num_inputs)
 
@@ -182,8 +185,8 @@ function TabularDenoiser(num_inputs::Int;
         T                      = T,
         time_embedding_mlp     = time_embedding_mlp,
         input_projection       = input_projection,
-        residual_layers        = residual_layers,
-        time_projection_layers = time_projection_layers,
+        residual_layers        = _named_tuples_from_tuple(residual_layers, "layer"),
+        time_projection_layers = _named_tuples_from_tuple(time_projection_layers, "layer"),
         output_projection      = output_projection,
         max_period             = max_period
     )
@@ -321,4 +324,3 @@ end
 function (m::TabularDenoiser)(x, t)
     return first(_eval(m, x, t, m._ps[], m._st[]))
 end
-

@@ -2,15 +2,19 @@ macro _nf_default_activation_function()
     return swish
 end
 
-function default_velocity_field(input_size::Int, hidden_layer_size::Int = 32, activation_function::Function = @_nf_default_activation_function)
-    return Chain(
-        Dense((input_size + 1) => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => input_size)
-    )
+function default_velocity_field(input_size::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
+
+    if hidden_layers == 0
+        return Chain(Dense((input_size + 1) => input_size))
+    else
+        layers = (Dense((input_size + 1) => hidden_layer_size, activation_function),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+        end
+        layers = (layers..., Dense(hidden_layer_size => input_size))
+        return Chain(layers...)
+    end
 end
 
 function compatible_nf_model(velocity_field::C) where {C <: Chain}
@@ -56,7 +60,8 @@ $TYPEDFIELDS
 end
 
 """
-    GenerativeModelProtocols.NormalizingFlow(input_size::Int)
+    GenerativeModelProtocols.NormalizingFlow(input_size::Int;
+        hidden_layers::Int = 5, hidden_layer_size::Int = 32, activation_function::Function = @_nf_default_activation_function)
 
 Convenience constructor that creates a 
 `GenerativeModelProtocols.NormalizingFlow` using default velocity field network 
@@ -64,10 +69,16 @@ architecture.
 
 # Arguments
  - `input_size::Int`: The dimensionality of the input data.
+
+# Keyword Arguments
+ - `hidden_layers::Int`: The number of hidden layers in the velocity field network.
+ - `hidden_layer_size::Int`: The size of each hidden layer in the velocity field network.
+ - `activation_function::Function`: The activation function used in the velocity field network.
 """
-function NormalizingFlow(input_size::Int)
+function NormalizingFlow(input_size::Int;
+    hidden_layers::Int = 5, hidden_layer_size::Int = 32, activation_function::Function = @_nf_default_activation_function)
     return NormalizingFlow(;
-        velocity_field = default_velocity_field(input_size)
+        velocity_field = default_velocity_field(input_size, hidden_layers, hidden_layer_size, activation_function)
     )
 end
 

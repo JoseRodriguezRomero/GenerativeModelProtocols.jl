@@ -2,22 +2,6 @@ macro _dm_default_activation_function()
     return swish
 end
 
-function default_denoiser_network(
-    num_inputs::Int, 
-    T::Int, 
-    precision::Type{FP}, 
-    hidden_layer_size::Int = 32, 
-    activation_function = @_dm_default_activation_function
-    )::TabularDenoiser where {FP<:AbstractFloat}
-
-    return TabularDenoiser(num_inputs; 
-        T                   = T,
-        hidden_layer_size   = hidden_layer_size,
-        activation_function = activation_function,
-        max_period          = precision(@tabular_denoiser_default_max_period)
-    )
-end
-
 function compatible_dm_model(β::Tuple{Vararg{AbstractFloat}}, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames}
     if length(β) != denoiser_model.T
         return false
@@ -58,7 +42,12 @@ end
 DiffusionModel{LayerNames}(args...; kwargs...) where LayerNames = DiffusionModel(args...; kwargs...)
 
 """
-    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}}})
+    GenerativeModelProtocols.DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}};
+        res_net_layers::Int = 3,
+        hidden_layers::Int = 5,
+        hidden_layer_size::Int = 32,
+        activation_function::Function = swish,
+        max_period::AbstractFloat = @tabular_denoiser_default_max_period)
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
 
@@ -67,10 +56,30 @@ A default `denoiser_model` is created based on `num_inputs`.
 # Arguments
  - `num_inputs::Int`: The dimensionality of the input data.
  - `β::Tuple{Vararg{AbstractFloat}}`: The variance of the Gaussian noise added in each diffusion step.
+
+# Keyword Arguments
+ - `res_net_layers::Int`: The number of residual layers.
+ - `hidden_layers::Int`: The number of hidden layers in the time embedding MLP.
+ - `hidden_layer_size::Int`: The size of the hidden layers.
+ - `activation_function::Function`: The activation function to use.
+ - `max_period::AbstractFloat`: The maximum period for the time embedding.
 """
-function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}})
+function DiffusionModel(num_inputs::Int, β::Tuple{Vararg{AbstractFloat}};
+    res_net_layers::Int = 3,
+    hidden_layers::Int = 5,
+    hidden_layer_size::Int = 32,
+    activation_function::Function = swish,
+    max_period::AbstractFloat = @tabular_denoiser_default_max_period)
+
     T = length(β)
-    denoiser_model = default_denoiser_network(num_inputs, T, eltype(β))
+    denoiser_model = TabularDenoiser(num_inputs;
+        T                      = T,
+        res_net_layers         = res_net_layers,
+        hidden_layers          = hidden_layers,
+        hidden_layer_size      = hidden_layer_size,
+        activation_function    = activation_function,
+        max_period             = max_period
+    )
     return DiffusionModel(β, denoiser_model)
 end
 
@@ -80,7 +89,12 @@ end
 
 """
     GenerativeModelProtocols.DiffusionModel(
-        T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames}) 
+        T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames};
+        res_net_layers::Int = 3,
+        hidden_layers::Int = 5,
+        hidden_layer_size::Int = 32,
+        activation_function::Function = swish,
+        max_period::AbstractFloat = @tabular_denoiser_default_max_period)
         where {LayerNames, FP<:AbstractFloat}
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
@@ -93,6 +107,13 @@ This constructor initializes `β` with
  - `β_start::FP`: The variance of the Gaussian noise at the first step.
  - `β_end::FP`: The variance of the Gaussian noise at the last step.
  - `denoiser_model::TabularDenoiser{LayerNames}`: The neural network parametrizing the denoising model.
+
+# Keyword Arguments
+ - `res_net_layers::Int`: The number of residual layers.
+ - `hidden_layers::Int`: The number of hidden layers in the time embedding MLP.
+ - `hidden_layer_size::Int`: The size of the hidden layers.
+ - `activation_function::Function`: The activation function to use.
+ - `max_period::AbstractFloat`: The maximum period for the time embedding.
 """
 function DiffusionModel(T::Int, β_start::FP, β_end::FP, denoiser_model::TabularDenoiser{LayerNames}) where {LayerNames, FP<:AbstractFloat}
     return DiffusionModel(Tuple(collect(range(β_start, β_end, length=T))), denoiser_model)
@@ -100,7 +121,12 @@ end
 
 """
     GenerativeModelProtocols.DiffusionModel(
-        num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02) 
+        num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02;
+        res_net_layers::Int = 3,
+        hidden_layers::Int = 5,
+        hidden_layer_size::Int = 32,
+        activation_function::Function = swish,
+        max_period::AbstractFloat = @tabular_denoiser_default_max_period)
         where {FP<:AbstractFloat}
 
 Convenience constructor to create a `GenerativeModelProtocols.DiffusionModel`.
@@ -113,9 +139,29 @@ initializes `β` with `collect(range(β_start, β_end, length=T))`.
  - `T::Int`: The number of diffusion steps.
  - `β_start::FP`: The variance of the Gaussian noise at the first step.
  - `β_end::FP`: The variance of the Gaussian noise at the last step.
+
+# Keyword Arguments
+ - `res_net_layers::Int`: The number of residual layers.
+ - `hidden_layers::Int`: The number of hidden layers in the time embedding MLP.
+ - `hidden_layer_size::Int`: The size of the hidden layers.
+ - `activation_function::Function`: The activation function to use.
+ - `max_period::AbstractFloat`: The maximum period for the time embedding.
 """
-function DiffusionModel(num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02) where {FP<:AbstractFloat}
-    denoiser_model = default_denoiser_network(num_inputs, T, eltype(β_start))
+function DiffusionModel(num_inputs::Int, T::Int = 5, β_start::FP = 1.0E-4, β_end::FP = 0.02;
+    res_net_layers::Int = 3,
+    hidden_layers::Int = 5,
+    hidden_layer_size::Int = 32,
+    activation_function::Function = swish,
+    max_period::AbstractFloat = @tabular_denoiser_default_max_period) where {FP<:AbstractFloat}
+
+    denoiser_model = TabularDenoiser(num_inputs;
+        T                      = T,
+        res_net_layers         = res_net_layers,
+        hidden_layers          = hidden_layers,
+        hidden_layer_size      = hidden_layer_size,
+        activation_function    = activation_function,
+        max_period             = max_period
+    )
     return DiffusionModel(T, β_start, β_end, denoiser_model)
 end
 
