@@ -3,42 +3,46 @@ macro _vae_default_activation_function()
 end
 
 function _vae_default_encoder_final_network(num_inputs::Int, latent_dim::Int, 
-    hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
     
-    return Chain(
-        Dense(num_inputs => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => 2*latent_dim)
-    )
+    if hidden_layers == 0
+        return Chain(Dense(num_inputs => 2*latent_dim))
+    else
+        layers = (Dense(num_inputs => hidden_layer_size, activation_function),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+        end
+        layers = (layers..., Dense(hidden_layer_size => 2*latent_dim))
+        return Chain(layers...)
+    end
 end
 
-function _vae_default_encoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 32, 
-    activation_function::Function = @_vae_default_activation_function)
+function _vae_default_encoder_mid_network(latent_dim::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
     
-    return Chain(
-        Dense(latent_dim => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => 2*latent_dim)
-    )
+    if hidden_layers == 0
+        return Chain(Dense(latent_dim => 2*latent_dim))
+    else
+        layers = (Dense(latent_dim => hidden_layer_size, activation_function),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+        end
+        layers = (layers..., Dense(hidden_layer_size => 2*latent_dim))
+        return Chain(layers...)
+    end
 end
 
 function _vae_default_encoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, 
-    hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
     encoders = Vector{Chain}(undef, latent_layers)
     
     encoders[1] = _vae_default_encoder_final_network(
-        num_inputs, latent_dim, hidden_layer_size, activation_function
+        num_inputs, latent_dim, hidden_layers, hidden_layer_size, activation_function
     )
 
     if latent_layers > 1
         encoders[2:end] = [
-            _vae_default_encoder_mid_network(latent_dim, hidden_layer_size, activation_function) 
+            _vae_default_encoder_mid_network(latent_dim, hidden_layers - 1, hidden_layer_size, activation_function)
             for _ in 1:(latent_layers-1)
         ]
     end
@@ -47,42 +51,46 @@ function _vae_default_encoder_network(num_inputs::Int, latent_dim::Int, latent_l
 end
 
 function _vae_default_decoder_final_network(num_inputs::Int, latent_dim::Int, 
-    hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
     
-    return Chain(
-        Dense(latent_dim => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => num_inputs)
-    )
+    if hidden_layers == 0
+        return Chain(Dense(latent_dim => num_inputs))
+    else
+        layers = (Dense(latent_dim => hidden_layer_size, activation_function),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+        end
+        layers = (layers..., Dense(hidden_layer_size => num_inputs))
+        return Chain(layers...)
+    end
 end
 
-function _vae_default_decoder_mid_network(latent_dim::Int, hidden_layer_size::Int = 32, 
-    activation_function::Function = @_vae_default_activation_function)
+function _vae_default_decoder_mid_network(latent_dim::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
     
-    return Chain(
-        Dense(latent_dim => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function),
-        Dense(hidden_layer_size => 2*latent_dim)
-    )
+    if hidden_layers == 0
+        return Chain(Dense(latent_dim => 2*latent_dim))
+    else
+        layers = (Dense(latent_dim => hidden_layer_size, activation_function),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function))
+        end
+        layers = (layers..., Dense(hidden_layer_size => 2*latent_dim))
+        return Chain(layers...)
+    end
 end
 
 function _vae_default_decoder_network(num_inputs::Int, latent_dim::Int, latent_layers::Int, 
-    hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
     
     decoders = Vector{Chain}(undef, latent_layers)
     decoders[1] = _vae_default_decoder_final_network(
-        num_inputs, latent_dim, hidden_layer_size, activation_function
+        num_inputs, latent_dim, hidden_layers, hidden_layer_size, activation_function
     )
 
     if latent_layers > 1
         decoders[2:end] = [_vae_default_decoder_mid_network(
-            latent_dim, hidden_layer_size, activation_function) 
+            latent_dim, hidden_layers - 1, hidden_layer_size, activation_function)
             for _ in 1:(latent_layers-1)
         ]
     end
@@ -214,11 +222,18 @@ decoder network architectures.
  - `input_dim::Int`: The dimensionality of the input data.
  - `latent_dim::Int`: The dimensionality of the latent space(s) (default is 1).
  - `latent_layers::Int`: The number of latent layers (default is 1).
+
+ # Keyword Arguments
+ - `hidden_layers::Int`: The number of hidden layers (default is 1).
+ - `hidden_layer_size::Int`: The size of each hidden layer (default is 32).
+ - `activation_function::Function`: The activation function (default is `@_vae_default_activation_function`).
 """
-function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1)
+function VariationalAutoencoder(input_dim::Int, latent_dim::Int = 1, latent_layers::Int = 1;
+    hidden_layers::Int = 5, hidden_layer_size::Int = 32, activation_function::Function = @_vae_default_activation_function)
+
     return VariationalAutoencoder(
-        _vae_default_encoder_network(input_dim, latent_dim, latent_layers),
-        _vae_default_decoder_network(input_dim, latent_dim, latent_layers)
+        _vae_default_encoder_network(input_dim, latent_dim, latent_layers, hidden_layers, hidden_layer_size, activation_function),
+        _vae_default_decoder_network(input_dim, latent_dim, latent_layers, hidden_layers, hidden_layer_size, activation_function)
     )
 end
 
@@ -600,4 +615,3 @@ end
 function _eval(model::VariationalAutoencoder)
     return _eval(model, 1)[:]
 end
-

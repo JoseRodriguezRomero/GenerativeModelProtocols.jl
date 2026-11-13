@@ -2,15 +2,19 @@ macro _gmm_default_activation_function()
     return swish
 end
 
-function _gmm_default_predictor_network(input_size::Int, k::Int, hidden_layer_size::Int = 32, activation_function::Function = @_gmm_default_activation_function)
-    return Chain(
-        Dense(input_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32),
-        Dense(hidden_layer_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32),
-        Dense(hidden_layer_size => k)
-    )
+function _gmm_default_predictor_network(input_size::Int, k::Int,
+    hidden_layers::Int, hidden_layer_size::Int, activation_function::Function)
+
+    if hidden_layers == 0
+        return Chain(Dense(input_size => k))
+    else
+        layers = (Dense(input_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32),)
+        for _ in 1:(hidden_layers - 1)
+            layers = (layers..., Dense(hidden_layer_size => hidden_layer_size, activation_function; init_weight=Lux.kaiming_uniform, init_bias=Lux.zeros32))
+        end
+        layers = (layers..., Dense(hidden_layer_size => k))
+        return Chain(layers...)
+    end
 end
 
 function compatible_gmm_model(log_σ²::Matrix{F}, μ::Matrix{F}, predictor_network::Chain, p::Vector{F}) where {F<:AbstractFloat}
@@ -89,7 +93,10 @@ end
 GaussianMixtureModel{F}(args...; kwargs...) where {F<:AbstractFloat} = GaussianMixtureModel(args...; kwargs...)
 
 """
-    GenerativeModelProtocols.GaussianMixtureModel(input_size::Int, k::Int)
+    GenerativeModelProtocols.GaussianMixtureModel(input_size::Int, k::Int;
+        hidden_layers::Int = 5,
+        hidden_layer_size::Int = 32,
+        activation_function::Function = @_gmm_default_activation_function)
 
 Convenience constructor that creates a 
 `GenerativeModelProtocols.GaussianMixtureModel` using default predictor network 
@@ -98,13 +105,22 @@ architecture.
 # Arguments
  - `input_size::Int`: The dimensionality of the input data.
  - `k::Int`: The number of Gaussian clusters in the model.
+
+# Keyword Arguments
+ - `hidden_layers::Int`: The number of hidden layers in the predictor network.
+ - `hidden_layer_size::Int`: The number of hidden units in the predictor network.
+ - `activation_function::Function`: The activation function used in the predictor network.
 """
-function GaussianMixtureModel(input_size::Int, k::Int)
+function GaussianMixtureModel(input_size::Int, k::Int;
+    hidden_layers::Int            = 5,
+    hidden_layer_size::Int        = 32,
+    activation_function::Function = @_gmm_default_activation_function)
+
     return GaussianMixtureModel(;
-        log_σ²              = zeros(Float64,k,input_size),
-        μ                   = zeros(Float64,k,input_size),
-        predictor_network   = _gmm_default_predictor_network(input_size,k),
-        p                   = ones(Float64,k) ./ Float64(k)
+        log_σ²            = zeros(Float64,k,input_size),
+        μ                 = zeros(Float64,k,input_size),
+        predictor_network = _gmm_default_predictor_network(input_size, k, hidden_layers, hidden_layer_size, activation_function),
+        p                 = ones(Float64,k) ./ Float64(k)
     )
 end
 
@@ -354,4 +370,3 @@ function _categorize(model::GaussianMixtureModel, x::Vector)::Vector
     T = eltype(model._ps[].predictor_network[1].weight)
     return first(model.predictor_network(T.(x), model._ps[].predictor_network, model._st[].predictor_network))
 end
-
