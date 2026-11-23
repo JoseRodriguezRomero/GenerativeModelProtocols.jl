@@ -41,9 +41,9 @@ end
 """
 $TYPEDEF
 
-A protocol containing a user-specified generative model, and all of its 
-parameters needed to train it and evaluate it. By default the training of the 
-generative model is done in the CPU, however, this can be changed by setting 
+A protocol containing a user-specified generative model, and all of its
+parameters needed to train it and evaluate it. By default the training of the
+generative model is done in the CPU, however, this can be changed by setting
 `device` to a GPU device of preference.
 
 # Structure Fields
@@ -87,7 +87,7 @@ function GenerativeModelProtocol(;
 end
 
 """
-    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat}; 
+    GenerativeModelProtocol(model::M, training_data::Matrix{<:AbstractFloat};
         normalize_data::Union{
             Bool,
             Tuple{Vararg{Bool}},
@@ -95,7 +95,7 @@ end
         } = GenerativeModelProtocols.hybrid_normalization,
         kwargs...) where {M<:AbstractGenerativeModel}
 
-Convenience constructor to create a `GenerativeModelProtocol` with default 
+Convenience constructor to create a `GenerativeModelProtocol` with default
 training parameters, optimiser and compute device.
 
 # Arguments
@@ -167,6 +167,7 @@ end
 @compat public default_optimiser
 
 function _read_metadata end
+function _read_model_metadata end
 
 function _pairwise_metric_distance end
 function earth_mover_distance end
@@ -178,15 +179,22 @@ function energy_distance end
 @compat public energy_distance
 
 macro _read_metadata(saved_protocol, main_group_name, metadata_group_name)
-    return :(_read_metadata($(esc(saved_protocol)); 
-        $(main_group_name = esc(main_group_name)), 
+    return :(_read_metadata($(esc(saved_protocol));
+        $(main_group_name = esc(main_group_name)),
         $(metadata_group_name = esc(metadata_group_name))
-    )) 
+    ))
+end
+
+macro _read_model_metadata(saved_protocol, main_group_name, generative_model_group_name)
+    return :(_read_model_metadata($(esc(saved_protocol));
+        $(main_group_name = esc(main_group_name)),
+        $(generative_model_group_name = esc(generative_model_group_name))
+    ))
 end
 
 """
     GenerativeModelProtocol(saved_protocol::String;
-        main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+        main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
         metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
         generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name
     )
@@ -204,11 +212,11 @@ Load a generative model protocol from the specified saved protocol file.
  - `generative_model_group_name::String`: The name of the generative model group in the saved protocol.
 """
 function GenerativeModelProtocol(saved_protocol::String;
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
-    api_metadata, _ = @_read_metadata(saved_protocol, main_group_name, metadata_group_name)
+    model_metadata = @_read_model_metadata(saved_protocol, main_group_name, generative_model_group_name)
 
     function _gen_model(generative_model)
         if generative_model == variational_autoencoder
@@ -224,31 +232,31 @@ function GenerativeModelProtocol(saved_protocol::String;
         end
     end
 
-    model = _gen_model(api_metadata.generative_model)(saved_protocol;
+    model = _gen_model(model_metadata.generative_model)(saved_protocol;
         main_group_name             = main_group_name,
         generative_model_group_name = generative_model_group_name
     )
 
-    input_size = length(api_metadata.mean_training_data)
-    dummy_training_data = zeros(eltype(api_metadata.mean_training_data), input_size, 0)
+    input_size = length(model_metadata.mean_training_data)
+    dummy_training_data = zeros(eltype(model_metadata.mean_training_data), input_size, 0)
 
     return GenerativeModelProtocol(;
         model              = model,
         training_data      = dummy_training_data,
-        mean_training_data = api_metadata.mean_training_data,
-        var_training_data  = api_metadata.var_training_data,
-        normalize_data     = api_metadata.normalize_data
+        mean_training_data = model_metadata.mean_training_data,
+        var_training_data  = model_metadata.var_training_data,
+        normalize_data     = model_metadata.normalize_data
     )
 end
 
 """
     GenerativeModelProtocol(saved_protocol::String, training_data::Matrix{<:AbstractFloat};
-        main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+        main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
         metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
         generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name
     )
 
-Load a generative model protocol from the specified saved protocol file and 
+Load a generative model protocol from the specified saved protocol file and
 initialize it with the provided training data.
 
 **Attention**: To use this constructor first load `FileIO` and `HDF5` modules.
@@ -263,7 +271,7 @@ initialize it with the provided training data.
  - `generative_model_group_name::String`: The name of the generative model group in the saved protocol.
 """
 function GenerativeModelProtocol(saved_protocol::String, training_data::Matrix{<:AbstractFloat};
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
@@ -273,14 +281,18 @@ function GenerativeModelProtocol(saved_protocol::String, training_data::Matrix{<
         generative_model_group_name = generative_model_group_name
     )
 
-    return GenerativeModelProtocol(loaded_protocol.model, training_data; 
-        normalize_data = loaded_protocol.normalize_data
+    return GenerativeModelProtocol(;
+        model              = loaded_protocol.model,
+        training_data      = training_data,
+        mean_training_data = convert.(eltype(training_data), loaded_protocol.mean_training_data),
+        var_training_data  = convert.(eltype(training_data), loaded_protocol.var_training_data),
+        normalize_data     = loaded_protocol.normalize_data
     )
 end
 
 macro _train!(protocol, model, print_log, epochs, print_epochs, batchsize, shuffle, shuffle_epochs, optimiser, device, precision, kwargs...)
-    :(_train!($(esc(protocol)), $(esc(model)); 
-        $(print_log = esc(print_log)), 
+    :(_train!($(esc(protocol)), $(esc(model));
+        $(print_log = esc(print_log)),
         $(epochs = esc(epochs)),
         $(print_epochs = esc(print_epochs)),
         $(batchsize = esc(batchsize)),
@@ -296,7 +308,7 @@ end
 """
     train!(protocol::GenerativeModelProtocol; kwargs...)
 
-Method to train the model inside `protocol` with its `training_data`. This 
+Method to train the model inside `protocol` with its `training_data`. This
 method can be called again after it finishes to resume training.
 
 # Arguments
@@ -332,12 +344,12 @@ method can be called again after it finishes to resume training.
  - `optimiser::Tuple{<:Optimisers.AbstractRule, <:Optimisers.AbstractRule}`: The optimisers for the generator and critic for training.
 
 """
-function train!(protocol::GenerativeModelProtocol; 
+function train!(protocol::GenerativeModelProtocol;
     print_log::Bool = true, epochs::Int = 100, print_epochs::Int = 5,
     batchsize::Int = 32, shuffle::Bool = true, shuffle_epochs::Int = 100,
-    optimiser::Union{AbstractRule, 
+    optimiser::Union{AbstractRule,
     Tuple{Vararg{AbstractRule}}} = default_optimiser(protocol),
-    device::MLDataDevices.AbstractDevice = cpu_device(), 
+    device::MLDataDevices.AbstractDevice = cpu_device(),
     precision::Function = f32, kwargs...)
 
     if isempty(protocol.training_data)
@@ -414,9 +426,9 @@ end
 """
     categorize(protocol::GenerativeModelProtocol, x::Vector) -> Vector
 
-Compute the posterior probability distribution over the mixture components for a 
-given input vector `x`. Returns a vector where the k-th element represents the 
-conditional probability that the input stems from the k-th categorical cluster 
+Compute the posterior probability distribution over the mixture components for a
+given input vector `x`. Returns a vector where the k-th element represents the
+conditional probability that the input stems from the k-th categorical cluster
 of the model.
 
 # Arguments
@@ -430,10 +442,10 @@ end
 """
     categorize(protocol::GenerativeModelProtocol, x::Matrix) -> Matrix
 
-Batch compute the posterior probability distributions over the mixture 
-components for multiple input vectors. Each sample in the input matrix `x` is 
-mapped to a normalized categorical probability vector where the k-th element 
-represents the conditional probability that the sample stems from the k-th 
+Batch compute the posterior probability distributions over the mixture
+components for multiple input vectors. Each sample in the input matrix `x` is
+mapped to a normalized categorical probability vector where the k-th element
+represents the conditional probability that the sample stems from the k-th
 cluster.
 
 # Arguments
@@ -538,30 +550,40 @@ end
 
 function _save_metadata end
 
-macro _save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
-    return :(_save_metadata($(esc(file)), $(esc(protocol)); 
-        $(main_group_name = esc(main_group_name)),
-        $(metadata_group_name = esc(metadata_group_name)),
-        $(metadata = esc(metadata)),
+macro _save_metadata(file, main_group_name, metadata_group_name, metadata)
+    return :(_save_metadata($(esc(file));
+        main_group_name     = $(esc(main_group_name)),
+        metadata_group_name = $(esc(metadata_group_name)),
+        metadata            = $(esc(metadata))
     ))
 end
 
 function _save_model end
 
 macro _save_model(file, model, main_group_name, generative_model_group_name)
-    return :(_save_model($(esc(file)), $(esc(model)); 
+    return :(_save_model($(esc(file)), $(esc(model));
         $(main_group_name = esc(main_group_name)),
         $(generative_model_group_name = esc(generative_model_group_name))
     ))
 end
 
-function _save(file::String, protocol::GenerativeModelProtocol; 
+function _save_model_metadata end
+
+macro _save_model_metadata(file, protocol, main_group_name, generative_model_group_name)
+    return :(_save_model_metadata($(esc(file)), $(esc(protocol));
+        $(main_group_name = esc(main_group_name)),
+        $(generative_model_group_name = esc(generative_model_group_name))
+    ))
+end
+
+function _save(file::String, protocol::GenerativeModelProtocol;
     main_group_name::String = @default_main_group_name,
     metadata_group_name::String = @default_metadata_group_name,
     generative_model_group_name::String = @default_generative_model_group_name,
     metadata::Union{Dict{String,Any}, NamedTuple, Nothing} = nothing)
     @_save_model(file, protocol.model, main_group_name, generative_model_group_name)
-    @_save_metadata(file, protocol, main_group_name, metadata_group_name, metadata)
+    @_save_model_metadata(file, protocol, main_group_name, generative_model_group_name)
+    @_save_metadata(file, main_group_name, metadata_group_name, metadata)
 end
 
 function save end
