@@ -3,61 +3,47 @@
 using FileIO, HDF5</code></pre><p>finally, we can save an already trained model</p><pre><code class="language-julia-repl hljs">julia&gt; protocol
 GenerativeModelProtocol:
 training_data      = 2×5000 Matrix{Float64}
-mean_training_data = Tuple{Float32, Float64}
-var_training_data  = Tuple{Float32, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia&gt; protocol.model
-GenerativeModelProtocols.NormalizingFlow:
-velocity_field: 
-   Chain(
-      Dense(3 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 2)
-   )</code></pre><p>to a file named <code>file_name.h5</code> with a single function call</p><pre><code class="language-julia-repl hljs">julia&gt; save(&quot;file_name.h5&quot;, protocol)</code></pre><div style="text-align: center; margin: 0px 0;">
+GenerativeModelProtocols.DiffusionModel:
+β              = NTuple{250, Float64}
+denoiser_model = GenerativeModelProtocols.TabularDenoiser</code></pre><p>to a file named <code>file_name.h5</code> with a single function call</p><pre><code class="language-julia-repl hljs">julia&gt; save(&quot;file_name.h5&quot;, protocol)</code></pre><div style="text-align: center; margin: 0px 0;">
     <img src="../../../assets/examples/save_load/hdfview_screenshot.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
 </div><p>Likewise, we can load our saved model again with a single function call</p><pre><code class="language-julia-repl hljs">julia&gt; loaded_protocol = GenerativeModelProtocol(&quot;file_name.h5&quot;)
 GenerativeModelProtocol:
 training_data      = 2×0 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia&gt; loaded_protocol.model
-GenerativeModelProtocols.NormalizingFlow:
-velocity_field: 
-   Chain(
-      Dense(3 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 32, swish)
-      Dense(32 =&gt; 2)
-   )</code></pre><p>It is worth pointing out that saved models/protocols are stripped of their  training data. Thus, to continue traning a saved model, <code>train_data</code> must be  supplied separately by the user with</p><pre><code class="language-julia-repl hljs">julia&gt; loaded_protocol = GenerativeModelProtocol(&quot;file_name.h5&quot;, train_data)
+GenerativeModelProtocols.DiffusionModel:
+β              = NTuple{250, Float64}
+denoiser_model = GenerativeModelProtocols.TabularDenoiser</code></pre><p>It is worth pointing out that saved models/protocols are stripped of their  training data. Thus, to continue traning a saved model, <code>train_data</code> must be  supplied separately by the user with</p><pre><code class="language-julia-repl hljs">julia&gt; loaded_protocol = GenerativeModelProtocol(&quot;file_name.h5&quot;, train_data)
 GenerativeModelProtocol:
 training_data      = 2×5000 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia&gt; train!(loaded_protocol; epochs = 50);
 Training Diffusion Model...
-Epoch        1 | Mean MSE:   1.48582902e+00 
-Epoch        5 | Mean MSE:   1.43085193e+00 
-Epoch       10 | Mean MSE:   1.44327017e+00 
-Epoch       15 | Mean MSE:   1.43267012e+00 
-Epoch       20 | Mean MSE:   1.43097105e+00 
-Epoch       25 | Mean MSE:   1.43716303e+00 
-Epoch       30 | Mean MSE:   1.41456013e+00 
-Epoch       35 | Mean MSE:   1.42213919e+00 
-Epoch       40 | Mean MSE:   1.45697769e+00 
-Epoch       45 | Mean MSE:   1.40971190e+00 
-Epoch       50 | Mean MSE:   1.40970298e+00 
+Epoch       1 | Mean MSE Loss:   4.09887463E-01
+Epoch       5 | Mean MSE Loss:   3.81149679E-01
+Epoch      10 | Mean MSE Loss:   3.87548655E-01
+Epoch      15 | Mean MSE Loss:   3.75506788E-01
+Epoch      20 | Mean MSE Loss:   3.72695208E-01
+Epoch      25 | Mean MSE Loss:   3.75802636E-01
+Epoch      30 | Mean MSE Loss:   3.74438524E-01
+Epoch      35 | Mean MSE Loss:   3.89689803E-01
+Epoch      40 | Mean MSE Loss:   3.79057735E-01
+Epoch      45 | Mean MSE Loss:   3.86701316E-01
+Epoch      50 | Mean MSE Loss:   3.90410632E-01
 Training complete!
-Training took 37 seconds.</code></pre><h1 id="HDF5-Group-Names"><a class="docs-heading-anchor" href="#HDF5-Group-Names">HDF5 Group Names</a><a id="HDF5-Group-Names-1"></a><a class="docs-heading-anchor-permalink" href="#HDF5-Group-Names" title="Permalink"></a></h1><p>By default the main group name used for all saved <code>GenerativeModelProtocol</code>  instances is <code>generative_model_protocol</code>, the default group name for the trained parameters of its generative model is <code>generative_model</code> and the default group  name for all its metadata is <code>metadata</code>. However, users can easily modify all or  some of these names by simply using the corresponding key word arguments.</p><p>For example, we can save our example <code>protocol</code> with customized HDF5 group  names as</p><pre><code class="language-julia hljs">save(&quot;saved_protocol.h5&quot;, protocol;
+Training took 51 seconds.</code></pre><h1 id="HDF5-Group-Names"><a class="docs-heading-anchor" href="#HDF5-Group-Names">HDF5 Group Names</a><a id="HDF5-Group-Names-1"></a><a class="docs-heading-anchor-permalink" href="#HDF5-Group-Names" title="Permalink"></a></h1><p>By default the main group name used for all saved <code>GenerativeModelProtocol</code>  instances is <code>generative_model_protocol</code>, the default group name for the trained parameters of its generative model is <code>generative_model</code> and the default group  name for all its metadata is <code>metadata</code>. However, users can easily modify all or  some of these names by simply using the corresponding key word arguments.</p><p>For example, we can save our example <code>protocol</code> with customized HDF5 group  names as</p><pre><code class="language-julia hljs">save(&quot;saved_protocol.h5&quot;, protocol;
    main_group_name             = &quot;customized_protocol&quot;,
    metadata_group_name         = &quot;customized_metadata&quot;,
    generative_model_group_name = &quot;customized_generative_model&quot;
@@ -86,31 +72,31 @@ save(&quot;saved_protocol.h5&quot;, protocol;
 )</code></pre><div style="text-align: center; margin: 0px 0;">
     <img src="../../../assets/examples/save_load/hdfview_screenshot_metadata.png" alt="Description" style="max-width: 100% !important; width: auto !important; height: auto !important; display: inline-block; background: transparent !important; box-shadow: none !important; border: none !important;">
 </div><p>Finally, users can retrieve the saved protocol and metadata with</p><pre><code class="language-julia-repl hljs">julia&gt; saved_protocol, metadata = GenerativeModelProtocols.load(&quot;saved_protocol.h5&quot;;
-   main_group_name             = &quot;customized_protocol&quot;,
-   metadata_group_name         = &quot;customized_metadata&quot;,
-   generative_model_group_name = &quot;customized_generative_model&quot;
-);
+          main_group_name             = &quot;customized_protocol&quot;,
+          metadata_group_name         = &quot;customized_metadata&quot;,
+          generative_model_group_name = &quot;customized_generative_model&quot;
+       );
 
 julia&gt; saved_protocol
 GenerativeModelProtocol:
 training_data      = 2×0 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia&gt; metadata
 (A = 5.0, B = &quot;32&quot;, C = [1, 3])</code></pre><p>or, to continue training, with</p><pre><code class="language-julia-repl hljs">julia&gt; saved_protocol, metadata = GenerativeModelProtocols.load(&quot;saved_protocol.h5&quot;, train_data;
-   main_group_name             = &quot;customized_protocol&quot;,
-   metadata_group_name         = &quot;customized_metadata&quot;,
-   generative_model_group_name = &quot;customized_generative_model&quot;
-);
+          main_group_name             = &quot;customized_protocol&quot;,
+          metadata_group_name         = &quot;customized_metadata&quot;,
+          generative_model_group_name = &quot;customized_generative_model&quot;
+       );
 
 julia&gt; saved_protocol
 GenerativeModelProtocol:
 training_data      = 2×5000 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia&gt; metadata
-(A = 5.0, B = &quot;32&quot;, C = [1, 3])</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../data_normalization/data_normalization/">« Data Normalization</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Friday 13 November 2026 05:43">Friday 13 November 2026</span>. Using Julia version 1.13.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+(A = 5.0, B = &quot;32&quot;, C = [1, 3])</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../data_normalization/data_normalization/">« Data Normalization</a><a class="docs-footer-nextpage" href="../../../references/">References »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.20.0 on <span class="colophon-date" title="Monday 23 November 2026 21:42">Monday 23 November 2026</span>. Using Julia version 1.13.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
