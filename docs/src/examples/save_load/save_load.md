@@ -19,21 +19,14 @@ finally, we can save an already trained model
 julia> protocol
 GenerativeModelProtocol:
 training_data      = 2×5000 Matrix{Float64}
-mean_training_data = Tuple{Float32, Float64}
-var_training_data  = Tuple{Float32, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+mean_training_data = Tuple{Float64, Float64}
+var_training_data  = Tuple{Float64, Float64}
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia> protocol.model
-GenerativeModelProtocols.NormalizingFlow:
-velocity_field: 
-   Chain(
-      Dense(3 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 2)
-   )
+GenerativeModelProtocols.DiffusionModel:
+β              = NTuple{250, Float64}
+denoiser_model = GenerativeModelProtocols.TabularDenoiser
 ```
 to a file named `file_name.h5` with a single function call
 ```julia-repl
@@ -53,19 +46,12 @@ GenerativeModelProtocol:
 training_data      = 2×0 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia> loaded_protocol.model
-GenerativeModelProtocols.NormalizingFlow:
-velocity_field: 
-   Chain(
-      Dense(3 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 32, swish)
-      Dense(32 => 2)
-   )
+GenerativeModelProtocols.DiffusionModel:
+β              = NTuple{250, Float64}
+denoiser_model = GenerativeModelProtocols.TabularDenoiser
 ```
 It is worth pointing out that saved models/protocols are stripped of their 
 training data. Thus, to continue traning a saved model, `train_data` must be 
@@ -76,23 +62,23 @@ GenerativeModelProtocol:
 training_data      = 2×5000 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia> train!(loaded_protocol; epochs = 50);
 Training Diffusion Model...
-Epoch        1 | Mean MSE:   1.48582902e+00 
-Epoch        5 | Mean MSE:   1.43085193e+00 
-Epoch       10 | Mean MSE:   1.44327017e+00 
-Epoch       15 | Mean MSE:   1.43267012e+00 
-Epoch       20 | Mean MSE:   1.43097105e+00 
-Epoch       25 | Mean MSE:   1.43716303e+00 
-Epoch       30 | Mean MSE:   1.41456013e+00 
-Epoch       35 | Mean MSE:   1.42213919e+00 
-Epoch       40 | Mean MSE:   1.45697769e+00 
-Epoch       45 | Mean MSE:   1.40971190e+00 
-Epoch       50 | Mean MSE:   1.40970298e+00 
+Epoch       1 | Mean MSE Loss:   4.09887463E-01
+Epoch       5 | Mean MSE Loss:   3.81149679E-01
+Epoch      10 | Mean MSE Loss:   3.87548655E-01
+Epoch      15 | Mean MSE Loss:   3.75506788E-01
+Epoch      20 | Mean MSE Loss:   3.72695208E-01
+Epoch      25 | Mean MSE Loss:   3.75802636E-01
+Epoch      30 | Mean MSE Loss:   3.74438524E-01
+Epoch      35 | Mean MSE Loss:   3.89689803E-01
+Epoch      40 | Mean MSE Loss:   3.79057735E-01
+Epoch      45 | Mean MSE Loss:   3.86701316E-01
+Epoch      50 | Mean MSE Loss:   3.90410632E-01
 Training complete!
-Training took 37 seconds.
+Training took 51 seconds.
 ```
 
 # HDF5 Group Names
@@ -160,17 +146,17 @@ save("saved_protocol.h5", protocol;
 Finally, users can retrieve the saved protocol and metadata with
 ```julia-repl
 julia> saved_protocol, metadata = GenerativeModelProtocols.load("saved_protocol.h5";
-   main_group_name             = "customized_protocol",
-   metadata_group_name         = "customized_metadata",
-   generative_model_group_name = "customized_generative_model"
-);
+          main_group_name             = "customized_protocol",
+          metadata_group_name         = "customized_metadata",
+          generative_model_group_name = "customized_generative_model"
+       );
 
 julia> saved_protocol
 GenerativeModelProtocol:
 training_data      = 2×0 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia> metadata
 (A = 5.0, B = "32", C = [1, 3])
@@ -178,17 +164,17 @@ julia> metadata
 or, to continue training, with
 ```julia-repl
 julia> saved_protocol, metadata = GenerativeModelProtocols.load("saved_protocol.h5", train_data;
-   main_group_name             = "customized_protocol",
-   metadata_group_name         = "customized_metadata",
-   generative_model_group_name = "customized_generative_model"
-);
+          main_group_name             = "customized_protocol",
+          metadata_group_name         = "customized_metadata",
+          generative_model_group_name = "customized_generative_model"
+       );
 
 julia> saved_protocol
 GenerativeModelProtocol:
 training_data      = 2×5000 Matrix{Float64}
 mean_training_data = Tuple{Float64, Float64}
 var_training_data  = Tuple{Float64, Float64}
-model              = GenerativeModelProtocols.NormalizingFlow
+model              = GenerativeModelProtocols.DiffusionModel
 
 julia> metadata
 (A = 5.0, B = "32", C = [1, 3])
