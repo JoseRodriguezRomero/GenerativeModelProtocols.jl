@@ -17,9 +17,30 @@ function make_enum_type(enum::Enum)
     return hdf5_enum_types
 end
 
-function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String}, 
-    protocol::GenerativeModelProtocols.GenerativeModelProtocol; 
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+function GenerativeModelProtocols._save_model_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String}, protocol::GenerativeModelProtocols.GenerativeModelProtocol;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    HDF5.h5open(file.filename, "r+") do file
+        main_group = file[main_group_name]
+        generative_model_group = main_group[generative_model_group_name]
+        scalar_space = HDF5.Dataspace(HDF5.API.h5s_create(HDF5.API.H5S_SCALAR))
+
+        function write_attribute_enum(key::String, value)
+            val_dt = make_enum_type(value)
+            val_attr = HDF5.create_attribute(generative_model_group, key, val_dt, scalar_space)
+            HDF5.write_attribute(val_attr, val_dt, Integer(value))
+        end
+
+        write_attribute_enum("generative_model", GenerativeModelProtocols._generative_model(protocol))
+        HDF5.write(generative_model_group, "var_training_data", collect(protocol.var_training_data))
+        HDF5.write(generative_model_group, "mean_training_data", collect(protocol.mean_training_data))
+        HDF5.write(generative_model_group, "normalize_data", collect(protocol.normalize_data))
+    end
+end
+
+function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String};
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     metadata::Dict{String,Any} = Dict{String,Any}())
 
@@ -34,11 +55,6 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
             HDF5.write_attribute(val_attr, val_dt, Integer(value))
         end
 
-        write_attribute_enum("generative_model", GenerativeModelProtocols._generative_model(protocol))
-        HDF5.write(metadata_group, "var_training_data", collect(protocol.var_training_data))
-        HDF5.write(metadata_group, "mean_training_data", collect(protocol.mean_training_data))
-        HDF5.write(metadata_group, "normalize_data", collect(protocol.normalize_data))
-
         for metadata_key in keys(metadata)
             if typeof(metadata[metadata_key]) <: Enum
                 write_attribute_enum(metadata_key, metadata[metadata_key])
@@ -49,33 +65,47 @@ function GenerativeModelProtocols._save_metadata(file::FileIO.File{FileIO.DataFo
     end
 end
 
-function GenerativeModelProtocols._read_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String}; 
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+function GenerativeModelProtocols._read_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String};
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name)
 
     HDF5.h5open(file.filename, "r") do file
         main_group = file[main_group_name]
         metadata_group = main_group[metadata_group_name]
 
-        generative_model_map = GenerativeModelProtocols.generative_model_map()
-        generative_model = generative_model_map[UInt8(read(HDF5.attributes(metadata_group)["generative_model"]))]
-        mean_training_data = Tuple(read(metadata_group["mean_training_data"]))
-        var_training_data = Tuple(read(metadata_group["var_training_data"]))
-        normalize_data = Tuple(read(metadata_group["normalize_data"]))
-        
         meta_attrs = HDF5.attributes(metadata_group)
-        user_metadata_dict = Dict{Symbol, Any}()
-        
+        metadata_dict = Dict{Symbol, Any}()
+
         for key in keys(meta_attrs)
-            if key != "generative_model"
-                user_metadata_dict[Symbol(key)] = read(meta_attrs[key])
-            end
+            metadata_dict[Symbol(key)] = read(meta_attrs[key])
         end
 
-        user_metadata = (; user_metadata_dict...)
-        api_metadata = (; generative_model, mean_training_data, var_training_data, normalize_data)
+        return (; metadata_dict...)
+    end
+end
 
-        return api_metadata, user_metadata
+function GenerativeModelProtocols._read_model_metadata(file::FileIO.File{FileIO.DataFormat{:HDF5},String};
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    HDF5.h5open(file.filename, "r") do file
+        main_group = file[main_group_name]
+        generative_model_group = main_group[generative_model_group_name]
+        meta_attrs = HDF5.attributes(generative_model_group)
+
+        genrative_model = UInt8(read(meta_attrs["generative_model"]))
+        var_training_data = Tuple(read(generative_model_group["var_training_data"]))
+        mean_training_data = Tuple(read(generative_model_group["mean_training_data"]))
+        normalize_data = Tuple(read(generative_model_group["normalize_data"]))
+
+        metadata_dict = Dict{Symbol, Any}(
+            :generative_model => GenerativeModelProtocols.generative_model_map()[genrative_model],
+            :var_training_data => var_training_data,
+            :mean_training_data => mean_training_data,
+            :normalize_data => normalize_data
+        )
+
+        return (; metadata_dict...)
     end
 end
 
@@ -108,10 +138,10 @@ function read_group_layer_parameters(layer_group)
     W = read(layer_group["weight"])
     bias = read(layer_group["bias"])
     σ = activation_function_inverse_map[UInt8(read(HDF5.attributes(layer_group)["activation_function"]))]
-    
-    out_dims, in_dims = size(W) 
+
+    out_dims, in_dims = size(W)
     layer = Dense(in_dims => out_dims, σ)
-    
+
     ps = (weight = W, bias = bias)
 
     return layer, ps
@@ -120,13 +150,13 @@ end
 function read_group_layers_parameters(layers_group)
     n_layers = length(layers_group)
     layer_names = ["layer_$i" for i in 1:n_layers]
-    
+
     results = [read_group_layer_parameters(layers_group[name]) for name in layer_names]
-    
+
     layer_keys = Tuple(Symbol(name) for name in layer_names)
     layers_nt = NamedTuple{layer_keys}(Tuple(r[1] for r in results))
     ps_nt = NamedTuple{layer_keys}(Tuple(r[2] for r in results))
-    
+
     return layers_nt, ps_nt
 end
 
@@ -147,4 +177,3 @@ include("variational_autoencoder_HDF5Ext.jl")
 include("generative_adversarial_network_HDF5Ext.jl")
 
 end
-

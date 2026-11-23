@@ -3,9 +3,9 @@ module GenerativeModelProtocolsFileIOExt
 import GenerativeModelProtocols
 import FileIO
 
-function GenerativeModelProtocols._save_metadata(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol; 
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
-    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name, 
+function GenerativeModelProtocols._save_metadata(file_name::String;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     metadata::Union{Dict{String,Any}, NamedTuple, Nothing} = nothing)
 
     if isnothing(metadata)
@@ -14,15 +14,15 @@ function GenerativeModelProtocols._save_metadata(file_name::String, protocol::Ge
         metadata = Dict(string(k) => v for (k, v) in pairs(metadata))
     end
 
-    GenerativeModelProtocols._save_metadata(FileIO.query(file_name), protocol; 
-        main_group_name = main_group_name, 
-        metadata_group_name = metadata_group_name, 
-        metadata = metadata
+    GenerativeModelProtocols._save_metadata(FileIO.query(file_name);
+        main_group_name     = main_group_name,
+        metadata_group_name = metadata_group_name,
+        metadata            = metadata
     )
 end
 
-function GenerativeModelProtocols._read_metadata(file_name::String; 
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+function GenerativeModelProtocols._read_metadata(file_name::String;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name)
 
     return GenerativeModelProtocols._read_metadata(FileIO.query(file_name);
@@ -31,27 +31,47 @@ function GenerativeModelProtocols._read_metadata(file_name::String;
     )
 end
 
-function GenerativeModelProtocols._save_model(file_name::String, model::GenerativeModelProtocols.AbstractGenerativeModel;
+function GenerativeModelProtocols._read_model_metadata(file_name::String;
     main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
-    GenerativeModelProtocols._save_model(FileIO.query(file_name), model; 
-        main_group_name = main_group_name, 
+    return GenerativeModelProtocols._read_model_metadata(FileIO.query(file_name);
+        main_group_name             = main_group_name,
         generative_model_group_name = generative_model_group_name
     )
 end
 
-function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol; 
-    main_group_name::String = GenerativeModelProtocols.@default_main_group_name, 
+function GenerativeModelProtocols._save_model(file_name::String, model::GenerativeModelProtocols.AbstractGenerativeModel;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    GenerativeModelProtocols._save_model(FileIO.query(file_name), model;
+        main_group_name             = main_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
+end
+
+function GenerativeModelProtocols._save_model_metadata(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
+    generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
+
+    GenerativeModelProtocols._save_model_metadata(FileIO.query(file_name), protocol;
+        main_group_name             = main_group_name,
+        generative_model_group_name = generative_model_group_name
+    )
+end
+
+function FileIO.save(file_name::String, protocol::GenerativeModelProtocols.GenerativeModelProtocol;
+    main_group_name::String = GenerativeModelProtocols.@default_main_group_name,
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name,
     metadata::Union{Dict{String,Any}, NamedTuple, Nothing} = nothing)
 
-    GenerativeModelProtocols._save(file_name, protocol; 
-        main_group_name = main_group_name, 
-        metadata_group_name = metadata_group_name, 
+    GenerativeModelProtocols._save(file_name, protocol;
+        main_group_name             = main_group_name,
+        metadata_group_name         = metadata_group_name,
         generative_model_group_name = generative_model_group_name,
-        metadata = metadata
+        metadata                    = metadata
     )
 end
 
@@ -62,10 +82,10 @@ function GenerativeModelProtocols.save(file_name::String, protocol::GenerativeMo
     metadata::Union{Dict{String,Any}, NamedTuple, Nothing} = nothing)
 
     FileIO.save(file_name, protocol;
-        main_group_name = main_group_name,
-        metadata_group_name = metadata_group_name,
+        main_group_name             = main_group_name,
+        metadata_group_name         = metadata_group_name,
         generative_model_group_name = generative_model_group_name,
-        metadata = metadata
+        metadata                    = metadata
     )
 end
 
@@ -74,18 +94,18 @@ function GenerativeModelProtocols.load(file_name::String;
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
-    model = GenerativeModelProtocols.GenerativeModelProtocol(file_name;
-        main_group_name = main_group_name,
-        metadata_group_name = metadata_group_name,
+    protocol = GenerativeModelProtocols.GenerativeModelProtocol(file_name;
+        main_group_name             = main_group_name,
+        metadata_group_name         = metadata_group_name,
         generative_model_group_name = generative_model_group_name
     )
 
-    _, user_metadata = GenerativeModelProtocols._read_metadata(file_name;
-        main_group_name = main_group_name,
+    metadata = GenerativeModelProtocols._read_metadata(file_name;
+        main_group_name     = main_group_name,
         metadata_group_name = metadata_group_name
     )
 
-    return model, user_metadata
+    return protocol, metadata
 end
 
 function GenerativeModelProtocols.load(file_name::String, training_data::Matrix{<:AbstractFloat};
@@ -93,18 +113,18 @@ function GenerativeModelProtocols.load(file_name::String, training_data::Matrix{
     metadata_group_name::String = GenerativeModelProtocols.@default_metadata_group_name,
     generative_model_group_name::String = GenerativeModelProtocols.@default_generative_model_group_name)
 
-    model = GenerativeModelProtocols.GenerativeModelProtocol(file_name, training_data;
-        main_group_name = main_group_name,
-        metadata_group_name = metadata_group_name,
+    protocol = GenerativeModelProtocols.GenerativeModelProtocol(file_name, training_data;
+        main_group_name             = main_group_name,
+        metadata_group_name         = metadata_group_name,
         generative_model_group_name = generative_model_group_name
     )
 
-    _, user_metadata = GenerativeModelProtocols._read_metadata(file_name;
-        main_group_name = main_group_name,
+    metadata = GenerativeModelProtocols._read_metadata(file_name;
+        main_group_name     = main_group_name,
         metadata_group_name = metadata_group_name
     )
 
-    return model, user_metadata
+    return protocol, metadata
 end
 
 # Auxiliary scripts
@@ -118,4 +138,3 @@ include("variational_autoencoder_FileIOExt.jl")
 include("generative_adversarial_network_FileIOExt.jl")
 
 end
-
